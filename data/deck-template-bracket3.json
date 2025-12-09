@@ -1,0 +1,12 @@
+{
+  "id": "bracket3",
+  "label": "Bracket 3 (Upgraded)",
+  "categories": [
+    { "name": "lands", "min": 35, "max": 38 },
+    { "name": "ramp", "min": 8, "max": 10 },
+    { "name": "card_draw", "min": 8, "max": 10 },
+    { "name": "target_removal", "min": 6, "max": 8 },
+    { "name": "board_wipes", "min": 3, "max": 4 }
+  ]
+}
+

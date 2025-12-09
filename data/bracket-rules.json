@@ -1,0 +1,13 @@
+{
+  "brackets": {
+    "bracket3": {
+      "id": "bracket3",
+      "label": "Bracket 3 (Upgraded)",
+      "maxGameChangers": 3,
+      "allowMassLandDestruction": false,
+      "allowInfiniteTwoCardCombosBeforeTurnSix": false,
+      "maxExtraTurnCards": 3
+    }
+  }
+}
+

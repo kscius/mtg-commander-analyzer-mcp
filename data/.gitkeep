@@ -1,0 +1,11 @@
+# Data Directory
+
+This directory will contain:
+- `oracle-cards.json` - Scryfall card database
+- `rulings.json` - Scryfall rulings data
+- Custom templates for deck building strategies
+- Format-specific banlists (Commander, Duel Commander, etc.)
+- EDHREC integration data
+
+Currently empty - data files will be added in future iterations.
+

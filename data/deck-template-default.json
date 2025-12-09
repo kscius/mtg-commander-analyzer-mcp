@@ -1,0 +1,12 @@
+{
+  "id": "default",
+  "label": "Default Commander Deck Template",
+  "categories": [
+    { "name": "lands", "min": 34, "max": 41 },
+    { "name": "ramp", "min": 8, "max": 12 },
+    { "name": "target_removal", "min": 6, "max": 10 },
+    { "name": "board_wipes", "min": 2, "max": 5 },
+    { "name": "card_draw", "min": 8, "max": 12 }
+  ]
+}
+
