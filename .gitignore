@@ -35,3 +35,7 @@ coverage/
 *.tmp
 temp/
 
+# Large data files (must be downloaded separately)
+# Only ignore oracle-cards.json (exceeds GitHub 100MB limit)
+data/oracle-cards.json
+

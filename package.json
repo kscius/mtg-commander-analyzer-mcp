@@ -1,9 +1,17 @@
 {
   "name": "mtg-commander-analyzer-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open-source TypeScript library and MCP server for analyzing Magic: The Gathering Commander (EDH) decks",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kscius/mtg-commander-analyzer-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kscius/mtg-commander-analyzer-mcp/issues"
+  },
+  "homepage": "https://github.com/kscius/mtg-commander-analyzer-mcp#readme",
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/mcp/server.ts",
@@ -11,7 +19,8 @@
     "test:local": "ts-node src/testLocal.ts",
     "test:build": "ts-node src/testBuildLocal.ts",
     "test:e2e": "ts-node src/testEndToEnd.ts",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "setup": "node -e \"console.log('Please run ./setup.sh (Linux/macOS) or .\\\\setup.ps1 (Windows) to complete setup')\""
   },
   "keywords": [
     "mtg",
@@ -19,10 +28,16 @@
     "commander",
     "edh",
     "deck-analyzer",
+    "deck-builder",
     "mcp",
-    "scryfall"
+    "model-context-protocol",
+    "scryfall",
+    "edhrec",
+    "bracket",
+    "typescript",
+    "ai-tools"
   ],
-  "author": "",
+  "author": "MTG Commander Analyzer MCP Contributors",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",

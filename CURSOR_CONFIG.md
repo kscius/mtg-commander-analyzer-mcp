@@ -1,15 +1,15 @@
-# Configuración del MCP Server en Cursor
+# MCP Server Configuration in Cursor
 
-## Para Windows
+## For Windows
 
-### 1. Abrir Cursor Settings
-- Presiona `Ctrl + ,` o ve a File > Preferences > Settings
-- Busca "MCP" en el buscador
-- Click en **"Edit in settings.json"** en la opción **"Mcp: Servers"**
+### 1. Open Cursor Settings
+- Press `Ctrl + ,` or go to File > Preferences > Settings
+- Search for "MCP"
+- Click **"Edit in settings.json"** in the **"Mcp: Servers"** option
 
-### 2. Agregar esta configuración
+### 2. Add this configuration
 
-**En `settings.json` (User Settings):**
+**In `settings.json` (User Settings):**
 
 ```json
 {
@@ -23,23 +23,23 @@
 }
 ```
 
-⚠️ **IMPORTANTE**: 
-- Usa **doble backslash** (`\\`) en rutas de Windows
-- Ajusta `cwd` a la ruta donde clonaste este proyecto
-- Asegúrate de que npm esté en el PATH del sistema
+⚠️ **IMPORTANT**: 
+- Use **double backslashes** (`\\`) in Windows paths
+- Adjust `cwd` to the path where you cloned this project
+- Make sure npm is in your system PATH
 
-### 3. Reiniciar Cursor
-- Cierra Cursor completamente
-- Vuelve a abrir
+### 3. Restart Cursor
+- Close Cursor completely
+- Open again
 
-### 4. Verificar que funciona
-- Abre un nuevo chat en Cursor
-- Pregunta: "¿Qué herramientas MCP tienes disponibles?"
-- Deberías ver `analyze_deck` y `build_deck_from_commander`
+### 4. Verify it works
+- Open a new chat in Cursor
+- Ask: "What MCP tools do you have available?"
+- You should see `analyze_deck` and `build_deck_from_commander`
 
 ---
 
-## Para Linux/macOS
+## For Linux/macOS
 
 ```json
 {
@@ -57,16 +57,16 @@
 
 ## Troubleshooting
 
-### Error: "npm no encontrado"
+### Error: "npm not found"
 
-**Solución 1:** Usar ruta completa de npm
+**Solution 1:** Use full npm path
 
-En PowerShell, encuentra la ruta:
+In PowerShell, find the path:
 ```powershell
 (Get-Command npm).Source
 ```
 
-Luego úsala en la configuración:
+Then use it in configuration:
 ```json
 {
   "mcp.servers": {
@@ -79,62 +79,62 @@ Luego úsala en la configuración:
 }
 ```
 
-**Solución 2:** Instalar Node.js
-- Descarga desde [nodejs.org](https://nodejs.org)
-- Instala la versión LTS
-- Reinicia Cursor
+**Solution 2:** Install Node.js
+- Download from [nodejs.org](https://nodejs.org)
+- Install LTS version
+- Restart Cursor
 
-### Error: "ts-node no encontrado"
+### Error: "ts-node not found"
 
-Asegúrate de haber instalado las dependencias:
+Make sure you've installed dependencies:
 ```bash
 cd C:\Development\mtg-commander-analyzer-mcp
 npm install
 ```
 
-### El servidor no responde
+### Server doesn't respond
 
-1. Verifica que el servidor corre manualmente:
+1. Verify the server runs manually:
    ```bash
    cd C:\Development\mtg-commander-analyzer-mcp
    npm run mcp
    ```
-   Deberías ver: "MTG Commander Analyzer MCP Server starting..."
+   You should see: "MTG Commander Analyzer MCP Server starting..."
 
-2. Revisa los logs de Cursor:
+2. Check Cursor logs:
    - Help > Toggle Developer Tools > Console
 
 ---
 
-## Herramientas Disponibles
+## Available Tools
 
-Una vez configurado, tendrás acceso a:
+Once configured, you'll have access to:
 
 ### 1. `analyze_deck`
-Analiza un decklist Commander existente con validación de Bracket 3.
+Analyzes an existing Commander decklist with Bracket 3 validation.
 
-**Ejemplo de uso en Cursor:**
+**Example usage in Cursor:**
 ```
-Analiza este deck usando analyze_deck:
+Analyze this deck using analyze_deck:
 1 Sol Ring
 1 Command Tower
 ...
 ```
 
 ### 2. `build_deck_from_commander`
-Construye un deck desde un comandante con EDHREC autofill.
+Builds a deck from a commander with EDHREC autofill.
 
-**Ejemplo de uso en Cursor:**
+**Example usage in Cursor:**
 ```
-Construye un deck de Atraxa, Praetors' Voice usando build_deck_from_commander
-con template bracket3 y autofill de EDHREC
+Build a deck for Atraxa, Praetors' Voice using build_deck_from_commander
+with bracket3 template and EDHREC autofill
 ```
 
 ---
 
-## Configuración Alternativa (Claude Desktop)
+## Alternative Configuration (Claude Desktop)
 
-Si usas Claude Desktop en lugar de Cursor, edita:
+If using Claude Desktop instead of Cursor, edit:
 
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -154,9 +154,8 @@ Si usas Claude Desktop en lugar de Cursor, edita:
 
 ---
 
-## Referencias
+## References
 
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [Cursor Documentation](https://cursor.sh/docs)
-

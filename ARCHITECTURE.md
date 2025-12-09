@@ -1,207 +1,199 @@
-# Arquitectura del Proyecto
+# Project Architecture
 
-## Visión General
+## Overview
 
-`mtg-commander-analyzer-mcp` es una biblioteca TypeScript modular diseñada para analizar y construir mazos Commander de Magic: The Gathering, con capacidad de exposición como servidor MCP.
+`mtg-commander-analyzer-mcp` is a modular TypeScript library designed to analyze and build Magic: The Gathering Commander decks, with the capability to be exposed as an MCP server.
 
-## Principios de Diseño
+## Design Principles
 
-### 1. Separación de Responsabilidades
+### 1. Separation of Concerns
 
-- **`src/core/`**: Lógica de negocio pura, independiente de protocolos
-  - Sin dependencias de MCP
-  - Funciones puras y testables
-  - Puede usarse como biblioteca standalone
+- **`src/core/`**: Pure business logic, protocol-independent
+  - No MCP dependencies
+  - Pure and testable functions
+  - Can be used as a standalone library
 
-- **`src/mcp/`**: Capa de protocolo/servidor
-  - Orquesta llamadas a `core/`
-  - Maneja I/O (stdin/stdout)
-  - Futura implementación completa de MCP SDK
+- **`src/mcp/`**: Protocol/server layer
+  - Orchestrates calls to `core/`
+  - Handles I/O (stdin/stdout)
+  - Full MCP SDK implementation
 
-### 2. Tipado Estricto
+### 2. Strict Typing
 
-- TypeScript en modo `strict`
-- Interfaces explícitas para todos los contratos de datos
-- Type guards para validación en runtime cuando sea necesario
+- TypeScript in `strict` mode
+- Explicit interfaces for all data contracts
+- Type guards for runtime validation when necessary
 
-### 3. Modularidad
+### 3. Modularity
 
-Cada módulo tiene una responsabilidad única:
-
-```
-deckParser.ts    → Parsing de texto plano a estructura de datos
-analyzer.ts      → Análisis y validación de mazos
-scryfall.ts      → (futuro) Integración con API Scryfall
-rulesEngine.ts   → (futuro) Motor de reglas de formato
-edhrec.ts        → (futuro) Integración con datos EDHREC
-```
-
-## Flujo de Datos (v0.1.0)
+Each module has a single responsibility:
 
 ```
-Entrada (stdin)
+deckParser.ts    → Parsing plain text to data structures
+analyzer.ts      → Deck analysis and validation
+scryfall.ts      → Scryfall API integration
+rulesEngine.ts   → Format rules engine (future)
+edhrec.ts        → EDHREC data integration
+```
+
+## Data Flow (v0.2.0)
+
+```
+Input (stdin)
     ↓
-[server.ts] - Lee stdin completo
+[server.ts] - Reads complete stdin
     ↓
 [deckParser.ts] - parseDeckText(deckText)
     ↓
 ParsedDeck { cards[], commanderName? }
     ↓
-[analyzer.ts] - basicAnalyzeDeck(parsed)
+[analyzer.ts] - analyzeDeckBasic(parsed)
     ↓
 DeckAnalysis { totalCards, uniqueCards, categoryCounts, notes }
     ↓
-[server.ts] - Formatea como JSON + metadata
+[server.ts] - Formats as JSON + metadata
     ↓
-Salida (stdout)
+Output (stdout)
 ```
 
-## Tipos de Datos Principales
+## Main Data Types
 
 ### ParsedCardEntry
 ```typescript
 {
-  rawLine: string;      // Línea original del deck
-  quantity: number;     // Cantidad de copias
-  name: string;         // Nombre de la carta
+  rawLine: string;      // Original deck line
+  quantity: number;     // Number of copies
+  name: string;         // Card name
 }
 ```
 
 ### ParsedDeck
 ```typescript
 {
-  commanderName?: string;          // Comandante (futuro)
-  cards: ParsedCardEntry[];        // Cartas del mazo
+  commanderName?: string;          // Commander (future)
+  cards: ParsedCardEntry[];        // Deck cards
 }
 ```
 
 ### DeckAnalysis
 ```typescript
 {
-  totalCards: number;              // Total de cartas
-  uniqueCards: number;             // Cartas únicas
+  totalCards: number;              // Total cards
+  uniqueCards: number;             // Unique cards
   categoryCounts: {
-    lands: CategoryCount;          // Análisis de tierras
+    lands: CategoryCount;          // Land analysis
   };
-  notes: string[];                 // Notas y advertencias
+  notes: string[];                 // Notes and warnings
 }
 ```
 
 ### CategoryCount
 ```typescript
 {
-  count: number;                   // Cantidad actual
-  min: number;                     // Mínimo recomendado
-  max: number;                     // Máximo recomendado
+  count: number;                   // Current quantity
+  min: number;                     // Recommended minimum
+  max: number;                     // Recommended maximum
 }
 ```
 
-## Dependencias
+## Dependencies
 
-### Producción
-- (Ninguna aún - core es puro TypeScript)
+### Production
+- `@modelcontextprotocol/sdk` ^1.24.3 - MCP protocol
+- `zod` ^4.1.13 - Schema validation
 
-### Desarrollo
+### Development
 - `typescript` ^5.0.0
 - `ts-node` ^10.9.0
 - `@types/node` ^20.0.0
 
-### Futuras
-- `@modelcontextprotocol/sdk` - Para MCP completo
-- Cliente HTTP para Scryfall API
-- Sistema de cache para datos de Scryfall
+### Future
+- HTTP client for Scryfall API
+- Caching system for Scryfall data
 
-## Scripts NPM
+## NPM Scripts
 
 ```json
 {
-  "build": "tsc",                    // Compilar a dist/
-  "dev": "ts-node src/mcp/server.ts", // Servidor pseudo-MCP
-  "test:local": "ts-node src/testLocal.ts" // Demo local
+  "build": "tsc",                     // Compile to dist/
+  "dev": "ts-node src/mcp/server.ts",  // MCP server
+  "mcp": "ts-node src/mcp/server.ts",  // MCP server
+  "test:local": "ts-node src/testLocal.ts",      // Local demo
+  "test:build": "ts-node src/testBuildLocal.ts", // Build demo
+  "test:e2e": "ts-node src/testEndToEnd.ts"      // End-to-end test
 }
 ```
 
-## Roadmap Técnico
+## Technical Roadmap
 
-### v0.2.0 - Integración Scryfall
-- Descargar y cachear `oracle-cards.json`
-- Implementar búsqueda de cartas por nombre
-- Detectar tipos de carta (land, creature, etc.)
-- Validar identidad de color
-
-### v0.3.0 - Análisis Avanzado
-- Curva de maná
-- Distribución por tipo
-- Detección de sinergias básicas
-- Motor de reglas de formato
-
-### v0.4.0 - Constructor de Mazos
-- Templates por arquetipos
-- Generación desde comandante + estrategia
-- Integración con datos EDHREC
-
-### v1.0.0 - MCP Server Completo
-- Implementación completa de MCP SDK
-- Tools: `analyze_deck`, `build_deck_from_commander`, `get_commander_strategies`
-- Resources: base de datos Scryfall
-- Prompts: sugerencias inteligentes
+### v0.3.0+ - Advanced Features
+- Commander-specific EDHREC endpoints
+- Theme detection and thematic autofill
+- Mana curve analysis
+- Infinite combo detection
+- Support for other brackets (1, 2, 4)
+- Additional MCP tool: `optimize_deck`
+- MCP Resources: direct Scryfall data access
+- MCP Prompts: contextual suggestions
 
 ## Testing Strategy
 
-### v0.1.0 (Actual)
-- Testing manual con `testLocal.ts`
-- Validación con ejemplos conocidos
+### Current (v0.2.0)
+- Manual testing with `testLocal.ts`, `testBuildLocal.ts`
+- Validation with known examples
+- End-to-end testing with `testEndToEnd.ts`
 
-### Futuro
-- Unit tests con Jest
-- Integration tests para MCP tools
-- Snapshots de análisis para regresión
-- Property-based testing para parser
+### Future
+- Unit tests with Jest
+- Integration tests for MCP tools
+- Analysis snapshots for regression
+- Property-based testing for parser
 
-## Decisiones de Diseño
+## Design Decisions
 
-### ¿Por qué no detectar el comandante automáticamente?
-**Decisión**: Pospuesto a v0.2.0 (requiere Scryfall)
+### Why not auto-detect the commander?
+**Decision**: Implemented in v0.2.0
 
-Necesitamos validar que una carta es legendaria y de tipo criatura/planeswalker. Esto requiere acceso a los tipos de carta desde Scryfall.
+Commander detection requires validation that a card is legendary and of type creature/planeswalker. This requires access to card types from Scryfall.
 
-### ¿Por qué stdin/stdout en lugar de MCP completo?
-**Decisión**: Iteración progresiva
+### Why MCP over REST API?
+**Decision**: MCP for AI integration
 
-- v0.1.0: Pseudo-servidor para validar lógica core
-- v0.2.0+: Migración a MCP SDK real
+- MCP provides native integration with AI assistants (Cursor, Claude)
+- Standardized protocol for tool discovery and invocation
+- Better suited for conversational interfaces
+- Can still expose REST API in parallel if needed
 
-Esto permite desarrollo incremental sin bloquear en integración de SDK.
+### Why TypeScript and not JavaScript?
+**Decision**: Type safety + Developer Experience
 
-### ¿Por qué TypeScript y no JavaScript?
-**Decisión**: Seguridad de tipos + DX
+Deck analysis requires complex data manipulation. TypeScript prevents errors at compile time and improves the development experience.
 
-El análisis de mazos requiere manipulación compleja de datos. TypeScript previene errores en compilación y mejora la experiencia de desarrollo.
-
-## Convenciones de Código
+## Code Conventions
 
 ### Naming
-- **Interfaces**: PascalCase (ej: `ParsedDeck`)
-- **Funciones**: camelCase (ej: `parseDeckText`)
-- **Constantes**: UPPER_SNAKE_CASE (ej: `COMMANDER_DECK_SIZE`)
+- **Interfaces**: PascalCase (e.g., `ParsedDeck`)
+- **Functions**: camelCase (e.g., `parseDeckText`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `COMMANDER_DECK_SIZE`)
 
-### Comentarios
-- JSDoc para funciones exportadas
-- Inline comments para lógica compleja
-- Ejemplos en JSDoc cuando sea útil
+### Comments
+- JSDoc for exported functions
+- Inline comments for complex logic
+- Examples in JSDoc when useful
 
 ### Imports
-- Preferir imports nombrados
-- Agrupar por: externos → internos → tipos
+- Prefer named imports
+- Group by: external → internal → types
 
-### Manejo de Errores
-- Por ahora: validación permisiva (ignorar líneas inválidas)
-- Futuro: errores tipados y recuperación explícita
+### Error Handling
+- Typed errors and explicit recovery
+- Graceful degradation when possible
+- Clear error messages for users
 
-## Referencias
+## References
 
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [Scryfall API Docs](https://scryfall.com/docs/api)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [EDHREC](https://edhrec.com/)
-
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)

@@ -1,81 +1,129 @@
 # MTG Commander Deck Analyzer - MCP
 
-> 🎉 **Estado actual:** v0.2.0 - MCP Server completo con análisis avanzado, EDHREC integration, y deck building con autofill
+> 🎉 **Current Status:** v0.2.0 - Complete MCP Server with advanced analysis, EDHREC integration, and deck building with autofill
 
-Biblioteca TypeScript de código abierto y servidor MCP para analizar y construir mazos Commander (EDH) de Magic: The Gathering.
+Open-source TypeScript library and MCP server for analyzing and building Magic: The Gathering Commander (EDH) decks.
 
-## 🎯 Objetivo del Proyecto
+## 🎯 Project Goals
 
-Proporcionar herramientas automatizadas para:
-- **Analizar mazos existentes**: validación de formato, categorización de cartas, análisis de brackets
-- **Construir mazos desde cero**: generación basada en comandante con EDHREC autofill
-- **Sugerir optimizaciones**: recomendaciones basadas en datos de EDHREC y Bracket 3
+Provide automated tools to:
+- **Analyze existing decks**: format validation, card categorization, bracket analysis
+- **Build decks from scratch**: commander-based generation with EDHREC autofill
+- **Suggest optimizations**: recommendations based on EDHREC data and Bracket 3 rules
 
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
 ```
 mtg-commander-analyzer-mcp/
 ├── src/
-│   ├── core/                    # Lógica de negocio
-│   │   ├── deckParser.ts        # Parser de decklists
-│   │   ├── analyzer.ts          # Análisis avanzado de mazos
-│   │   ├── deckBuilder.ts       # Constructor de mazos
-│   │   ├── scryfall.ts          # Integración Scryfall
-│   │   ├── edhrec.ts            # Integración EDHREC
-│   │   ├── roles.ts             # Clasificación de roles
-│   │   ├── templates.ts         # Templates de deck
-│   │   ├── brackets.ts          # Reglas de brackets
-│   │   ├── bracketCards.ts      # Listas de cartas por bracket
-│   │   ├── categoryUtils.ts     # Utilidades de categorías
+│   ├── core/                    # Business logic
+│   │   ├── deckParser.ts        # Decklist parser
+│   │   ├── analyzer.ts          # Advanced deck analysis
+│   │   ├── deckBuilder.ts       # Deck builder
+│   │   ├── scryfall.ts          # Scryfall integration
+│   │   ├── edhrec.ts            # EDHREC integration
+│   │   ├── roles.ts             # Role classification
+│   │   ├── templates.ts         # Deck templates
+│   │   ├── brackets.ts          # Bracket rules
+│   │   ├── bracketCards.ts      # Card lists by bracket
+│   │   ├── categoryUtils.ts     # Category utilities
 │   │   ├── types.ts             # TypeScript interfaces
-│   │   └── schemas.ts           # Zod schemas para MCP
+│   │   └── schemas.ts           # Zod schemas for MCP
 │   ├── mcp/                     # MCP server implementation
 │   │   ├── server.ts            # MCP server (stdio transport)
-│   │   ├── analyzeDeckTool.ts   # Herramienta analyze_deck
-│   │   └── buildDeckFromCommanderTool.ts  # Herramienta build_deck
-│   ├── testLocal.ts             # Testing de análisis
-│   └── testBuildLocal.ts        # Testing de construcción
-├── data/                        # Datos Scryfall, EDHREC, templates
-│   ├── oracle-cards.json        # Base de datos Scryfall
+│   │   ├── analyzeDeckTool.ts   # analyze_deck tool
+│   │   └── buildDeckFromCommanderTool.ts  # build_deck tool
+│   ├── testLocal.ts             # Analysis testing
+│   └── testBuildLocal.ts        # Build testing
+├── data/                        # Scryfall data, EDHREC, templates
+│   ├── oracle-cards.json        # Scryfall database (download separately)
 │   ├── templates/               # Deck templates (Bracket 3)
-│   ├── brackets/                # Reglas de brackets
-│   ├── bracket3-*.json          # Listas de cartas Bracket 3
-│   └── edhrec_structures/       # Ejemplos de EDHREC JSON
+│   ├── brackets/                # Bracket rules
+│   ├── bracket3-*.json          # Bracket 3 card lists
+│   └── edhrec_structures/       # EDHREC JSON examples
 └── package.json
 ```
 
-## 🚀 Instalación
+## 🚀 Quick Installation
+
+> 📖 **Detailed Guide**: See [INSTALLATION.md](./INSTALLATION.md) for complete instructions and troubleshooting.
+
+### 1. Clone and Install Dependencies
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/yourusername/mtg-commander-analyzer-mcp.git
+# Clone the repository
+git clone https://github.com/kscius/mtg-commander-analyzer-mcp.git
 cd mtg-commander-analyzer-mcp
 
-# Instalar dependencias
+# Install dependencies
 npm install
+```
 
-# Compilar TypeScript (opcional)
+### 2. Download Scryfall Data (REQUIRED)
+
+⚠️ **IMPORTANT**: The `oracle-cards.json` file (158 MB) is not included in the repository as it exceeds GitHub's file size limit.
+
+**Option A - Automated Setup (Recommended):**
+
+```bash
+# Linux/macOS
+chmod +x setup.sh
+./setup.sh
+
+# Windows PowerShell
+.\setup.ps1
+```
+
+The script automatically:
+- ✅ Installs npm dependencies
+- ✅ Downloads the latest Oracle Cards from Scryfall
+- ✅ Saves the file to `data/oracle-cards.json`
+
+**Option B - Manual Download:**
+
+1. Visit [Scryfall Bulk Data](https://scryfall.com/docs/api/bulk-data)
+2. In the **Oracle Cards** section, download the latest JSON file
+3. Save the file as `data/oracle-cards.json` in your project
+
+**Option C - Direct Command (Linux/macOS/Windows with curl):**
+
+```bash
+# Automatically download the latest version
+curl -L $(curl -s https://api.scryfall.com/bulk-data/oracle-cards | grep -o '"download_uri":"[^"]*' | cut -d'"' -f4) -o data/oracle-cards.json
+```
+
+**Windows PowerShell (Option C):**
+
+```powershell
+# Download with PowerShell
+$url = (Invoke-RestMethod "https://api.scryfall.com/bulk-data/oracle-cards").download_uri
+Invoke-WebRequest -Uri $url -OutFile "data/oracle-cards.json"
+```
+
+### 3. Build (Optional)
+
+```bash
 npm run build
 ```
 
-## 📖 Uso
+## 📖 Usage
 
-### MCP Server (Recomendado)
+### MCP Server (Recommended)
 
-El servidor MCP expone dos herramientas para clientes compatibles (Cursor, Claude Desktop, etc.):
+The MCP server exposes two tools for compatible clients (Cursor, Claude Desktop, etc.):
 
-**Iniciar el servidor:**
+**Start the server:**
 ```bash
 npm run mcp
 ```
 
-El servidor escucha mensajes MCP sobre stdio (stdin/stdout) y permanece activo esperando solicitudes.
+The server listens for MCP messages over stdio (stdin/stdout) and remains active awaiting requests.
 
-### Herramientas MCP Disponibles
+### Available MCP Tools
 
 #### 1. `analyze_deck`
 
-Analiza un decklist Commander existente con validación de Bracket 3.
+Analyzes an existing Commander decklist with Bracket 3 validation.
 
 **Input:**
 ```json
@@ -111,16 +159,16 @@ Analiza un decklist Commander existente con validación de Bracket 3.
 }
 ```
 
-**Características:**
-- ✅ Validación de formato Commander (99 + 1 comandante)
-- ✅ Categorización automática (lands, ramp, draw, removal, wipes)
-- ✅ Detección de roles usando Scryfall oracle text
-- ✅ Validación de Bracket 3 (Game Changers, mass land denial, extra turns)
-- ✅ Recomendaciones por categoría
+**Features:**
+- ✅ Commander format validation (99 + 1 commander)
+- ✅ Automatic categorization (lands, ramp, draw, removal, wipes)
+- ✅ Role detection using Scryfall oracle text
+- ✅ Bracket 3 validation (Game Changers, mass land denial, extra turns)
+- ✅ Category-based recommendations
 
 #### 2. `build_deck_from_commander`
 
-Construye un deck Commander desde un nombre de comandante con EDHREC autofill opcional.
+Builds a Commander deck from a commander name with optional EDHREC autofill.
 
 **Input:**
 ```json
@@ -169,34 +217,34 @@ Construye un deck Commander desde un nombre de comandante con EDHREC autofill op
 }
 ```
 
-**Características:**
-- ✅ Resolución automática de comandante desde Scryfall
-- ✅ Generación de base de lands según color identity
-- ✅ Integración con EDHREC (top cards + lands por color)
-- ✅ Autofill inteligente de categorías deficitarias
-- ✅ Respeto a constraints de Bracket 3
-- ✅ Validación de color identity
-- ✅ Clasificación de roles para todas las cartas
+**Features:**
+- ✅ Automatic commander resolution from Scryfall
+- ✅ Land base generation based on color identity
+- ✅ EDHREC integration (top cards + lands by color)
+- ✅ Intelligent autofill for deficit categories
+- ✅ Bracket 3 constraint enforcement
+- ✅ Color identity validation
+- ✅ Role classification for all cards
 
-### Testing Local
+### Local Testing
 
-**Análisis de deck:**
+**Deck analysis:**
 ```bash
 npm run test:local
 ```
 
-**Construcción de deck:**
+**Deck building:**
 ```bash
 npm run test:build
 ```
 
-Ambos scripts muestran resultados detallados en la consola.
+Both scripts display detailed results in the console.
 
-## 🔧 Configuración en Clientes MCP
+## 🔧 MCP Client Configuration
 
 ### Cursor
 
-Agrega esto a tu configuración de MCP en Cursor:
+Add this to your MCP configuration in Cursor:
 
 ```json
 {
@@ -212,7 +260,7 @@ Agrega esto a tu configuración de MCP en Cursor:
 
 ### Claude Desktop
 
-En `claude_desktop_config.json`:
+In `claude_desktop_config.json`:
 
 ```json
 {
@@ -226,86 +274,86 @@ En `claude_desktop_config.json`:
 }
 ```
 
-## 🛠️ Funcionalidad Actual (v0.2.0)
+## 🛠️ Current Functionality (v0.2.0)
 
-### ✅ Implementado
+### ✅ Implemented
 
 **Core:**
-- ✅ Parser de decklists en formato `<cantidad> <nombre>`
-- ✅ Integración completa con Scryfall (oracle-cards.json local)
-- ✅ Clasificación de roles por tipo y oracle text (ramp, draw, removal, wipes)
-- ✅ Sistema de templates (Bracket 3)
-- ✅ Reglas de Bracket 3 con listas de cartas
-- ✅ Integración con EDHREC JSON endpoints (top cards, lands por color)
-- ✅ Caching in-memory de EDHREC requests
+- ✅ Decklist parser for `<quantity> <name>` format
+- ✅ Complete Scryfall integration (local oracle-cards.json)
+- ✅ Role classification by type and oracle text (ramp, draw, removal, wipes)
+- ✅ Template system (Bracket 3)
+- ✅ Bracket 3 rules with card lists
+- ✅ EDHREC JSON endpoints integration (top cards, lands by color)
+- ✅ In-memory caching for EDHREC requests
 
-**Análisis:**
-- ✅ Validación de tamaño de deck (99 + comandante)
-- ✅ Categorización automática (lands, ramp, card_draw, removal, board_wipes)
-- ✅ Detección de Game Changers, mass land denial, extra turns
-- ✅ Comparación vs template Bracket 3
-- ✅ Warnings y recomendaciones detalladas
+**Analysis:**
+- ✅ Deck size validation (99 + commander)
+- ✅ Automatic categorization (lands, ramp, card_draw, removal, board_wipes)
+- ✅ Game Changer, mass land denial, and extra turn detection
+- ✅ Comparison vs Bracket 3 template
+- ✅ Detailed warnings and recommendations
 
-**Construcción:**
-- ✅ Generación de skeleton desde comandante
-- ✅ Distribución automática de basic lands por color identity
+**Building:**
+- ✅ Skeleton generation from commander
+- ✅ Automatic basic land distribution by color identity
 - ✅ EDHREC suggestions (top 50 cards + top 50 lands)
-- ✅ Autofill inteligente de categorías deficitarias
-- ✅ Validación de color identity
-- ✅ Respeto a Bracket 3 constraints en autofill
-- ✅ Re-análisis post-autofill
+- ✅ Intelligent autofill for deficit categories
+- ✅ Color identity validation
+- ✅ Bracket 3 constraint enforcement in autofill
+- ✅ Post-autofill re-analysis
 
 **MCP Server:**
-- ✅ Servidor MCP completo con @modelcontextprotocol/sdk
-- ✅ Stdio transport para compatibilidad universal
-- ✅ Dos herramientas: `analyze_deck`, `build_deck_from_commander`
-- ✅ Validación de inputs con zod schemas
-- ✅ Manejo de errores graceful
+- ✅ Complete MCP server with @modelcontextprotocol/sdk
+- ✅ Stdio transport for universal compatibility
+- ✅ Two tools: `analyze_deck`, `build_deck_from_commander`
+- ✅ Input validation with zod schemas
+- ✅ Graceful error handling
 
-### 🔜 Próximos Pasos (v0.3.0+)
+### 🔜 Next Steps (v0.3.0+)
 
 - [ ] Commander-specific EDHREC endpoints (`commanders/atraxa.json`)
-- [ ] Theme detection y autofill temático
-- [ ] Análisis de curva de maná
-- [ ] Detección de combos infinitos
-- [ ] Soporte para otros brackets (1, 2, 4)
-- [ ] Herramienta MCP adicional: `optimize_deck`
-- [ ] Recursos MCP: acceso directo a Scryfall data
-- [ ] Prompts MCP: sugerencias contextuales
+- [ ] Theme detection and thematic autofill
+- [ ] Mana curve analysis
+- [ ] Infinite combo detection
+- [ ] Support for other brackets (1, 2, 4)
+- [ ] Additional MCP tool: `optimize_deck`
+- [ ] MCP Resources: direct Scryfall data access
+- [ ] MCP Prompts: contextual suggestions
 
-## 📋 Reglas de Formato Commander (EDH)
+## 📋 Commander (EDH) Format Rules
 
-- **Tamaño del deck:** Exactamente 100 cartas (1 comandante + 99 cartas del mazo)
-- **Singleton:** Máximo 1 copia de cada carta (excepto básicas)
-- **Identidad de color:** Todas las cartas deben coincidir con la identidad de color del comandante
+- **Deck Size:** Exactly 100 cards (1 commander + 99 deck cards)
+- **Singleton:** Maximum 1 copy of each card (except basic lands)
+- **Color Identity:** All cards must match the commander's color identity
 - **Bracket 3 (Upgraded):**
   - Max 3 Game Changers
   - No mass land destruction
   - Limited extra turn cards
 
-## 🤝 Contribución
+## 🤝 Contributing
 
-Este es un proyecto de código abierto. Contribuciones bienvenidas:
+This is an open-source project. Contributions welcome:
 
-1. Fork del repositorio
-2. Crea una rama feature: `git checkout -b feature/nueva-funcionalidad`
-3. Commit con mensajes claros: `git commit -m "feat: agregar detección de curva de maná"`
-4. Push: `git push origin feature/nueva-funcionalidad`
-5. Abre un Pull Request
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Commit with clear messages: `git commit -m "feat: add mana curve detection"`
+4. Push: `git push origin feature/new-feature`
+5. Open a Pull Request
 
-## 📝 Convenciones de Código
+## 📝 Code Conventions
 
-- **TypeScript strict mode** habilitado
-- **Funciones puras** cuando sea posible
-- **Comentarios JSDoc** para APIs públicas
-- **Separación de responsabilidades:** core (lógica) vs mcp (protocolo)
-- **Testing:** Scripts locales antes de cada commit
+- **TypeScript strict mode** enabled
+- **Pure functions** where possible
+- **JSDoc comments** for public APIs
+- **Separation of concerns:** core (logic) vs mcp (protocol)
+- **Testing:** Local scripts before each commit
 
-## 📄 Licencia
+## 📄 License
 
-MIT License - ver archivo LICENSE para detalles
+MIT License - see LICENSE file for details
 
-## 🔗 Referencias
+## 🔗 References
 
 - [Scryfall API](https://scryfall.com/docs/api)
 - [EDHREC](https://edhrec.com/)
@@ -315,4 +363,4 @@ MIT License - ver archivo LICENSE para detalles
 
 ---
 
-**Nota:** Este proyecto es funcional y listo para usar. El MCP server está completamente implementado y compatible con cualquier cliente MCP.
+**Note:** This project is functional and ready to use. The MCP server is fully implemented and compatible with any MCP client.
