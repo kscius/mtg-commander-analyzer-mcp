@@ -561,7 +561,14 @@ export async function buildDeckWithLLM(
     const deckText = builtCards.map((c) => `1 ${c.name}`).join('\n');
     const parsedDeck = parseDeckText(deckText);
     const analysisResult = await analyzeDeckBasic(
-      { deckText, templateId, banlistId: input.banlistId, options: { inferCommander: false } },
+      {
+        deckText,
+        templateId,
+        bracketId,
+        preferredStrategy: input.preferredStrategy,
+        banlistId: input.banlistId,
+        options: { inferCommander: false },
+      },
       parsedDeck
     );
     finalAnalysis = analysisResult.analysis;

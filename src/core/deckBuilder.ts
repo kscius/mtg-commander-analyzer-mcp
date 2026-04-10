@@ -244,6 +244,8 @@ export async function buildDeckFromCommander(
   const analyzeInput: AnalyzeDeckInput = {
     deckText,
     templateId,
+    bracketId,
+    preferredStrategy: input.preferredStrategy,
     banlistId: input.banlistId,
     options: {
       inferCommander: false

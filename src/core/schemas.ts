@@ -28,6 +28,9 @@ export const AnalyzeDeckInputSchema = z.object({
   /** Bracket ID for rule enforcement (optional, defaults to "bracket3") */
   bracketId: z.string().optional().describe("Bracket ID for rule enforcement (e.g., 'bracket3')"),
   
+  /** Optional synergy/theme (e.g. tokens, voltron); echoed in analysis notes for review — not auto-scored against cards */
+  preferredStrategy: z.string().optional().describe("Optional synergy or theme label; use the same vocabulary as build_deck preferredStrategy for consistency"),
+
   /** Analysis options */
   options: z.object({
     /** Whether to infer commander from decklist (default: true) */

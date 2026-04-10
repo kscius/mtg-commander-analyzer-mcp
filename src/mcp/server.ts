@@ -82,7 +82,12 @@ const TOOLS: Tool[] = [
         },
         bracketId: {
           type: "string",
-          description: "Bracket ID for rule enforcement (e.g., 'bracket3'). Defaults to 'bracket3'.",
+          description: "Bracket ID for rule enforcement (e.g., 'bracket3'). Used with templateId when set.",
+        },
+        preferredStrategy: {
+          type: "string",
+          description:
+            "Optional synergy/theme (e.g. tokens, voltron), same idea as build_deck preferredStrategy; echoed in analysis notes for review (not auto-scored).",
         },
         options: {
           type: "object",
@@ -94,6 +99,10 @@ const TOOLS: Tool[] = [
             language: {
               type: "string",
               description: "Language for card names (e.g., 'en'). Reserved for future use.",
+            },
+            useLLMFallbackForCategories: {
+              type: "boolean",
+              description: "When true and OPENAI_API_KEY is set, use LLM to tag cards that heuristics leave uncategorized.",
             },
           },
         },

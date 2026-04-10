@@ -1,5 +1,7 @@
 # Testing
 
+For how analyze/build flows fit together, see [deck-pipeline.md](./deck-pipeline.md).
+
 ## Unit tests (Vitest)
 
 - **Run once:** `npm test` (alias: `vitest run`)

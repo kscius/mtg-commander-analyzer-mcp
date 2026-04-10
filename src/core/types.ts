@@ -35,6 +35,10 @@ export interface AnalyzeDeckInput {
   deckText: string;
   /** Optional template ID for deck building strategy */
   templateId?: string;
+  /** Bracket ID for rule enforcement (e.g. bracket3); used with template when set */
+  bracketId?: string;
+  /** Optional synergy or theme label (same idea as build_deck preferredStrategy). Echoed in result and notes for human review only — no automatic synergy score. */
+  preferredStrategy?: string;
   /** Optional banlist ID (e.g., "commander", "duel-commander") */
   banlistId?: string;
   /** Optional EDHREC URLs for additional context */
@@ -144,6 +148,10 @@ export interface AnalyzeDeckResult {
   input: {
     /** Template ID used (if any) */
     templateId?: string;
+    /** Bracket ID used for rules (if any) */
+    bracketId?: string;
+    /** Stated synergy/theme (if any) */
+    preferredStrategy?: string;
     /** Banlist ID used (if any) */
     banlistId?: string;
   };

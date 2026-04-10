@@ -2,8 +2,8 @@
  * analyzer.ts
  * 
  * Provides deck analysis for Commander (EDH) format.
- * Uses deck templates and card role classification to analyze deck composition.
- * Future: color identity, mana curve, synergy analysis, EDHREC integration.
+ * Uses deck templates, Bracket 3 validation, banlist checks, optional template lint (curve/mana_base),
+ * and tag-based categorization (heuristics + optional LLM fallback for untagged cards).
  */
 
 import {
@@ -359,18 +359,24 @@ export async function analyzeDeckBasic(
 ): Promise<AnalyzeDeckResult> {
   const notes: string[] = [];
 
-  // Load the deck template
-  const template: DeckTemplate = loadDeckTemplate(input.templateId);
+  const effectiveTemplateId = input.templateId ?? input.bracketId ?? 'bracket3';
 
-  // Try to load bracket rules if template ID matches a bracket
+  // Load the deck template (default aligns with project Bracket 3 focus)
+  const template: DeckTemplate = loadDeckTemplate(effectiveTemplateId);
+
   let bracketRules: BracketRules | null = null;
-  if (input.templateId) {
-    try {
-      bracketRules = loadBracketRules(input.templateId);
-    } catch {
-      // Template ID is not a bracket, ignore
-      bracketRules = null;
-    }
+  const bracketKey = input.bracketId ?? effectiveTemplateId;
+  try {
+    bracketRules = loadBracketRules(bracketKey);
+  } catch {
+    bracketRules = null;
+  }
+
+  const strategyLabel = input.preferredStrategy?.trim();
+  if (strategyLabel) {
+    notes.push(
+      `Stated synergy/theme: "${strategyLabel}". Review card choices for coherence with this theme (the analyzer does not auto-score thematic fit).`
+    );
   }
 
   // Calculate total cards (sum of all quantities)
@@ -406,8 +412,8 @@ export async function analyzeDeckBasic(
     categoryCounts[cat.name] = 0;
   }
 
-  const bracketId = input.templateId || 'default';
-  const tagOpts = bracketId === 'bracket3' ? getDefaultBracket3Options('bracket3') : {};
+  const tagBracket = input.bracketId ?? effectiveTemplateId;
+  const tagOpts = tagBracket === 'bracket3' ? getDefaultBracket3Options('bracket3') : {};
   const deckWithTags: CardWithTags[] = [];
 
   const useLLMFallback = input.options?.useLLMFallbackForCategories === true && isLLMClassifierAvailable();
@@ -545,7 +551,9 @@ export async function analyzeDeckBasic(
   // Build the complete AnalyzeDeckResult
   const result: AnalyzeDeckResult = {
     input: {
-      templateId: input.templateId,
+      templateId: effectiveTemplateId,
+      bracketId: input.bracketId,
+      preferredStrategy: strategyLabel,
       banlistId: input.banlistId
     },
     analysis,

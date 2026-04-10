@@ -1,8 +1,8 @@
-# Workflow state — analisis-mejoras 2026-04-10
+# Workflow state — docs sinergia + template default 2026-04-10
 
 - **status:** COMPLETED
 - **phase:** VERIFY
-- **task:** Analizar el proyecto y buscar mejoras (investigación / research)
-- **artifacts:** `intake-brief-2026-04-10-analisis-mejoras.md`, `scout-2026-04-10-mejoras-proyecto.md` (revalidado)
-- **validation:** `npm run build` → exit 0
+- **task:** Documentar explícitamente sinergia (sin score) y migración template default → bracket3
+- **artifacts:** `docs/deck-pipeline.md`, `src/core/types.ts` (JSDoc)
+- **validation:** docs-only + types comment; `npm run build` recommended
 - **blockers:** none
