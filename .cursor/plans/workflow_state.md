@@ -1,8 +1,7 @@
-# Workflow state — docs sinergia + template default 2026-04-10
+# Workflow state — mejoras llmDeckBuilder + OpenAI base URL (2026-04-10)
 
 - **status:** COMPLETED
 - **phase:** VERIFY
-- **task:** Documentar explícitamente sinergia (sin score) y migración template default → bracket3
-- **artifacts:** `docs/deck-pipeline.md`, `src/core/types.ts` (JSDoc)
-- **validation:** docs-only + types comment; `npm run build` recommended
+- **task:** Implementar mejoras de generación LLM (validación estricta, reparación, banlist prompt, OPENAI_BASE_URL, tests, docs)
+- **validation:** `npm run build`, `npm test` (23 tests)
 - **blockers:** none

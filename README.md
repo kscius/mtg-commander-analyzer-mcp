@@ -399,6 +399,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 OPENAI_MODEL=gpt-4.1
 OPENAI_TEMPERATURE=0.7
 OPENAI_MAX_TOKENS=4096
+# OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 ### 3. Available Models
@@ -497,7 +498,7 @@ In `claude_desktop_config.json`:
 **MCP Server:**
 - ✅ Complete MCP server with @modelcontextprotocol/sdk
 - ✅ Stdio transport for universal compatibility
-- ✅ Two tools: `analyze_deck`, `build_deck_from_commander`
+- ✅ Three tools: `analyze_deck`, `build_deck_from_commander`, `build_deck_with_llm` (optional OpenAI)
 - ✅ Input validation with zod schemas
 - ✅ Graceful error handling
 

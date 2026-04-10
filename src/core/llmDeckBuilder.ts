@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai';
-import { getLLMConfig, isLLMAvailable } from './llmConfig';
+import { createOpenAIClient, getLLMConfig, isLLMAvailable } from './llmConfig';
 import { getCardByName } from './scryfall';
 import { getBannedCards, isBanned } from './banlist';
 import {
@@ -30,8 +30,25 @@ import { analyzeDeckBasic } from './analyzer';
 import { runIterativeEdhrecAutofill } from './edhrecAutofill';
 import { formatDecklistText } from './deckTextFormat';
 
-/** Maximum OpenAI retry attempts on transient/validation failures */
+/** Maximum OpenAI retry attempts on transient/parse failures */
 const MAX_LLM_RETRIES = 2;
+
+/** Follow-up calls when server-side validation fails (count, bans, identity, duplicates) */
+const MAX_VALIDATION_REPAIRS = 2;
+
+const BASIC_LAND_NAMES_LOWER = new Set([
+  'plains',
+  'island',
+  'swamp',
+  'mountain',
+  'forest',
+  'wastes',
+]);
+
+/** True for English basic land names (case-insensitive). */
+export function isBasicLandName(name: string): boolean {
+  return BASIC_LAND_NAMES_LOWER.has(name.trim().toLowerCase());
+}
 
 /**
  * System prompt for the LLM deck builder
@@ -122,10 +139,13 @@ function buildUserPrompt(
     prompt += `MUST INCLUDE these cards (if legal):\n${seedCards.map(c => `- ${c}`).join('\n')}\n\n`;
   }
 
-  prompt += `BANNED CARDS (DO NOT USE):\n`;
-  prompt += bannedCards.slice(0, 50).map(c => `- ${c}`).join('\n');
-  if (bannedCards.length > 50) prompt += `\n... and ${bannedCards.length - 50} more`;
-  prompt += '\n\n';
+  prompt += `BANNED CARDS — ${bannedCards.length} total. The FULL list is enforced server-side; any banned card will fail validation.\n`;
+  prompt += `Sample names (not exhaustive — do not treat this as the complete list):\n`;
+  prompt += bannedCards.slice(0, 40).map(c => `- ${c}`).join('\n');
+  if (bannedCards.length > 40) {
+    prompt += `\n... and ${bannedCards.length - 40} more (server validates every name against the full banlist).\n`;
+  }
+  prompt += '\n';
 
   if (options?.highSaltCards && options.highSaltCards.length > 0) {
     prompt += `HIGH-SALT CARDS (avoid for better play experience):\n`;
@@ -200,9 +220,10 @@ function parseLLMResponse(response: string): {
 }
 
 /**
- * Validate the built deck
+ * Validate the LLM-generated 99-card list (commander excluded).
+ * Exported for unit tests.
  */
-function validateDeck(
+export function validateLlmGeneratedDeck(
   cards: string[],
   colorIdentity: string[],
   bannedCards: Set<string>
@@ -216,14 +237,13 @@ function validateDeck(
   }
 
   // Check for duplicates (except basic lands)
-  const basicLands = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
   const cardCounts = new Map<string, number>();
-  
+
   for (const card of cards) {
     const count = (cardCounts.get(card.toLowerCase()) || 0) + 1;
     cardCounts.set(card.toLowerCase(), count);
-    
-    if (count > 1 && !basicLands.has(card)) {
+
+    if (count > 1 && !isBasicLandName(card)) {
       errors.push(`Duplicate card: ${card}`);
     }
   }
@@ -234,15 +254,6 @@ function validateDeck(
       errors.push(`Banned card included: ${card}`);
     }
   }
-
-  // Check color identity (basic validation)
-  const colorMap: Record<string, string[]> = {
-    'W': ['white'],
-    'U': ['blue'],
-    'B': ['black'],
-    'R': ['red'],
-    'G': ['green'],
-  };
 
   // We'll do a soft check - just warn if we can't verify a card
   let unverifiedCards = 0;
@@ -311,10 +322,11 @@ async function callOpenAIWithRetry(
         );
       }
 
-      // Quick validation: must be parseable JSON with a cards array
+      // Quick validation: must be parseable JSON with exactly 99 cards
       const parsed = JSON.parse(content);
-      if (!Array.isArray(parsed.cards) || parsed.cards.length < 90) {
-        retryContext = `response had ${parsed.cards?.length ?? 0} cards, need 99`;
+      const n = Array.isArray(parsed.cards) ? parsed.cards.length : 0;
+      if (!Array.isArray(parsed.cards) || n !== 99) {
+        retryContext = `response had ${n} cards, need exactly 99`;
         lastError = new Error(retryContext);
         continue;
       }
@@ -334,6 +346,64 @@ async function callOpenAIWithRetry(
   }
 
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+const REPAIR_JSON_MAX_CHARS = 14000;
+
+/**
+ * Ask the model to fix JSON that failed validateLlmGeneratedDeck.
+ */
+async function callOpenAIValidationRepair(
+  openai: OpenAI,
+  config: ReturnType<typeof getLLMConfig>,
+  priorJson: string,
+  validationErrors: string[],
+  builderNotes: string[]
+): Promise<string> {
+  const truncated =
+    priorJson.length > REPAIR_JSON_MAX_CHARS
+      ? `${priorJson.slice(0, REPAIR_JSON_MAX_CHARS)}\n... [truncated]`
+      : priorJson;
+
+  const userContent = `Your previous JSON failed server-side validation for a Commander (99-card) deck.
+
+Fix ALL issues and return ONLY a JSON object with the same shape:
+{ "cards": [ /* exactly 99 unique card names */ ], "strategy"?: string, "keyCards"?: string[], "notes"?: string }
+
+Validation errors:
+${validationErrors.map((e) => `- ${e}`).join('\n')}
+
+Rules: exactly 99 cards; singleton except basic lands (Plains, Island, Swamp, Mountain, Forest, Wastes); no banned cards; color identity within the commander; use exact Scryfall names.
+
+Previous JSON:
+${truncated}`;
+
+  const completion = await openai.chat.completions.create({
+    model: config.model,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userContent },
+    ],
+    temperature: Math.min(config.temperature, 0.5),
+    max_tokens: config.maxTokens,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = completion.choices[0]?.message?.content || '';
+  const usage = completion.usage;
+  if (usage) {
+    builderNotes.push(
+      `✓ LLM repair response (${usage.prompt_tokens} in, ${usage.completion_tokens} out)`
+    );
+  }
+
+  const parsed = JSON.parse(content);
+  const n = Array.isArray(parsed.cards) ? parsed.cards.length : 0;
+  if (!Array.isArray(parsed.cards) || n !== 99) {
+    throw new Error(`Repair response must contain exactly 99 cards, got ${n}`);
+  }
+
+  return content;
 }
 
 /**
@@ -463,7 +533,7 @@ export async function buildDeckWithLLM(
   // Step 5: Build enriched prompt and call OpenAI with retry
   builderNotes.push(`Calling ${config.model}...`);
 
-  const openai = new OpenAI({ apiKey: config.apiKey! });
+  const openai = createOpenAIClient(config);
 
   const userPrompt = buildUserPrompt(
     commanderCard.name,
@@ -479,7 +549,7 @@ export async function buildDeckWithLLM(
     }
   );
 
-  const llmResponse = await callOpenAIWithRetry(
+  let llmResponse = await callOpenAIWithRetry(
     openai,
     config,
     SYSTEM_PROMPT,
@@ -499,14 +569,34 @@ export async function buildDeckWithLLM(
     builderNotes.push(`Strategy: ${parsedResponse.strategy}`);
   }
 
-  // Step 7: Validate deck
-  const validation = validateDeck(parsedResponse.cards, colorIdentity, bannedSet);
+  // Step 7: Validate deck; repair loop when server-side rules fail
+  let validation = validateLlmGeneratedDeck(parsedResponse.cards, colorIdentity, bannedSet);
+
+  for (let repair = 0; repair < MAX_VALIDATION_REPAIRS && !validation.valid; repair++) {
+    builderNotes.push(
+      `[LLM] Validation repair ${repair + 1}/${MAX_VALIDATION_REPAIRS} (${validation.errors.length} error(s))`
+    );
+    try {
+      llmResponse = await callOpenAIValidationRepair(
+        openai,
+        config,
+        llmResponse,
+        validation.errors,
+        builderNotes
+      );
+      parsedResponse = parseLLMResponse(llmResponse);
+      validation = validateLlmGeneratedDeck(parsedResponse.cards, colorIdentity, bannedSet);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      builderNotes.push(`[LLM] Repair attempt failed: ${msg}`);
+      break;
+    }
+  }
 
   if (!validation.valid) {
-    builderNotes.push(`⚠ Validation errors:`);
-    for (const error of validation.errors) {
-      builderNotes.push(`  - ${error}`);
-    }
+    throw new Error(
+      `LLM deck failed validation after ${MAX_VALIDATION_REPAIRS} repair attempt(s): ${validation.errors.join('; ')}`
+    );
   }
 
   for (const warning of validation.warnings) {

@@ -8,6 +8,7 @@
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
+import OpenAI from 'openai';
 
 // Load .env file from project root
 const envPath = path.join(__dirname, '..', '..', '.env');
@@ -21,6 +22,8 @@ if (fs.existsSync(envPath)) {
 export interface LLMConfig {
   /** OpenAI API key */
   apiKey: string | null;
+  /** Optional API base URL (OpenAI-compatible proxies, Azure-style endpoints) */
+  baseURL: string | null;
   /** Model to use (default: gpt-4.1) */
   model: string;
   /** Temperature for responses (0.0-2.0) */
@@ -36,14 +39,30 @@ export interface LLMConfig {
  */
 export function getLLMConfig(): LLMConfig {
   const apiKey = process.env.OPENAI_API_KEY || null;
-  
+  const rawBase = process.env.OPENAI_BASE_URL?.trim();
+  const baseURL = rawBase && rawBase.length > 0 ? rawBase : null;
+
   return {
     apiKey,
+    baseURL,
     model: process.env.OPENAI_MODEL || 'gpt-4.1',
     temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
     maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '4096', 10),
     isAvailable: !!apiKey && apiKey !== 'sk-your-api-key-here',
   };
+}
+
+/**
+ * Shared OpenAI client with optional custom base URL (see OPENAI_BASE_URL).
+ */
+export function createOpenAIClient(config: LLMConfig): OpenAI {
+  if (!config.apiKey) {
+    throw new Error('OpenAI API key required');
+  }
+  return new OpenAI({
+    apiKey: config.apiKey,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+  });
 }
 
 /**

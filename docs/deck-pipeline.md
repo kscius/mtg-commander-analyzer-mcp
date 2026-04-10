@@ -37,7 +37,7 @@ Tras construir, el mazo se **re-analiza** con el mismo analizador que `analyze_d
 
 ## Construir con LLM (`build_deck_with_llm`)
 
-Requiere **OpenAI**. Genera 99 cartas vía modelo configurado, valida banlist y Bracket 3, y analiza el resultado. Usa `BuildDeckInput` (incluye `preferredStrategy` para contexto EDHREC en el flujo interno).
+Requiere **OpenAI**. Genera 99 cartas vía modelo configurado; el servidor exige **exactamente 99** nombres en la respuesta JSON inicial y, si la validación falla (conteo, banlist, identidad de color, duplicados no básicos), se envían hasta **2** pasadas de reparación al modelo antes de devolver error. La banlist completa se aplica en servidor (el prompt solo muestra una muestra). Luego se valida Bracket 3 y se analiza el resultado. Usa `BuildDeckInput` (incluye `preferredStrategy` para contexto EDHREC en el flujo interno).
 
 ## Variables de entorno (OpenAI / LLM)
 
@@ -49,6 +49,7 @@ Definidas en `src/core/llmConfig.ts` y cargadas desde `.env` en la raíz del pro
 | `OPENAI_MODEL` | Modelo | `gpt-4.1` |
 | `OPENAI_TEMPERATURE` | Temperatura | `0.7` |
 | `OPENAI_MAX_TOKENS` | Máximo de tokens de respuesta | `4096` |
+| `OPENAI_BASE_URL` | URL base de la API (proxies compatibles con OpenAI) | (por defecto cliente OpenAI) |
 
 Copia `.env.example` a `.env` y rellena la clave. No subas `.env` al repositorio (está en `.gitignore`).
 

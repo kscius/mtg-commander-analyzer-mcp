@@ -6,7 +6,6 @@
  * EDHREC is primary source; OpenAI used as fallback for underfilled categories.
  */
 
-import OpenAI from 'openai';
 import { getCardByName, landFitsCommanderManabase, OracleCard } from './scryfall';
 import { loadDeckTemplate } from './templates';
 import { applyMetaAdaptations, type DeckTemplateValidated } from './templateSchema';
@@ -37,7 +36,7 @@ import { isBanned } from './banlist';
 import { isGameChanger, isMassLandDenial, isExtraTurnCard } from './bracketCards';
 import { loadBracketRules } from './brackets';
 import { validateBracket3, validateTwoCardCombosBeforeT6, loadCombos, Bracket3Policies, CardWithTags } from './bracket3Validation';
-import { getLLMConfig, isLLMAvailable } from './llmConfig';
+import { createOpenAIClient, getLLMConfig, isLLMAvailable } from './llmConfig';
 import type { BuiltCardEntry, BuiltDeck, CardRole } from './types';
 
 const COMMANDER_DECK_SIZE = 99;
@@ -114,7 +113,7 @@ async function requestCardNamesForCategory(
 
 Return ONLY a JSON array of card name strings, e.g. ["Sol Ring","Arcane Signet"]. Use exact Scryfall names.`;
   try {
-    const openai = new OpenAI({ apiKey: config.apiKey });
+    const openai = createOpenAIClient(config);
     const completion = await openai.chat.completions.create({
       model: config.model,
       messages: [{ role: 'user', content: prompt }],

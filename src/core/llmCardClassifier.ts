@@ -5,8 +5,7 @@
  * when heuristics (autoTags) did not assign any.
  */
 
-import OpenAI from 'openai';
-import { getLLMConfig } from './llmConfig';
+import { createOpenAIClient, getLLMConfig } from './llmConfig';
 import { ScryCard } from './autoTags';
 
 const BRACKET3_CATEGORY_TAGS = [
@@ -39,7 +38,7 @@ export async function classifyCardWithLLM(card: ScryCard): Promise<string[]> {
     return [];
   }
 
-  const openai = new OpenAI({ apiKey: config.apiKey });
+  const openai = createOpenAIClient(config);
 
   const prompt = `You are classifying a Magic: The Gathering card for Commander deck building (Bracket 3).
 
