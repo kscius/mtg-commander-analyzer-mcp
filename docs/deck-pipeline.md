@@ -31,6 +31,8 @@ Quien antes dependiera del template “default” implícito debe fijar `templat
 - **`useTemplateGenerator: false` (por defecto):** esqueleto + tierras básicas + opcional EDHREC/autofill según flags (`useEdhrec`, `useEdhrecAutofill`, `refineUntilStable`, etc.). Ver `src/core/deckBuilder.ts`.
 - **`useTemplateGenerator: true` y `templateId: bracket3`:** generación guiada por plantilla (`templateDeckGenerator`), con EDHREC y fallback LLM para huecos de categorías cuando corresponde.
 
+**Tierras (manabase) con plantilla `bracket3`:** los objetivos de mezcla y límites salen de `data/deck-template-bracket3.json` → `mana_base` (`land_mix` por buckets alineados con el analizador, `tapped_lands`, `fetch_policy`). El relleno usa un solo perfil EDHREC del comandante (cartas + tierras sugeridas), básicas ponderadas por pips del coste de maná del comandante, asignación por buckets con redondeo, orden por prioridad de página / sinergia / ranking, y reglas de tope de entrando giradas y mínimo de duals tipados antes de permitir fetches. Implementación: `src/core/templateDeckGenerator.ts`, `src/core/manabaseLandHeuristics.ts`.
+
 Tras construir, el mazo se **re-analiza** con el mismo analizador que `analyze_deck` para devolver categorías y avisos.
 
 ## Construir con LLM (`build_deck_with_llm`)

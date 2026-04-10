@@ -12,13 +12,25 @@ import { loadDeckTemplate } from './templates';
 import { applyMetaAdaptations, type DeckTemplateValidated } from './templateSchema';
 import {
   getTopCardsForColorIdentity,
-  getTopLandsForColorIdentity,
   getCardsForCommander,
   getFullCommanderProfile,
   getLandsForColorCombination,
   sortBySynergy,
   commanderNameToSlug,
 } from './edhrec';
+import type { EdhrecCardSuggestion } from './types';
+import {
+  allocateBasicsByPips,
+  applySeedLandConsumption,
+  classifyLandMixBucket,
+  computeScaledLandMixTargets,
+  countFixingDualLands,
+  countTappedAmongLandNames,
+  countsAsTappedLand,
+  mergeAndSortLandCandidates,
+  type LandMixTargets,
+} from './manabaseLandHeuristics';
+import { getPrimaryTypeLine } from './scryfallNormalize';
 import { autoTags, getDefaultBracket3Options, tagsToTemplateCategories, ScryCard } from './autoTags';
 import { classifyCardRoles } from './roles';
 import { isBanned } from './banlist';
@@ -182,46 +194,152 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
   const landsToAdd = Math.max(0, targetLandCount - seedLandCount);
   const nonLandSlotsLeft = targetNonLandCount - seedNonLandCount;
 
-  if (landsToAdd > 0) {
-    let landsAdded = 0;
-    if (colorIdentity.length === 0) {
-      for (let i = 0; i < landsToAdd; i++) {
-        if (addCard('Wastes')) landsAdded++;
-      }
-    } else {
-      const basicNames = colorIdentity.map(c => COLOR_TO_BASIC_LAND[c]).filter(Boolean) as string[];
-      const basicsCount = Math.min(landsToAdd, Math.max(1, Math.floor(landsToAdd * 0.6)));
-      const perBasic = Math.floor(basicsCount / basicNames.length) || 1;
-      for (const name of basicNames) {
-        for (let k = 0; k < perBasic && landsAdded < basicsCount; k++) {
-          if (addCard(name)) landsAdded++;
-        }
-      }
-      let utilityLeft = landsToAdd - landsAdded;
-      if (utilityLeft > 0) {
-        const landSuggestions = await getLandsForColorCombination(colorIdentity, utilityLeft + 20);
-        for (const sug of landSuggestions) {
-          if (utilityLeft <= 0) break;
-          if (isBanned(sug.name)) continue;
-          const card = getCardByName(sug.name);
-          if (!card?.type_line?.toLowerCase().includes('land')) continue;
-          if (!landFitsCommanderManabase(card, colorIdentity)) continue;
-          if (addCard(sug.name)) {
-            landsAdded++;
-            utilityLeft--;
-          }
-        }
-      }
-      while (landsAdded < landsToAdd) {
-        let prev = landsAdded;
-        for (const name of basicNames) {
-          if (landsAdded >= landsToAdd) break;
-          if (addCard(name)) landsAdded++;
-        }
-        if (landsAdded === prev) break;
+  /** EDHREC profile (cards + lands); fetched early for mana base + main pool. */
+  let profileCards: EdhrecCardSuggestion[] = [];
+  let profileLands: EdhrecCardSuggestion[] = [];
+  try {
+    const profile = await getFullCommanderProfile(commanderCard.name, colorIdentity, {
+      theme: input.preferredTheme,
+      saltThreshold: 2.5,
+      cardLimit: 150,
+      landLimit: 60,
+    });
+    profileCards = profile.cards;
+    profileLands = profile.lands;
+    if (profile.themes.length > 0) {
+      notes.push(`EDHREC themes: ${profile.themes.map(t => t.name).join(', ')}`);
+    }
+    if (profile.highSaltCards.length > 0) {
+      notes.push(`High-salt excluded: ${profile.highSaltCards.length} cards`);
+    }
+    if (input.preferredTheme) {
+      notes.push(`Using theme: ${input.preferredTheme}`);
+    }
+  } catch {
+    const slug = commanderNameToSlug(commanderCard.name);
+    const [byCommander, byColor] = await Promise.all([
+      getCardsForCommander(slug, 120),
+      getTopCardsForColorIdentity(colorIdentity, 150),
+    ]);
+    const seenP = new Set<string>();
+    for (const s of byCommander) {
+      if (!seenP.has(s.name.toLowerCase())) {
+        seenP.add(s.name.toLowerCase());
+        profileCards.push(s);
       }
     }
-    notes.push(`Lands: ${targetLandCount} (seeds ${seedLandCount} + filled ${landsToAdd}).`);
+    for (const s of byColor) {
+      if (!seenP.has(s.name.toLowerCase())) {
+        seenP.add(s.name.toLowerCase());
+        profileCards.push(s);
+      }
+    }
+    profileLands = await getLandsForColorCombination(colorIdentity, 80);
+    notes.push('EDHREC: used fallback (basic commander + color pool) for profile');
+  }
+
+  if (landsToAdd > 0) {
+    let landsAddedFill = 0;
+    if (colorIdentity.length === 0) {
+      for (let i = 0; i < landsToAdd; i++) {
+        if (addCard('Wastes')) landsAddedFill++;
+      }
+    } else {
+      const mb = template.mana_base;
+      const maxTapped = mb.tapped_lands?.max_total ?? 8;
+      const minTypedDuals = mb.fetch_policy?.min_typed_duals_total ?? 4;
+
+      let mixRemaining = applySeedLandConsumption(
+        computeScaledLandMixTargets(mb, landsToAdd),
+        builtCards.map(c => c.name),
+        getCardByName
+      );
+
+      const basicsPlan = allocateBasicsByPips(commanderCard, colorIdentity, mixRemaining.basics);
+      for (const [bName, qty] of basicsPlan) {
+        for (let q = 0; q < qty && landsAddedFill < landsToAdd; q++) {
+          if (addCard(bName)) landsAddedFill++;
+        }
+      }
+      mixRemaining.basics = 0;
+
+      const supplementLands = await getLandsForColorCombination(colorIdentity, Math.max(landsToAdd - landsAddedFill + 40, 60));
+      const commanderLandSet = new Set(profileLands.map(s => s.name.toLowerCase()));
+      const mergedLands = mergeAndSortLandCandidates(profileLands, supplementLands, commanderLandSet);
+
+      const landNamesInDeck = (): string[] =>
+        builtCards
+          .filter(e => {
+            const c = getCardByName(e.name);
+            return c && getPrimaryTypeLine(c).toLowerCase().includes('land');
+          })
+          .map(e => e.name);
+
+      const tryAddNonBasic = (sug: EdhrecCardSuggestion, ignoreBucket: boolean): boolean => {
+        if (landsAddedFill >= landsToAdd) return false;
+        if (isBanned(sug.name)) return false;
+        const card = getCardByName(sug.name);
+        if (!card?.type_line?.toLowerCase().includes('land')) return false;
+        if (!landFitsCommanderManabase(card, colorIdentity)) return false;
+        const bucket = classifyLandMixBucket(card);
+        const names = landNamesInDeck();
+        if (bucket === 'fetches' && countFixingDualLands(names, getCardByName) < minTypedDuals) {
+          return false;
+        }
+        const tappedSoFar = countTappedAmongLandNames(names, getCardByName);
+        if (countsAsTappedLand(card) && tappedSoFar >= maxTapped) {
+          return false;
+        }
+        if (!ignoreBucket) {
+          const key = bucket as keyof LandMixTargets;
+          if (mixRemaining[key] > 0) {
+            if (addCard(sug.name)) {
+              mixRemaining[key]--;
+              landsAddedFill++;
+              return true;
+            }
+            return false;
+          }
+          if (
+            bucket !== 'basics' &&
+            mixRemaining.utility_lands > 0 &&
+            bucket !== 'fetches'
+          ) {
+            if (addCard(sug.name)) {
+              mixRemaining.utility_lands--;
+              landsAddedFill++;
+              return true;
+            }
+          }
+          return false;
+        }
+        if (addCard(sug.name)) {
+          landsAddedFill++;
+          return true;
+        }
+        return false;
+      };
+
+      for (const sug of mergedLands) {
+        if (landsAddedFill >= landsToAdd) break;
+        tryAddNonBasic(sug, false);
+      }
+      for (const sug of mergedLands) {
+        if (landsAddedFill >= landsToAdd) break;
+        if (cardsInDeck.has(sug.name.toLowerCase())) continue;
+        tryAddNonBasic(sug, true);
+      }
+      const basicNamesLoop = colorIdentity.map(c => COLOR_TO_BASIC_LAND[c]).filter(Boolean) as string[];
+      while (landsAddedFill < landsToAdd) {
+        let prev = landsAddedFill;
+        for (const name of basicNamesLoop) {
+          if (landsAddedFill >= landsToAdd) break;
+          if (addCard(name)) landsAddedFill++;
+        }
+        if (landsAddedFill === prev) break;
+      }
+    }
+    notes.push(`Lands: ${targetLandCount} (seeds ${seedLandCount} + filled ${landsToAdd}; mana_base mix + EDHREC).`);
   }
 
   const nonLandCategories = template.categories.filter(c => c.name !== 'lands');
@@ -241,48 +359,7 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
   let gameChangerCount = builtCards.filter(c => isGameChanger(c.name, 'bracket3')).reduce((s, c) => s + c.quantity, 0);
   let extraTurnCount = builtCards.filter(c => isExtraTurnCard(c.name, 'bracket3')).reduce((s, c) => s + c.quantity, 0);
 
-  // Build EDHREC pool using full commander profile with theme + synergy sorting
-  let poolSuggestions: import('./types').EdhrecCardSuggestion[] = [];
-  try {
-    const profile = await getFullCommanderProfile(commanderCard.name, colorIdentity, {
-      theme: input.preferredTheme,
-      saltThreshold: 2.5,
-      cardLimit: 150,
-      landLimit: 40,
-    });
-    poolSuggestions = profile.cards;
-
-    if (profile.themes.length > 0) {
-      notes.push(`EDHREC themes: ${profile.themes.map(t => t.name).join(', ')}`);
-    }
-    if (profile.highSaltCards.length > 0) {
-      notes.push(`High-salt excluded: ${profile.highSaltCards.length} cards`);
-    }
-    if (input.preferredTheme) {
-      notes.push(`Using theme: ${input.preferredTheme}`);
-    }
-  } catch {
-    // Fallback to basic commander + color fetches
-    const slug = commanderNameToSlug(commanderCard.name);
-    const [byCommander, byColor] = await Promise.all([
-      getCardsForCommander(slug, 120),
-      getTopCardsForColorIdentity(colorIdentity, 150),
-    ]);
-    const seen2 = new Set<string>();
-    for (const s of byCommander) {
-      if (!seen2.has(s.name.toLowerCase())) {
-        seen2.add(s.name.toLowerCase());
-        poolSuggestions.push(s);
-      }
-    }
-    for (const s of byColor) {
-      if (!seen2.has(s.name.toLowerCase())) {
-        seen2.add(s.name.toLowerCase());
-        poolSuggestions.push(s);
-      }
-    }
-    notes.push('EDHREC: used fallback (basic commander + color pool)');
-  }
+  const poolSuggestions: EdhrecCardSuggestion[] = profileCards;
 
   // Sort by synergy for better card selection
   const sorted = sortBySynergy(poolSuggestions);
