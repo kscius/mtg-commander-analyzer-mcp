@@ -1,0 +1,12 @@
+{
+  "container": {
+    "json_dict": {
+      "header": {
+        "themes": [
+          { "label": "Artifacts", "value": "artifacts", "count": 800 },
+          { "label": "Voltron", "value": "voltron", "num_decks": 300 }
+        ]
+      }
+    }
+  }
+}

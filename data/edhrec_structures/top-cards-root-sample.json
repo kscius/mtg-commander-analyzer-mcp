@@ -1,0 +1,6 @@
+{
+  "cards": [
+    { "name": "Root Cards A", "rank": 1, "inclusion": 0.88 },
+    { "name": "Root Cards B", "rank": 2 }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "header": "Example combo",
+          "description": "Optional list description",
+          "color_identity": ["G", "U"],
+          "cardviews": [
+            { "name": "Basalt Monolith" },
+            { "name": "Rings of Brighthearth" }
+          ]
+        },
+        {
+          "header": "Single card only",
+          "cardviews": [{ "name": "Sol Ring" }]
+        }
+      ]
+    }
+  }
+}

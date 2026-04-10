@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
   extractEdhrecSuggestionsFromJson,
   commanderNameToSlug,
   sortBySynergy,
+  getThemesForCommander,
+  getCombosForCommander,
+  clearEdhrecCache,
 } from './edhrec';
 
 function loadFixture(name: string): unknown {
@@ -52,6 +55,14 @@ describe('extractEdhrecSuggestionsFromJson', () => {
     expect(rows[0].rank).toBe(10);
     expect(rows[1].rank).toBe(2);
   });
+
+  it('parses top-level cards array fixture', () => {
+    const json = loadFixture('top-cards-root-sample.json');
+    const rows = extractEdhrecSuggestionsFromJson(json, 'cards-root');
+    expect(rows.map((r) => r.name)).toEqual(['Root Cards A', 'Root Cards B']);
+    expect(rows[0].inclusionRate).toBeCloseTo(0.88, 5);
+    expect(rows[0].category).toBe('cards-root');
+  });
 });
 
 describe('commanderNameToSlug', () => {
@@ -68,5 +79,59 @@ describe('sortBySynergy', () => {
       { name: 'c' },
     ]);
     expect(sorted.map((s) => s.name).join(',')).toBe('b,a,c');
+  });
+});
+
+function mockFetchReturningJson(data: unknown): void {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => data,
+  } as Response);
+}
+
+describe('getThemesForCommander (fixture-backed fetch)', () => {
+  beforeEach(() => {
+    clearEdhrecCache();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reads themes from panels', async () => {
+    mockFetchReturningJson(loadFixture('commander-themes-panels-sample.json'));
+    const themes = await getThemesForCommander('any-slug');
+    expect(themes).toHaveLength(2);
+    expect(themes[0]).toMatchObject({ name: 'Tokens', slug: 'tokens', count: 4521 });
+    expect(themes[1]).toMatchObject({ name: '+1/+1 Counters', slug: '11-counters', count: 1200 });
+  });
+
+  it('reads themes from header when panels omit themes', async () => {
+    mockFetchReturningJson(loadFixture('commander-themes-header-sample.json'));
+    const themes = await getThemesForCommander('any-slug');
+    expect(themes).toHaveLength(2);
+    expect(themes[0]).toMatchObject({ name: 'Artifacts', slug: 'artifacts', count: 800 });
+    expect(themes[1]).toMatchObject({ name: 'Voltron', slug: 'voltron', count: 300 });
+  });
+});
+
+describe('getCombosForCommander (fixture-backed fetch)', () => {
+  beforeEach(() => {
+    clearEdhrecCache();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('parses combo cardlists and skips single-card lists', async () => {
+    mockFetchReturningJson(loadFixture('combos-sample.json'));
+    const combos = await getCombosForCommander('any-slug');
+    expect(combos).toHaveLength(1);
+    expect(combos[0].cards).toEqual(['Basalt Monolith', 'Rings of Brighthearth']);
+    expect(combos[0].description).toBe('Example combo');
+    expect(combos[0].colorIdentity).toEqual(['G', 'U']);
   });
 });
