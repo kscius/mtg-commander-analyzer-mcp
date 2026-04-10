@@ -28,6 +28,7 @@ import { loadBracketRules, type BracketRules } from './brackets';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
 import { runIterativeEdhrecAutofill } from './edhrecAutofill';
+import { formatDecklistText } from './deckTextFormat';
 
 /** Maximum OpenAI retry attempts on transient/validation failures */
 const MAX_LLM_RETRIES = 2;
@@ -558,7 +559,7 @@ export async function buildDeckWithLLM(
     finalAnalysis = refined.analysis;
     builderNotes.push(...refined.iterationNotes);
   } else {
-    const deckText = builtCards.map((c) => `1 ${c.name}`).join('\n');
+    const deckText = formatDecklistText(builtCards);
     const parsedDeck = parseDeckText(deckText);
     const analysisResult = await analyzeDeckBasic(
       {

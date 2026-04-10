@@ -22,6 +22,7 @@ import { classifyCardRoles } from './roles';
 import { isBanned } from './banlist';
 import { isGameChanger, isMassLandDenial, isExtraTurnCard } from './bracketCards';
 import { CardWithTags, loadCombos, validateBracket3, validateTwoCardCombosBeforeT6, Bracket3Policies } from './bracket3Validation';
+import { formatDecklistText } from './deckTextFormat';
 
 export const AUTOFILL_CATEGORY_NAMES = [
   'ramp',
@@ -43,7 +44,7 @@ function sumMainboardQuantities(cards: BuiltCardEntry[]): number {
 }
 
 function deckTextFromBuilt(cards: BuiltCardEntry[]): string {
-  return cards.flatMap((e) => Array(e.quantity).fill(`1 ${e.name}`)).join('\n');
+  return formatDecklistText(cards);
 }
 
 /**

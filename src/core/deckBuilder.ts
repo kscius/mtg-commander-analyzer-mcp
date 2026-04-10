@@ -29,6 +29,7 @@ import {
 } from './edhrec';
 import { runIterativeEdhrecAutofill, analysisHasAutomatableGaps } from './edhrecAutofill';
 import { isBanned, isBanlistAvailable, getBannedCount } from './banlist';
+import { formatDecklistText } from './deckTextFormat';
 
 /**
  * Map MTG color letters to basic land names
@@ -235,11 +236,8 @@ export async function buildDeckFromCommander(
   };
 
   // Step 9: Analyze the built deck using existing analyzer
-  // Convert BuiltDeck to deckText format for analysis
-  const deckTextLines = builtCards.flatMap(entry =>
-    Array(entry.quantity).fill(`1 ${entry.name}`)
-  );
-  const deckText = deckTextLines.join('\n');
+  // Convert BuiltDeck to deckText format for analysis (group basic lands by quantity)
+  const deckText = formatDecklistText(builtCards);
 
   const analyzeInput: AnalyzeDeckInput = {
     deckText,

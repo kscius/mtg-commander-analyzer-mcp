@@ -7,7 +7,7 @@
  */
 
 import OpenAI from 'openai';
-import { getCardByName, OracleCard } from './scryfall';
+import { getCardByName, landFitsCommanderManabase, OracleCard } from './scryfall';
 import { loadDeckTemplate } from './templates';
 import { applyMetaAdaptations, type DeckTemplateValidated } from './templateSchema';
 import {
@@ -205,8 +205,7 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
           if (isBanned(sug.name)) continue;
           const card = getCardByName(sug.name);
           if (!card?.type_line?.toLowerCase().includes('land')) continue;
-          const ci = card.color_identity ?? [];
-          if (ci.length && !ci.every((c: string) => colorIdentity.includes(c))) continue;
+          if (!landFitsCommanderManabase(card, colorIdentity)) continue;
           if (addCard(sug.name)) {
             landsAdded++;
             utilityLeft--;

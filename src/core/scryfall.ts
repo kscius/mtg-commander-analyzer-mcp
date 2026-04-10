@@ -313,6 +313,112 @@ export function fitsColorIdentity(card: OracleCard, allowedColors: string[]): bo
   return cardIdentity.every(c => allowed.has(c.toUpperCase()));
 }
 
+/**
+ * Concatenates oracle-related text from a card (including MDFC faces) for pip / rules checks.
+ */
+export function getFullOracleText(card: OracleCard): string {
+  const parts: string[] = [];
+  if (card.mana_cost) parts.push(card.mana_cost);
+  if (card.oracle_text) parts.push(card.oracle_text);
+  if (card.type_line) parts.push(card.type_line);
+  if (card.card_faces?.length) {
+    for (const f of card.card_faces) {
+      if (f.mana_cost) parts.push(f.mana_cost);
+      if (f.oracle_text) parts.push(f.oracle_text);
+      if (f.type_line) parts.push(f.type_line);
+    }
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Extracts {W}{U}... and hybrid {G/U} mana symbols from rules text.
+ */
+export function extractRulesManaPips(text: string): Set<string> {
+  const out = new Set<string>();
+  const single = /\{([WUBRG])\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = single.exec(text)) !== null) {
+    out.add(m[1]);
+  }
+  const hybrid = /\{([WUBRG])\/([WUBRG])\}/g;
+  while ((m = hybrid.exec(text)) !== null) {
+    out.add(m[1]);
+    out.add(m[2]);
+  }
+  return out;
+}
+
+/**
+ * Whether a land is playable in a Commander deck with the given color identity.
+ * - Uses Scryfall color_identity when present.
+ * - When identity is empty (incomplete DB rows), infers colored mana from rules-text pips
+ *   so e.g. Rocky Tar Pit ({B}/{R}) is rejected in mono-U.
+ * - For **monocolor** decks, rejects fetchlands that tutor only non-basic types that do not
+ *   include that color's basic type (e.g. Bloodstained Mire in a deck with only Islands).
+ */
+export function landFitsCommanderManabase(card: OracleCard | null, commanderIdentity: string[]): boolean {
+  if (!card) return false;
+  const tl = card.type_line ?? '';
+  if (!/\bLand\b/i.test(tl)) {
+    return true;
+  }
+
+  const allowed = new Set(commanderIdentity.map(c => c.toUpperCase()));
+
+  const ci = getColorIdentity(card);
+  if (ci.length > 0) {
+    return fitsColorIdentity(card, commanderIdentity);
+  }
+
+  const text = getFullOracleText(card);
+  const pips = extractRulesManaPips(text);
+  if (pips.size > 0) {
+    return [...pips].every((c) => allowed.has(c));
+  }
+
+  if (commanderIdentity.length === 1) {
+    return monoColorLandLibrarySearchCoherent(text, commanderIdentity[0].toUpperCase());
+  }
+  return true;
+}
+
+function monoColorLandLibrarySearchCoherent(fullText: string, color: string): boolean {
+  const o = fullText.toLowerCase();
+  if (!o.includes('search your library')) {
+    return true;
+  }
+  if (o.includes('basic land')) {
+    return true;
+  }
+  if (/\bland card\b/.test(o)) {
+    return true;
+  }
+  // Tutors for permanents other than typed basics (e.g. Urza's Saga chapter III).
+  if (
+    /\bsearch your library for (?:an? )?(?:artifact|enchantment|creature|instant|sorcery|planeswalker|battle)\b/i.test(
+      fullText
+    )
+  ) {
+    return true;
+  }
+  const basicWord: Record<string, string> = {
+    W: 'plains',
+    U: 'island',
+    B: 'swamp',
+    R: 'mountain',
+    G: 'forest',
+  };
+  const need = basicWord[color];
+  if (need) {
+    const re = new RegExp(`\\b${need}\\b`, 'i');
+    if (re.test(o)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Scryfall REST API integration (fallback & advanced search)
 // ---------------------------------------------------------------------------

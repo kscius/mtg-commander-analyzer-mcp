@@ -14,7 +14,9 @@ import { z } from "zod";
  */
 export const AnalyzeDeckInputSchema = z.object({
   /** Raw decklist text (one card per line with quantity) */
-  deckText: z.string().describe("Raw decklist text, one card per line with quantity (e.g., '1 Sol Ring')"),
+  deckText: z.string().describe(
+    "Raw decklist text, one card per line with quantity (e.g., '1 Sol Ring', '19 Island'). Basic lands may be grouped as N Plains / N Island."
+  ),
   
   /** Template ID for deck analysis (optional, defaults to "bracket3") */
   templateId: z.string().optional().describe("Template ID for deck analysis (e.g., 'bracket3')"),

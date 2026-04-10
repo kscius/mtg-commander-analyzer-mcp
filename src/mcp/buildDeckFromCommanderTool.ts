@@ -17,6 +17,7 @@ import { getCardByName } from '../core/scryfall';
 import { loadDeckTemplate } from '../core/templates';
 import { getFullCommanderProfile, getTopCardsForColorIdentity, getTopLandsForColorIdentity, sortBySynergy } from '../core/edhrec';
 import { runIterativeEdhrecAutofill } from '../core/edhrecAutofill';
+import { formatDecklistText } from '../core/deckTextFormat';
 
 /**
  * Runs the build_deck_from_commander tool.
@@ -39,6 +40,7 @@ export async function runBuildDeckFromCommander(
       commanderName: input.commanderName,
       templateId,
       seedCards: input.seedCards,
+      preferredTheme: input.preferredStrategy,
       metaOverride: undefined,
     });
 
@@ -111,9 +113,7 @@ export async function runBuildDeckFromCommander(
       }
     }
 
-    const deckTextFromGen = gen.deck.cards
-      .flatMap((c) => Array(c.quantity).fill(`1 ${c.name}`))
-      .join('\n');
+    const deckTextFromGen = formatDecklistText(gen.deck.cards);
     const parsedFromGen = parseDeckText(deckTextFromGen);
 
     let deck = gen.deck;
