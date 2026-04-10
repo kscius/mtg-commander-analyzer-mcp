@@ -1,7 +1,11 @@
-# Workflow state — mejoras llmDeckBuilder + OpenAI base URL (2026-04-10)
+# Workflow state — EDHREC implementation improvements (2026-04-10)
 
 - **status:** COMPLETED
 - **phase:** VERIFY
-- **task:** Implementar mejoras de generación LLM (validación estricta, reparación, banlist prompt, OPENAI_BASE_URL, tests, docs)
-- **validation:** `npm run build`, `npm test` (23 tests)
+- **task:** Mejoras implementación EDHREC (parser, fixtures, tests)
+- **validation:** `npm run build`, `npm test` (28 tests)
 - **blockers:** none
+
+---
+
+_Prior entries archived:_ EDHREC API review; llmDeckBuilder + OpenAI base URL.

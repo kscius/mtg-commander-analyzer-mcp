@@ -174,67 +174,123 @@ async function fetchEdhrecJson(pathOrUrl: string): Promise<any> {
 }
 
 /**
- * Extracts card suggestions from EDHREC JSON response
- * 
+ * Normalizes EDHREC inclusion to 0–1. Values above 1 are treated as whole percentages (e.g. 65 → 0.65).
+ */
+function normalizeEdhrecInclusion(raw: unknown): number | undefined {
+  if (raw == null || typeof raw !== 'number' || Number.isNaN(raw)) {
+    return undefined;
+  }
+  if (raw > 1) {
+    return Math.min(raw / 100, 1);
+  }
+  return Math.min(Math.max(raw, 0), 1);
+}
+
+function cardviewToSuggestion(
+  card: Record<string, unknown>,
+  index: number,
+  sourceTag: string
+): EdhrecCardSuggestion | null {
+  const name = card.name;
+  if (typeof name !== 'string' || name.length === 0) {
+    return null;
+  }
+
+  const rank =
+    typeof card.rank === 'number' && !Number.isNaN(card.rank)
+      ? card.rank
+      : index + 1;
+
+  const inclusionRaw =
+    card.inclusion ??
+    card.inclusion_rate ??
+    card.inclusionRate ??
+    (typeof card.stats === 'object' && card.stats !== null
+      ? (card.stats as Record<string, unknown>).inclusion
+      : undefined);
+  const inclusionRate = normalizeEdhrecInclusion(inclusionRaw);
+
+  let numDecks: number | undefined;
+  if (typeof card.num_decks === 'number' && !Number.isNaN(card.num_decks)) {
+    numDecks = card.num_decks;
+  } else if (typeof card.numDecks === 'number' && !Number.isNaN(card.numDecks)) {
+    numDecks = card.numDecks;
+  }
+
+  const saltRaw = card.salt_score ?? card.salt;
+  const saltScore =
+    typeof saltRaw === 'number' && !Number.isNaN(saltRaw) ? saltRaw : undefined;
+
+  const synRaw = card.synergy_score ?? card.synergy;
+  const synergyScore =
+    typeof synRaw === 'number' && !Number.isNaN(synRaw) ? synRaw : undefined;
+
+  let label: string | undefined;
+  if (typeof card.label === 'string' && card.label.length > 0) {
+    label = card.label;
+  } else if (Array.isArray(card.labels) && typeof card.labels[0] === 'string') {
+    label = card.labels[0];
+  }
+
+  const url = typeof card.url === 'string' ? card.url : undefined;
+
+  return {
+    name,
+    url,
+    rank,
+    saltScore,
+    synergyScore,
+    category: sourceTag,
+    inclusionRate,
+    numDecks,
+    label,
+  };
+}
+
+/**
+ * Extracts card suggestions from EDHREC JSON response.
+ *
+ * Handles `container.json_dict.cardlists[].cardviews`, top-level `cardlists`, `cardviews`, or `cards`.
+ * Maps `inclusion` → {@link EdhrecCardSuggestion.inclusionRate}, optional `label`, `num_decks`, scores.
+ * `rank` uses EDHREC `rank` when present; otherwise list position (1-based).
+ *
  * @param json - Raw EDHREC JSON response
  * @param sourceTag - Category/source identifier (e.g., "top/white")
- * @returns Array of EdhrecCardSuggestion objects
- * 
- * Note: EDHREC JSON structure varies by endpoint. This function attempts to handle
- * common patterns like "cardlists", "cards", etc. It may need refinement as we
- * encounter different endpoint structures.
  */
-function extractSuggestionsFromJson(
-  json: any,
+export function extractEdhrecSuggestionsFromJson(
+  json: unknown,
   sourceTag: string
 ): EdhrecCardSuggestion[] {
   const suggestions: EdhrecCardSuggestion[] = [];
+  const root = json as Record<string, unknown>;
 
-  // Try to find card list in the JSON structure
-  // EDHREC endpoints have a nested structure: container.json_dict.cardlists
-  let cardData: any[] = [];
+  let cardData: Record<string, unknown>[] = [];
 
-  // Check for the common EDHREC structure: container.json_dict.cardlists
-  if (json.container?.json_dict?.cardlists && Array.isArray(json.container.json_dict.cardlists)) {
-    for (const cardlist of json.container.json_dict.cardlists) {
-      if (cardlist.cardviews && Array.isArray(cardlist.cardviews)) {
-        cardData.push(...cardlist.cardviews);
+  const container = root.container as Record<string, unknown> | undefined;
+  const jsonDict = container?.json_dict as Record<string, unknown> | undefined;
+  if (Array.isArray(jsonDict?.cardlists)) {
+    for (const cardlist of jsonDict.cardlists as Record<string, unknown>[]) {
+      if (Array.isArray(cardlist.cardviews)) {
+        cardData.push(...(cardlist.cardviews as Record<string, unknown>[]));
       }
     }
-  }
-  // Fallback: check for direct cardlists
-  else if (json.cardlists && Array.isArray(json.cardlists)) {
-    for (const cardlist of json.cardlists) {
-      if (cardlist.cardviews && Array.isArray(cardlist.cardviews)) {
-        cardData.push(...cardlist.cardviews);
+  } else if (Array.isArray(root.cardlists)) {
+    for (const cardlist of root.cardlists as Record<string, unknown>[]) {
+      if (Array.isArray(cardlist.cardviews)) {
+        cardData.push(...(cardlist.cardviews as Record<string, unknown>[]));
       }
     }
-  }
-  // Fallback: direct cardviews array
-  else if (json.cardviews && Array.isArray(json.cardviews)) {
-    cardData = json.cardviews;
-  }
-  // Fallback: direct cards array
-  else if (json.cards && Array.isArray(json.cards)) {
-    cardData = json.cards;
+  } else if (Array.isArray(root.cardviews)) {
+    cardData = root.cardviews as Record<string, unknown>[];
+  } else if (Array.isArray(root.cards)) {
+    cardData = root.cards as Record<string, unknown>[];
   }
 
-  // Extract suggestions from card data
   for (let i = 0; i < cardData.length; i++) {
-    const card = cardData[i];
-    
-    if (!card || !card.name) {
-      continue; // Skip invalid entries
+    const row = cardviewToSuggestion(cardData[i], i, sourceTag);
+    if (row) {
+      suggestions.push(row);
     }
-
-    suggestions.push({
-      name: card.name,
-      url: card.url || undefined,
-      rank: card.rank ?? card.inclusion ?? (i + 1), // Prefer rank, then inclusion, then position
-      saltScore: card.salt_score || card.salt || undefined,
-      synergyScore: card.synergy_score || card.synergy || undefined,
-      category: sourceTag
-    });
   }
 
   return suggestions;
@@ -280,7 +336,7 @@ export async function getTopCardsForColorIdentity(
     if (colorIdentity.length === 0) {
       // Colorless
       const json = await fetchEdhrecJson('top/colorless.json');
-      const extracted = extractSuggestionsFromJson(json, 'top/colorless');
+      const extracted = extractEdhrecSuggestionsFromJson(json, 'top/colorless');
       
       for (const sug of extracted) {
         if (!seen.has(sug.name)) {
@@ -301,7 +357,7 @@ export async function getTopCardsForColorIdentity(
       const colorName = colorMap[colorIdentity[0]];
       if (colorName) {
         const json = await fetchEdhrecJson(`top/${colorName}.json`);
-        const extracted = extractSuggestionsFromJson(json, `top/${colorName}`);
+        const extracted = extractEdhrecSuggestionsFromJson(json, `top/${colorName}`);
         
         for (const sug of extracted) {
           if (!seen.has(sug.name)) {
@@ -313,7 +369,7 @@ export async function getTopCardsForColorIdentity(
     } else {
       // Multicolor: fetch top/multicolor.json
       const multiJson = await fetchEdhrecJson('top/multicolor.json');
-      const multiExtracted = extractSuggestionsFromJson(multiJson, 'top/multicolor');
+      const multiExtracted = extractEdhrecSuggestionsFromJson(multiJson, 'top/multicolor');
       
       for (const sug of multiExtracted) {
         if (!seen.has(sug.name)) {
@@ -336,7 +392,7 @@ export async function getTopCardsForColorIdentity(
         if (colorName) {
           try {
             const json = await fetchEdhrecJson(`top/${colorName}.json`);
-            const extracted = extractSuggestionsFromJson(json, `top/${colorName}`);
+            const extracted = extractEdhrecSuggestionsFromJson(json, `top/${colorName}`);
             
             for (const sug of extracted) {
               if (!seen.has(sug.name)) {
@@ -386,7 +442,7 @@ export async function getTopLandsForColorIdentity(
       // Colorless
       try {
         const json = await fetchEdhrecJson('lands/colorless.json');
-        const extracted = extractSuggestionsFromJson(json, 'lands/colorless');
+        const extracted = extractEdhrecSuggestionsFromJson(json, 'lands/colorless');
         
         for (const sug of extracted) {
           if (!seen.has(sug.name)) {
@@ -413,7 +469,7 @@ export async function getTopLandsForColorIdentity(
         if (landPage) {
           try {
             const json = await fetchEdhrecJson(`lands/${landPage}.json`);
-            const extracted = extractSuggestionsFromJson(json, `lands/${landPage}`);
+            const extracted = extractEdhrecSuggestionsFromJson(json, `lands/${landPage}`);
             
             for (const sug of extracted) {
               if (!seen.has(sug.name)) {
@@ -430,7 +486,7 @@ export async function getTopLandsForColorIdentity(
       // Also fetch generic lands page for utility lands
       try {
         const json = await fetchEdhrecJson('lands/lands.json');
-        const extracted = extractSuggestionsFromJson(json, 'lands/lands');
+        const extracted = extractEdhrecSuggestionsFromJson(json, 'lands/lands');
         
         for (const sug of extracted) {
           if (!seen.has(sug.name)) {
@@ -446,13 +502,10 @@ export async function getTopLandsForColorIdentity(
     console.warn(`Warning: Could not fetch lands for color identity ${colorIdentity.join('')}:`, error);
   }
 
-  // Sort by rank/inclusion (lower is better/more popular)
-  suggestions.sort((a, b) => {
-    if (a.rank !== undefined && b.rank !== undefined) {
-      return a.rank - b.rank;
-    }
-    return 0;
-  });
+  // Sort by rank (lower is better); missing rank sorts last
+  suggestions.sort(
+    (a, b) => (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER)
+  );
 
   return suggestions.slice(0, limit);
 }
@@ -486,7 +539,7 @@ export async function getCardsForCommander(
   const path = `commanders/${slug}.json`;
   try {
     const json = await fetchEdhrecJson(path);
-    const extracted = extractSuggestionsFromJson(json, `commanders/${slug}`);
+    const extracted = extractEdhrecSuggestionsFromJson(json, `commanders/${slug}`);
     return extracted.slice(0, limit);
   } catch {
     return [];
@@ -559,7 +612,7 @@ export async function getCardsForCommanderTheme(
   const path = `commanders/${slug}/${theme}.json`;
   try {
     const json = await fetchEdhrecJson(path);
-    const extracted = extractSuggestionsFromJson(json, `commanders/${slug}/${theme}`);
+    const extracted = extractEdhrecSuggestionsFromJson(json, `commanders/${slug}/${theme}`);
     return extracted.slice(0, limit);
   } catch {
     return [];
@@ -588,7 +641,7 @@ export async function getLandsForColorCombination(
   if (guildName && colorIdentity.length >= 2) {
     try {
       const json = await fetchEdhrecJson(`lands/${guildName}.json`);
-      const extracted = extractSuggestionsFromJson(json, `lands/${guildName}`);
+      const extracted = extractEdhrecSuggestionsFromJson(json, `lands/${guildName}`);
       for (const sug of extracted) {
         if (!seen.has(sug.name)) {
           suggestions.push(sug);
