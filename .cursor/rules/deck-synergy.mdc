@@ -1,0 +1,47 @@
+---
+description: Un mazo debe seguir una sola sinergia; el agente detecta opciones y pregunta al usuario
+alwaysApply: true
+---
+
+# Sinergia única por mazo
+
+Cada mazo Commander debe construirse y evaluarse con **una sola sinergia** clara. El agente debe detectar las opciones posibles y que el usuario elija antes de fijar el mazo.
+
+## Regla principal
+
+- **Un mazo = una sinergia.** No mezclar varias estrategias/arquetipos en el mismo mazo (ej. no "tokens + voltron + control" a la vez).
+- El mazo final debe **cumplir** con la sinergia elegida: cartas alineadas con ese tema, no contradictorias.
+
+## Flujo obligatorio al construir o optimizar mazos
+
+1. **Detectar sinergias posibles**
+   - A partir del **comandante** (habilidades, tipos, keywords, identidad de color).
+   - Usar **EDHREC** y sugerencias del MCP cuando estén disponibles.
+   - Considerar arquetipos típicos: tokens, voltron, +1/+1, reanimator, spellslinger, artifacts, lands, tribal, superfriends, etc.
+
+2. **Preguntar al usuario**
+   - Listar las sinergias detectadas (nombre corto + breve descripción).
+   - Preguntar explícitamente: *"¿Con qué sinergia quieres que construya/optimice el mazo?"* (o equivalente).
+   - No asumir una sinergia sin confirmación del usuario.
+
+3. **Construir/validar según la sinergia elegida**
+   - Al construir: usar `build_deck_from_commander` o `build_deck_with_llm` con contexto de la sinergia (ej. `preferredStrategy` si está soportado, o seed cards temáticas).
+   - Al analizar: comprobar que las cartas del mazo son coherentes con esa sinergia y señalar desvíos si los hay.
+   - El mazo debe cumplir además las reglas de formato (100 cartas, color identity, singleton, banlist, Bracket 3).
+
+## Ejemplos de sinergias
+
+- **Tokens**: criaturas/efectos que generan fichas; apoyo a token (anthem, sacrificio).
+- **Voltron**: equipos/auras en el comandante; protección y evasión.
+- **+1/+1 contadores**: proliferate, colocación de contadores, sinergias con el comandante.
+- **Reanimator**: descartar/enterrar criaturas y reanimarlas.
+- **Spellslinger**: instantes y conjuros; reducción de coste o copia de hechizos.
+- **Tierras**: jugar tierras adicionales, tierra-en-el-combatiente, landfall.
+- **Tribal**: tipo de criatura compartido (elfos, dragones, etc.).
+- **Superfriends**: planeswalkers y proliferate/protección.
+
+## Qué evitar
+
+- No construir un mazo "genérico" sin tema cuando el usuario no ha elegido: primero ofrecer sinergias y preguntar.
+- No mezclar dos o más sinergias en el mismo mazo sin que el usuario lo pida explícitamente.
+- No ignorar la sinergia elegida al sugerir cartas o al validar el mazo.

@@ -17,12 +17,21 @@ import {
 import { getCardByName, OracleCard } from './scryfall';
 import { loadDeckTemplate } from './templates';
 import { loadBracketRules } from './brackets';
-import { classifyCardRoles, cardRolesToCategories } from './roles';
+import { classifyCardRoles } from './roles';
+import { autoTags, getDefaultBracket3Options, tagsToTemplateCategories, ScryCard } from './autoTags';
+import { validateBracket3, validateTwoCardCombosBeforeT6, loadCombos, Bracket3Policies, CardWithTags } from './bracket3Validation';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
-import { getTopCardsForColorIdentity, getTopLandsForColorIdentity } from './edhrec';
+import {
+  getTopCardsForColorIdentity,
+  getTopLandsForColorIdentity,
+  getFullCommanderProfile,
+  getLandsForColorCombination,
+  sortBySynergy,
+} from './edhrec';
 import { computeCategoryDeficits } from './categoryUtils';
 import { isGameChanger, isMassLandDenial, isExtraTurnCard } from './bracketCards';
+import { isBanned, isBanlistAvailable, getBannedCount } from './banlist';
 
 /**
  * Map MTG color letters to basic land names
@@ -114,23 +123,42 @@ export async function buildDeckFromCommander(
     `Template "${templateId}" recommends ${landsMin}-${landsMax} lands. Target: ${targetLands}.`
   );
 
+  // Log banlist status
+  if (isBanlistAvailable()) {
+    builderNotes.push(`Banlist active: ${getBannedCount()} cards banned (no budget restrictions).`);
+  }
+
   // Step 4: Initialize deck cards array
   const builtCards: BuiltCardEntry[] = [];
 
-  // Step 5: Add seed cards (if provided)
+  // Step 5: Add seed cards (if provided, excluding banned cards)
   if (input.seedCards && input.seedCards.length > 0) {
-    builderNotes.push(`Including ${input.seedCards.length} seed cards.`);
+    const bannedSeeds: string[] = [];
+    const validSeeds: string[] = [];
     
     for (const seedCardName of input.seedCards) {
-      // Get card and classify roles
-      const seedCard = getCardByName(seedCardName);
-      const roles = seedCard ? classifyCardRoles(seedCard) : undefined;
-      
-      builtCards.push({
-        name: seedCardName,
-        quantity: 1,
-        roles
-      });
+      if (isBanned(seedCardName)) {
+        bannedSeeds.push(seedCardName);
+      } else {
+        validSeeds.push(seedCardName);
+        // Get card and classify roles
+        const seedCard = getCardByName(seedCardName);
+        const roles = seedCard ? classifyCardRoles(seedCard) : undefined;
+        
+        builtCards.push({
+          name: seedCardName,
+          quantity: 1,
+          roles
+        });
+      }
+    }
+    
+    if (validSeeds.length > 0) {
+      builderNotes.push(`Including ${validSeeds.length} seed cards.`);
+    }
+    
+    if (bannedSeeds.length > 0) {
+      builderNotes.push(`⛔ Excluded ${bannedSeeds.length} banned seed card(s): ${bannedSeeds.join(', ')}`);
     }
   }
 
@@ -226,64 +254,66 @@ export async function buildDeckFromCommander(
   };
 
   const parsed = parseDeckText(deckText);
-  const analyzeResult = analyzeDeckBasic(analyzeInput, parsed);
+  const analyzeResult = await analyzeDeckBasic(analyzeInput, parsed);
 
-  // Step 9.5: Fetch EDHREC suggestions if requested
+  // Step 9.5: Fetch EDHREC suggestions (comprehensive profile when available)
   let edhrecContext: EdhrecContext | undefined;
   const shouldFetchEdhrec = input.useEdhrec || input.useEdhrecAutofill;
 
   if (shouldFetchEdhrec) {
-    builderNotes.push('Fetching EDHREC suggestions...');
-    
+    builderNotes.push('Fetching comprehensive EDHREC profile...');
+
     try {
       const colors = commanderCard.color_identity ?? [];
-      const [topCards, topLands] = await Promise.all([
-        getTopCardsForColorIdentity(colors, 50),
-        getTopLandsForColorIdentity(colors, 50)
-      ]);
+      const profile = await getFullCommanderProfile(commanderCard.name, colors, {
+        theme: input.preferredStrategy,
+        saltThreshold: 2.5,
+        cardLimit: 100,
+        landLimit: 40,
+      });
 
-      const sourcesUsed: string[] = [];
-      
-      // Build list of sources used based on color identity
-      if (colors.length === 0) {
-        sourcesUsed.push('top/colorless.json', 'lands/colorless.json');
-      } else if (colors.length === 1) {
-        const colorMap: Record<string, string> = {
-          'W': 'white', 'U': 'blue', 'B': 'black', 'R': 'red', 'G': 'green'
-        };
-        const colorName = colorMap[colors[0]];
-        if (colorName) {
-          sourcesUsed.push(`top/${colorName}.json`);
-        }
-        sourcesUsed.push('lands/mono-' + (colorName || 'colorless') + '.json');
-      } else {
-        sourcesUsed.push('top/multicolor.json');
-        for (const color of colors) {
-          const colorMap: Record<string, string> = {
-            'W': 'white', 'U': 'blue', 'B': 'black', 'R': 'red', 'G': 'green'
-          };
-          const colorName = colorMap[color];
-          if (colorName) {
-            sourcesUsed.push(`top/${colorName}.json`);
-          }
-        }
-        sourcesUsed.push('lands/[color-combination].json');
-      }
+      const allSuggestions = sortBySynergy([...profile.cards, ...profile.lands]);
 
       edhrecContext = {
-        sourcesUsed,
-        suggestions: [...topCards, ...topLands]
+        sourcesUsed: profile.sourcesUsed,
+        suggestions: allSuggestions,
+        availableThemes: profile.themes,
+        selectedTheme: input.preferredStrategy,
+        avgSynergyScore:
+          profile.cards.length > 0
+            ? profile.cards.reduce((sum, c) => sum + (c.synergyScore ?? 0), 0) / profile.cards.length
+            : undefined,
+        highSaltCards: profile.highSaltCards,
       };
 
       builderNotes.push(
-        `✓ EDHREC: Fetched ${topCards.length} top cards and ${topLands.length} lands (${edhrecContext.suggestions.length} total suggestions).`
+        `✓ EDHREC: ${profile.cards.length} cards, ${profile.lands.length} lands, ` +
+        `${profile.themes.length} themes, ${profile.combos.length} combos`
       );
+      if (profile.themes.length > 0) {
+        builderNotes.push(`  Themes: ${profile.themes.map(t => t.name).join(', ')}`);
+      }
+      if (profile.highSaltCards.length > 0) {
+        builderNotes.push(`  High-salt excluded: ${profile.highSaltCards.length}`);
+      }
     } catch (error) {
-      builderNotes.push(
-        `⚠️  EDHREC: Could not fetch suggestions. ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-      // Continue without EDHREC data
-      edhrecContext = undefined;
+      // Fallback to basic color-based suggestions
+      builderNotes.push(`⚠ Full profile failed, using basic EDHREC...`);
+      try {
+        const colors = commanderCard.color_identity ?? [];
+        const [topCards, topLands] = await Promise.all([
+          getTopCardsForColorIdentity(colors, 50),
+          getTopLandsForColorIdentity(colors, 50),
+        ]);
+        edhrecContext = {
+          sourcesUsed: ['EDHREC top cards (fallback)', 'EDHREC top lands (fallback)'],
+          suggestions: sortBySynergy([...topCards, ...topLands]),
+        };
+        builderNotes.push(`✓ EDHREC fallback: ${topCards.length + topLands.length} suggestions`);
+      } catch {
+        builderNotes.push(`⚠ EDHREC unavailable`);
+        edhrecContext = undefined;
+      }
     }
   }
 
@@ -292,11 +322,15 @@ export async function buildDeckFromCommander(
     builderNotes.push('---');
     builderNotes.push('EDHREC Autofill enabled. Attempting to fill category deficits...');
 
-    // Compute current category deficits
+    const autofillCategories = [
+      'ramp', 'card_draw', 'card_selection', 'spot_removal',
+      'artifact_enchantment_hate', 'graveyard_hate', 'board_wipes',
+      'protection', 'value_engines', 'win_conditions'
+    ];
     const deficits = computeCategoryDeficits(
       analyzeResult.analysis,
       template,
-      ['ramp', 'card_draw', 'target_removal', 'board_wipes']
+      autofillCategories
     );
 
     // Track cards already in deck (case-insensitive)
@@ -311,16 +345,16 @@ export async function buildDeckFromCommander(
 
     const maxGameChangers = bracketRules?.maxGameChangers ?? 3;
 
-    // Track autofilled cards per category
-    const autofillCounts: Record<string, number> = {
-      ramp: 0,
-      card_draw: 0,
-      target_removal: 0,
-      board_wipes: 0
-    };
+    const autofillCounts: Record<string, number> = {};
+    for (const cat of autofillCategories) {
+      autofillCounts[cat] = 0;
+    }
 
-    // Process deficits in priority order: ramp, draw, removal, wipes
-    const priorityOrder = ['ramp', 'card_draw', 'target_removal', 'board_wipes'];
+    const tagOpts = getDefaultBracket3Options('bracket3');
+    const maxExtraTurns = bracketRules?.maxExtraTurnCards ?? 3;
+    let extraTurnCount = builtCards.filter(c => isExtraTurnCard(c.name, bracketId)).reduce((s, c) => s + c.quantity, 0);
+
+    const priorityOrder = autofillCategories;
 
     for (const categoryName of priorityOrder) {
       const deficit = deficits.find(d => d.name === categoryName);
@@ -353,6 +387,11 @@ export async function buildDeckFromCommander(
           continue; // Skip if outside color identity
         }
 
+        // Check banlist first (never include banned cards)
+        if (isBanned(suggestion.name)) {
+          continue;
+        }
+
         // Check bracket constraints
         // 1. Game Changers limit
         if (isGameChanger(suggestion.name, bracketId)) {
@@ -366,32 +405,34 @@ export async function buildDeckFromCommander(
           continue;
         }
 
-        // 3. Extra Turn cards (avoid autofilling these)
+        // 3. Extra Turn cards (only up to limit)
         if (isExtraTurnCard(suggestion.name, bracketId)) {
+          if (extraTurnCount >= maxExtraTurns) continue;
+        }
+
+        // Match by tags (from DB or autoTags)
+        let tags = card.tags && card.tags.length > 0 ? card.tags : autoTags(card as ScryCard, tagOpts);
+        const categories = tagsToTemplateCategories(tags);
+
+        if (!categories.includes(categoryName)) {
           continue;
         }
 
-        // Classify card roles
-        const roles = classifyCardRoles(card);
-        const categories = cardRolesToCategories(roles);
+        builtCards.push({
+          name: card.name,
+          quantity: 1,
+          roles: classifyCardRoles(card)
+        });
 
-        // Check if this card matches the needed category
-        if (categories.includes(categoryName)) {
-          // Add card to deck
-          builtCards.push({
-            name: card.name,
-            quantity: 1,
-            roles
-          });
+        cardsInDeck.add(card.name.toLowerCase());
+        remaining--;
+        autofillCounts[categoryName]++;
 
-          cardsInDeck.add(card.name.toLowerCase());
-          remaining--;
-          autofillCounts[categoryName]++;
-
-          // Update Game Changer count if applicable
-          if (isGameChanger(card.name, bracketId)) {
-            gameChangerCount++;
-          }
+        if (isGameChanger(card.name, bracketId)) {
+          gameChangerCount++;
+        }
+        if (isExtraTurnCard(card.name, bracketId)) {
+          extraTurnCount++;
         }
       }
 
@@ -402,12 +443,10 @@ export async function buildDeckFromCommander(
       }
     }
 
-    // Summary of autofill
     const totalAutofilled = Object.values(autofillCounts).reduce((a, b) => a + b, 0);
+    const breakdown = autofillCategories.filter(c => (autofillCounts[c] ?? 0) > 0).map(c => `${c}: ${autofillCounts[c]}`).join(', ');
     builderNotes.push(
-      `✓ EDHREC Autofill complete: added ${totalAutofilled} cards ` +
-      `(${autofillCounts.ramp} ramp, ${autofillCounts.card_draw} draw, ` +
-      `${autofillCounts.target_removal} removal, ${autofillCounts.board_wipes} wipes)`
+      `✓ EDHREC Autofill complete: added ${totalAutofilled} cards${breakdown ? ` (${breakdown})` : ''}`
     );
     builderNotes.push('---');
 
@@ -427,7 +466,7 @@ export async function buildDeckFromCommander(
     };
 
     const updatedParsed = parseDeckText(updatedDeckText);
-    const updatedAnalyzeResult = analyzeDeckBasic(updatedAnalyzeInput, updatedParsed);
+    const updatedAnalyzeResult = await analyzeDeckBasic(updatedAnalyzeInput, updatedParsed);
 
     // Update deck object and analysis
     deck.cards = builtCards;
@@ -449,6 +488,32 @@ export async function buildDeckFromCommander(
       builderNotes.push(
         `✓ Deck size: ${updatedTotalCards} cards (correct for Commander format).`
       );
+    }
+
+    // Bracket 3 validation (post-autofill)
+    const deckForValidation: CardWithTags[] = builtCards.map(c => {
+      const card = getCardByName(c.name);
+      let tags = card?.tags && card.tags.length > 0 ? card.tags : [];
+      if (tags.length === 0 && card) {
+        tags = autoTags(card as ScryCard, tagOpts);
+      }
+      return { name: c.name, tags };
+    });
+    const policies: Bracket3Policies = {
+      max_game_changers: bracketRules?.maxGameChangers ?? 3,
+      max_extra_turn_cards: bracketRules?.maxExtraTurnCards ?? 3,
+      ban_mass_land_denial: !bracketRules?.allowMassLandDestruction,
+      ban_extra_turn_chains: true,
+      ban_2card_gameenders_before_turn: 6,
+    };
+    const b3 = validateBracket3(deckForValidation, policies);
+    const combos = loadCombos();
+    const comboErrs = validateTwoCardCombosBeforeT6(deckForValidation, combos, 6);
+    if (b3.errors.length > 0 || b3.warnings.length > 0 || comboErrs.length > 0) {
+      builderNotes.push('Bracket 3 validation:');
+      builderNotes.push(...b3.errors.map(e => `  ⛔ ${e}`));
+      builderNotes.push(...b3.warnings.map(w => `  ⚠ ${w}`));
+      builderNotes.push(...comboErrs.map(e => `  ⛔ ${e}`));
     }
   }
 

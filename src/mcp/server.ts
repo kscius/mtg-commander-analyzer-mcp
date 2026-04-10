@@ -26,11 +26,13 @@ import {
 
 import { runAnalyzeDeck } from "./analyzeDeckTool";
 import { runBuildDeckFromCommander } from "./buildDeckFromCommanderTool";
+import { runBuildDeckWithLLM } from "./buildDeckWithLLMTool";
 
 import {
   AnalyzeDeckInputSchema,
   BuildDeckInputSchema,
 } from "../core/schemas";
+import { isLLMAvailable, getLLMConfigForLogging } from "../core/llmConfig";
 
 /**
  * Create MCP server instance
@@ -38,7 +40,7 @@ import {
 const server = new Server(
   {
     name: "mtg-commander-analyzer-mcp",
-    version: "0.1.0",
+    version: "0.4.0",
   },
   {
     capabilities: {
@@ -102,11 +104,11 @@ const TOOLS: Tool[] = [
   {
     name: "build_deck_from_commander",
     description:
-      "Build a Commander deck skeleton from a commander name. " +
-      "Resolves commander from Scryfall, fills lands based on color identity, " +
-      "optionally fetches EDHREC suggestions, and can autofill missing categories " +
-      "(ramp, card draw, removal, board wipes) while respecting Bracket 3 constraints. " +
-      "Returns a built deck with analysis and recommendations.",
+      "Build a Commander deck from a commander name. " +
+      "With templateId bracket3 and useTemplateGenerator true: builds a full 99-card deck using " +
+      "template (mana_base, curve, categories, combo_rules), EDHREC as primary source and OpenAI as fallback. " +
+      "Otherwise: skeleton + lands + optional EDHREC autofill. Respects Bracket 3 and banlist. " +
+      "Returns built deck and analysis.",
     inputSchema: {
       type: "object",
       properties: {
@@ -142,6 +144,38 @@ const TOOLS: Tool[] = [
         useEdhrecAutofill: {
           type: "boolean",
           description: "Whether to autofill missing categories (ramp, draw, removal, wipes) using EDHREC suggestions. Defaults to false.",
+        },
+        useTemplateGenerator: {
+          type: "boolean",
+          description: "When true with templateId bracket3, use template-driven generator for full 99-card deck (mana_base, categories, EDHREC + OpenAI fallback). Defaults to false.",
+        },
+      },
+      required: ["commanderName"],
+    },
+  },
+  {
+    name: "build_deck_with_llm",
+    description:
+      "Build a COMPLETE 99-card Commander deck using GPT-4.1 AI. " +
+      "This tool is FULLY AUTONOMOUS and builds the entire deck without human intervention. " +
+      "Uses EDHREC suggestions, respects the custom banlist, and enforces Bracket 3 rules. " +
+      "Requires OPENAI_API_KEY to be configured in .env file. " +
+      "Returns a complete, playable 99-card deck with analysis.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        commanderName: {
+          type: "string",
+          description: "Commander card name (e.g., \"Atraxa, Praetors' Voice\")",
+        },
+        seedCards: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional cards to include in the deck (e.g., ['Sol Ring', 'Arcane Signet'])",
+        },
+        useEdhrec: {
+          type: "boolean",
+          description: "Whether to fetch EDHREC suggestions to inform card choices. Defaults to true.",
         },
       },
       required: ["commanderName"],
@@ -187,6 +221,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       // Execute the tool
       const result = await runBuildDeckFromCommander(validatedInput);
+
+      // Return MCP-compliant response
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } else if (name === "build_deck_with_llm") {
+      // Check if LLM is available
+      if (!isLLMAvailable()) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: "OpenAI API key not configured",
+                message: "Set OPENAI_API_KEY in .env file. See .env.example for template.",
+                config: getLLMConfigForLogging(),
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Validate input with zod schema
+      const validatedInput = BuildDeckInputSchema.parse(args);
+      
+      // Execute the LLM-powered tool
+      const result = await runBuildDeckWithLLM(validatedInput);
 
       // Return MCP-compliant response
       return {

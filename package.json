@@ -1,6 +1,6 @@
 {
   "name": "mtg-commander-analyzer-mcp",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "Open-source TypeScript library and MCP server for analyzing Magic: The Gathering Commander (EDH) decks",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,13 @@
     "test:build": "ts-node src/testBuildLocal.ts",
     "test:e2e": "ts-node src/testEndToEnd.ts",
     "clean": "rimraf dist",
-    "setup": "node -e \"console.log('Please run ./setup.sh (Linux/macOS) or .\\\\setup.ps1 (Windows) to complete setup')\""
+    "setup": "node -e \"console.log('Please run ./setup.sh (Linux/macOS) or .\\\\setup.ps1 (Windows) to complete setup')\"",
+    "db:create": "ts-node src/scripts/createDatabase.ts",
+    "db:create:keep": "ts-node src/scripts/createDatabase.ts -- --keep",
+    "db:import": "ts-node src/scripts/importCards.ts",
+    "db:import-rulings": "ts-node src/scripts/importRulings.ts",
+    "db:tag": "ts-node src/scripts/tagCards.ts",
+    "db:stats": "ts-node -e \"const db = require('./src/core/cardDatabase'); console.log(db.getDatabaseStats());\""
   },
   "keywords": [
     "mtg",
@@ -40,7 +46,9 @@
   "author": "MTG Commander Analyzer MCP Contributors",
   "license": "MIT",
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.0.0",
+    "@types/stream-json": "^1.7.8",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   },
@@ -49,6 +57,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.24.3",
+    "better-sqlite3": "^12.5.0",
+    "dotenv": "^17.2.3",
+    "openai": "^6.15.0",
+    "stream-json": "^1.9.1",
     "zod": "^4.1.13"
   }
 }

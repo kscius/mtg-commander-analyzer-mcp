@@ -1,0 +1,74 @@
+[
+  {
+    "id": "thoracle_consultation",
+    "name": "Thassa's Oracle + Demonic Consultation",
+    "pieces": ["Thassa's Oracle", "Demonic Consultation"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "game_end"
+  },
+  {
+    "id": "thoracle_tainted",
+    "name": "Thassa's Oracle + Tainted Pact",
+    "pieces": ["Thassa's Oracle", "Tainted Pact"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "game_end"
+  },
+  {
+    "id": "kiki_zealous",
+    "name": "Kiki-Jiki + Zealous Conscripts",
+    "pieces": ["Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  },
+  {
+    "id": "kiki_resto",
+    "name": "Kiki-Jiki + Restoration Angel",
+    "pieces": ["Kiki-Jiki, Mirror Breaker", "Restoration Angel"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  },
+  {
+    "id": "splinter_twin",
+    "name": "Splinter Twin + Deceiver Exarch",
+    "pieces": ["Splinter Twin", "Deceiver Exarch"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  },
+  {
+    "id": "dramatic_scepter",
+    "name": "Dramatic Reversal + Isochron Scepter",
+    "pieces": ["Dramatic Reversal", "Isochron Scepter"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  },
+  {
+    "id": "power_artifact",
+    "name": "Power Artifact + Grim Monolith",
+    "pieces": ["Power Artifact", "Grim Monolith"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  },
+  {
+    "id": "pemmin_aura",
+    "name": "Pemmin's Aura / Freed from the Real + Bloom Tender",
+    "pieces": ["Bloom Tender", "Pemmin's Aura"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  },
+  {
+    "id": "freed_tender",
+    "name": "Freed from the Real + Bloom Tender",
+    "pieces": ["Bloom Tender", "Freed from the Real"],
+    "size": 2,
+    "turnFloor": 6,
+    "kind": "infinite"
+  }
+]

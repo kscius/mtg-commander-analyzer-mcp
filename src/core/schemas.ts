@@ -34,7 +34,10 @@ export const AnalyzeDeckInputSchema = z.object({
     inferCommander: z.boolean().optional().describe("Whether to infer commander from decklist"),
     
     /** Language for card names (optional, reserved for future use) */
-    language: z.string().optional().describe("Language for card names (e.g., 'en')")
+    language: z.string().optional().describe("Language for card names (e.g., 'en')"),
+
+    /** Use OpenAI to classify cards with no tags (fallback) */
+    useLLMFallbackForCategories: z.boolean().optional().describe("Use LLM when heuristics assign no categories")
   }).optional().describe("Analysis options")
 });
 
@@ -70,11 +73,14 @@ export const BuildDeckInputSchema = z.object({
   /** Optional seed cards to include in the deck */
   seedCards: z.array(z.string()).optional().describe("Optional seed cards to include (e.g., ['Sol Ring', 'Arcane Signet'])"),
   
-  /** Whether to fetch EDHREC suggestions (default: false) */
-  useEdhrec: z.boolean().optional().describe("Whether to fetch EDHREC suggestions for card recommendations"),
+  /** Whether to fetch EDHREC suggestions (default: true) */
+  useEdhrec: z.boolean().optional().default(true).describe("Whether to fetch EDHREC suggestions for card recommendations. Defaults to true."),
   
-  /** Whether to autofill missing categories using EDHREC (default: false) */
-  useEdhrecAutofill: z.boolean().optional().describe("Whether to autofill missing categories (ramp, draw, removal, wipes) using EDHREC suggestions")
+  /** Whether to autofill missing categories using EDHREC (default: true) */
+  useEdhrecAutofill: z.boolean().optional().default(true).describe("Whether to autofill missing categories (ramp, draw, removal, wipes) using EDHREC suggestions. Defaults to true."),
+
+  /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC + OpenAI fallback) for a full 99-card deck */
+  useTemplateGenerator: z.boolean().optional().describe("When true with templateId bracket3, build deck using template-driven generator (mana_base, curve, categories, EDHREC + OpenAI fallback). Defaults to false.")
 });
 
 /**

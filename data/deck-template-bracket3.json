@@ -1,12 +1,363 @@
 {
   "id": "bracket3",
-  "label": "Bracket 3 (Upgraded)",
+  "label": "Bracket 3 (Upgraded) - Maxed within Bracket 3 Limits",
+
+  "policies": {
+    "max_game_changers": 3,
+    "max_extra_turn_cards": 3,
+    "ban_mass_land_denial": true,
+    "ban_extra_turn_chains": true,
+    "ban_2card_gameenders_before_turn": 6,
+
+    "budget": {
+      "mode": "no_cap",
+      "tier": "expensive",
+      "max_card_price_usd": 10000,
+      "max_total_price_usd": 1000000,
+      "allow_reserve_list": true
+    },
+
+    "deck_sizes": {
+      "main_deck": { "min": 98, "max": 99 },
+      "commanders": { "min": 1, "max": 2 },
+      "total_deck": [100]
+    },
+
+    "legality": {
+      "format": "commander",
+      "enforce_color_identity": true,
+      "allow_acorn": false
+    }
+  },
+
+  "mana_base": {
+    "land_count": { "min": 35, "max": 38 },
+
+    "land_mix": {
+      "basics": { "min": 5, "max": 16 },
+      "utility_lands": { "min": 2, "max": 6 },
+      "colorless_lands": { "min": 0, "max": 4 },
+      "mdfc_lands": { "min": 0, "max": 4 },
+
+      "fetches": { "min": 0, "max": 10 },
+
+      "typed_duals": { "min": 0, "max": 10 },
+      "shock_lands": { "min": 0, "max": 10 },
+      "tricycle_lands": { "min": 0, "max": 10 },
+      "verge_lands": { "min": 0, "max": 10 },
+      "surveil_lands": { "min": 0, "max": 10 },
+
+      "bond_lands": { "min": 0, "max": 10 },
+      "pain_lands": { "min": 0, "max": 10 },
+      "check_lands": { "min": 0, "max": 10 },
+      "slow_lands": { "min": 0, "max": 10 },
+      "fast_lands": { "min": 0, "max": 10 },
+      "filter_lands": { "min": 0, "max": 10 }
+    },
+
+    "tapped_lands": {
+      "max_total": 8,
+      "max_etb_tapped_unconditional": 2,
+      "count_conditional_as_tapped_when_unmet": true
+    },
+
+    "early_untapped": {
+      "min_turn1_total": 10,
+      "min_turn2_total": 16,
+      "min_turn3_total": 20,
+      "min_turn1_by_color": "auto",
+      "min_turn2_by_color": "auto"
+    },
+
+    "fetch_policy": {
+      "min_fetch_targets_per_fetch": 2,
+      "min_typed_duals_total": 4,
+      "require_basic_targets": true,
+      "allow_nonbasic_only_fetch_plan": false
+    },
+
+    "source_counting": {
+      "count_nonlands_as_sources": true,
+      "any_color_rocks_weight": 0.85,
+      "fetch_weight": 0.75,
+      "mox_like_fast_mana_weight": 0.9,
+      "dorks_weight": 0.8,
+      "rituals_weight": 0.3,
+      "tapped_land_weight_for_t1": 0.0,
+      "tapped_land_weight_for_t2": 0.5
+    }
+  },
+
+  "color_model": {
+    "targets": {
+      "method": "pip_weighted",
+      "base_sources_per_color": 10,
+      "base_sources_per_color_by_colors": { "2": 12, "3": 10, "4": 9, "5": 8 },
+      "pip_weight": 1.3,
+      "early_turn_weight": 1.6,
+      "commander_weight": 1.2,
+      "mv_weights": { "0_2": 1.6, "3_4": 1.2, "5_plus": 1.0 },
+      "hybrid_pip_split": "share",
+      "phyrexian_counts_as_color": true
+    },
+
+    "commander_cast_targets": {
+      "target_turn": 3,
+      "reliability": 0.8
+    },
+
+    "early_game": {
+      "need_turn1_play": true,
+      "need_turn2_double_spell": false,
+      "min_untapped_sources_turn1": 10,
+      "min_untapped_sources_turn2": 16
+    },
+
+    "constraints": {
+      "max_colorless_sources": 6,
+      "max_tapped_lands": 8,
+      "max_utility_lands_by_colors": { "2": 6, "3": 4, "4": 3, "5": 2 },
+      "max_colorless_lands_by_colors": { "2": 4, "3": 3, "4": 2, "5": 2 },
+      "max_tapped_lands_by_colors": { "2": 8, "3": 8, "4": 7, "5": 6 }
+    }
+  },
+
+  "curve": {
+    "max_avg_mv": 3.2,
+    "min_early_plays_mv2_or_less": 12,
+    "max_mv5plus_total": 10,
+    "limit_pip_heavy_spells_in_4plus_colors": {
+      "pip_threshold_same_color": 3,
+      "max_cards": 6
+    },
+
+    "mv_distribution": {
+      "0_1": { "min": 8, "max": 12 },
+      "2": { "min": 12, "max": 18 },
+      "3": { "min": 10, "max": 14 },
+      "4": { "min": 6, "max": 10 },
+      "5_plus": { "min": 6, "max": 10 }
+    }
+  },
+
+  "interaction_coverage": {
+    "min_instant_speed_total": 8,
+    "min_cheap_interaction_mv2_or_less": 5,
+
+    "coverage_minimums": {
+      "creature_answers": 6,
+      "artifact_answers": 3,
+      "enchantment_answers": 2,
+      "graveyard_hate": 2,
+      "stack_interaction": "auto"
+    },
+
+    "quality_constraints": {
+      "min_exile_effects": 2,
+      "min_unconditional_removal": 2
+    }
+  },
+
   "categories": [
     { "name": "lands", "min": 35, "max": 38 },
-    { "name": "ramp", "min": 8, "max": 10 },
-    { "name": "card_draw", "min": 8, "max": 10 },
-    { "name": "target_removal", "min": 6, "max": 8 },
-    { "name": "board_wipes", "min": 3, "max": 4 }
-  ]
-}
 
+    {
+      "name": "ramp",
+      "min": 9,
+      "max": 12,
+      "constraints": {
+        "min_mv2_or_less": 6,
+        "split": { "artifact": [4, 8], "land": [2, 6], "dorks": [0, 6], "rituals": [0, 2] },
+        "max_fast_mana": 3,
+        "ban_mana_positive_rocks": false
+      }
+    },
+
+    {
+      "name": "card_draw",
+      "min": 8,
+      "max": 11,
+      "constraints": {
+        "min_repeatable_engines": 2,
+        "min_burst_draw": 3,
+        "max_symmetrical_draw": 2,
+        "min_mv3_or_less": 5
+      }
+    },
+
+    { "name": "card_selection", "min": 3, "max": 6 },
+
+    {
+      "name": "spot_removal",
+      "min": 4,
+      "max": 7,
+      "constraints": {
+        "min_instant_speed": 3,
+        "min_mv2_or_less": 2,
+        "min_exile": 1
+      }
+    },
+
+    { "name": "artifact_enchantment_hate", "min": 2, "max": 5 },
+    { "name": "graveyard_hate", "min": 1, "max": 3 },
+
+    {
+      "name": "board_wipes",
+      "min": 2,
+      "max": 4,
+      "constraints": {
+        "max_mv": 5,
+        "prefer_asymmetric": false,
+        "min_emergency_button_mv4_or_less": 1
+      }
+    },
+
+    {
+      "name": "protection",
+      "min": 3,
+      "max": 6,
+      "constraints": {
+        "min_instant_speed": 2,
+        "min_one_mana_protection": 0
+      }
+    },
+
+    { "name": "value_engines", "min": 3, "max": 7 },
+
+    {
+      "name": "win_conditions",
+      "min": 2,
+      "max": 4,
+      "constraints": {
+        "min_on_theme": 2,
+        "max_a_plus_b_combos": 1,
+        "require_noncombo_wincon": true
+      }
+    },
+
+    { "name": "game_changers", "min": 0, "max": 3 },
+    { "name": "extra_turns", "min": 0, "max": 3 }
+  ],
+
+  "combo_rules": {
+    "allow_infinite_combos": true,
+
+    "max_tutors_total": 5,
+    "max_unconditional_tutors": 2,
+    "max_conditional_tutors": 3,
+    "max_transmute_effects": 1,
+
+    "max_fast_mana": 3,
+    "max_free_interaction": 4,
+
+    "require_combo_piece_overlap": true,
+    "combo_speed_policy": {
+      "min_turn_to_present_lethal": 6,
+      "ban_2card_gameenders_before_turn": 6
+    }
+  },
+
+  "packages": [
+    {
+      "name": "primary_theme",
+      "min": 10,
+      "max": 18,
+      "tags": ["auto_from_edhrec"]
+    },
+    {
+      "name": "synergy_payoffs",
+      "min": 6,
+      "max": 10,
+      "tags": ["auto_from_edhrec", "payoff"]
+    },
+    {
+      "name": "synergy_enablers",
+      "min": 8,
+      "max": 14,
+      "tags": ["auto_from_edhrec", "enabler"]
+    }
+  ],
+
+  "meta": {
+    "average_power_level": 10,
+    "fast_combo_density": "mid",
+    "stax_tolerance": "low",
+    "graveyard_meta_share": 0.3,
+    "creature_meta_share": 0.6
+  },
+
+  "meta_adaptations": [
+    {
+      "if": { "field": "meta.graveyard_meta_share", "op": ">=", "value": 0.3 },
+      "then": [
+        { "set": "interaction_coverage.coverage_minimums.graveyard_hate", "value": 2 }
+      ]
+    },
+    {
+      "if": { "field": "meta.fast_combo_density", "op": "==", "value": "high" },
+      "then": [
+        { "set": "interaction_coverage.min_cheap_interaction_mv2_or_less", "value": 7 },
+        { "set": "interaction_coverage.coverage_minimums.stack_interaction", "value": 6 }
+      ]
+    },
+    {
+      "if": { "field": "meta.creature_meta_share", "op": ">=", "value": 0.6 },
+      "then": [
+        { "set": "categories[name=board_wipes].min", "value": 3 }
+      ]
+    }
+  ],
+
+  "validation": {
+    "strictness": "mixed",
+    "hard_constraints": [
+      "policies.deck_sizes",
+      "policies.legality",
+      "policies.max_game_changers",
+      "policies.max_extra_turn_cards",
+      "policies.ban_mass_land_denial",
+      "policies.ban_extra_turn_chains",
+      "policies.ban_2card_gameenders_before_turn",
+      "combo_rules",
+      "mana_base.land_count",
+      "categories"
+    ],
+    "soft_constraints": [
+      "curve.max_avg_mv",
+      "curve.mv_distribution",
+      "curve.min_early_plays_mv2_or_less",
+      "mana_base.tapped_lands",
+      "mana_base.early_untapped",
+      "interaction_coverage",
+      "packages"
+    ],
+    "fail_policy": {
+      "on_hard_fail": "regen_section",
+      "on_soft_fail": "accept_with_penalty",
+      "regen_priority": ["mana_base", "ramp", "interaction", "curve", "packages"]
+    }
+  },
+
+  "generator_hints": {
+    "prefer_on_theme_cards": true,
+    "on_theme_ratio_target": 0.65,
+    "max_generic_staples": 12,
+
+    "avoid_cards_mode": "hard_ban",
+    "avoid_cards": "data\\Banlist.txt",
+
+    "staples_policy": {
+      "mode": "balanced",
+      "max_edhrec_inclusion_rate": 0.7,
+      "min_synergy_score": "auto"
+    },
+
+    "scryfall_filters": {
+      "prefer_legal_printings_only": true,
+      "prefer_cheapest_printing": false,
+      "avoid_digital_only": true
+    },
+
+    "notes": "Construcción 'power 10' dentro de Bracket 3: máxima consistencia, early plays, interaction eficiente; evita demasiadas ETB tapped; respeta bans y límites de game changers/extra turns."
+  }
+}

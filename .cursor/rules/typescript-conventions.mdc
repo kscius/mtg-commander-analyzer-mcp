@@ -1,0 +1,43 @@
+---
+description: Convenciones TypeScript para el código del proyecto (solo este repo)
+globs: "**/*.ts"
+alwaysApply: false
+---
+
+# TypeScript en MTG Commander Analyzer MCP
+
+Aplican solo al editar archivos `.ts` de este proyecto.
+
+## Estilo y tipos
+
+- Modo **strict** habilitado; no usar `any` sin justificación.
+- Preferir **funciones puras** en `src/core/` cuando sea posible.
+- JSDoc en APIs públicas (herramientas MCP, funciones exportadas de `core/`).
+
+## Estructura
+
+- **Core** (`src/core/`): lógica de negocio (parser, analyzer, deckBuilder, scryfall, banlist, brackets, etc.). Sin dependencias del MCP.
+- **MCP** (`src/mcp/`): servidor y handlers que llaman a `core/`; validar entradas con schemas de `src/core/schemas.ts`.
+
+## Validación
+
+- Entradas de herramientas MCP: validar con Zod usando `AnalyzeDeckInputSchema` y `BuildDeckInputSchema` desde `src/core/schemas.ts`.
+- No asumir que los argumentos de las herramientas ya vienen validados.
+
+## Ejemplo de manejo de errores
+
+```typescript
+// ✅ GOOD: propagar con contexto
+try {
+  const result = await buildDeckFromCommander(validatedInput);
+  return result;
+} catch (e) {
+  const msg = e instanceof Error ? e.message : 'Unknown error';
+  throw new Error(`Deck build failed: ${msg}`);
+}
+
+// ❌ BAD: tragar el error
+try {
+  return await buildDeckFromCommander(input);
+} catch {}
+```

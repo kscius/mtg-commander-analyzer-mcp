@@ -1,15 +1,16 @@
 # MTG Commander Deck Analyzer - MCP
 
-> 🎉 **Current Status:** v0.2.0 - Complete MCP Server with advanced analysis, EDHREC integration, and deck building with autofill
+> 🎉 **Current Status:** v0.4.0 - GPT-4.1 LLM deck builder, SQLite database, EDHREC integration, custom banlist
 
 Open-source TypeScript library and MCP server for analyzing and building Magic: The Gathering Commander (EDH) decks.
 
 ## 🎯 Project Goals
 
 Provide automated tools to:
-- **Analyze existing decks**: format validation, card categorization, bracket analysis
-- **Build decks from scratch**: commander-based generation with EDHREC autofill
+- **Analyze existing decks**: format validation, card categorization, bracket analysis, banlist validation
+- **Build decks from scratch**: commander-based generation with EDHREC autofill (no budget restrictions)
 - **Suggest optimizations**: recommendations based on EDHREC data and Bracket 3 rules
+- **Enforce custom banlist**: uses `data/Banlist.txt` to block banned cards from deck building
 
 ## 🏗️ Architecture
 
@@ -20,7 +21,9 @@ mtg-commander-analyzer-mcp/
 │   │   ├── deckParser.ts        # Decklist parser
 │   │   ├── analyzer.ts          # Advanced deck analysis
 │   │   ├── deckBuilder.ts       # Deck builder
-│   │   ├── scryfall.ts          # Scryfall integration
+│   │   ├── scryfall.ts          # Scryfall integration (auto-uses DB or JSON)
+│   │   ├── cardDatabase.ts      # SQLite database queries
+│   │   ├── banlist.ts           # Custom banlist enforcement
 │   │   ├── edhrec.ts            # EDHREC integration
 │   │   ├── roles.ts             # Role classification
 │   │   ├── templates.ts         # Deck templates
@@ -29,18 +32,25 @@ mtg-commander-analyzer-mcp/
 │   │   ├── categoryUtils.ts     # Category utilities
 │   │   ├── types.ts             # TypeScript interfaces
 │   │   └── schemas.ts           # Zod schemas for MCP
+│   ├── scripts/                 # Database management scripts
+│   │   ├── createDatabase.ts    # Create SQLite schema
+│   │   └── importCards.ts       # Stream-import from JSON
 │   ├── mcp/                     # MCP server implementation
 │   │   ├── server.ts            # MCP server (stdio transport)
 │   │   ├── analyzeDeckTool.ts   # analyze_deck tool
 │   │   └── buildDeckFromCommanderTool.ts  # build_deck tool
 │   ├── testLocal.ts             # Analysis testing
-│   └── testBuildLocal.ts        # Build testing
-├── data/                        # Scryfall data, EDHREC, templates
-│   ├── oracle-cards.json        # Scryfall database (download separately)
-│   ├── templates/               # Deck templates (Bracket 3)
-│   ├── brackets/                # Bracket rules
+│   ├── testBuildLocal.ts        # Build testing
+│   └── testEndToEnd.ts          # End-to-end testing
+├── data/                        # Card data, rules, templates
+│   ├── cards.db                 # SQLite database (primary card source)
+│   ├── rulings.json             # Card rulings from Scryfall (by oracle_id)
+│   ├── MagicCompRules.txt       # Official MTG Comprehensive Rules
+│   ├── Banlist.txt              # Custom banlist (one card per line)
+│   ├── deck-template-*.json     # Deck templates (Bracket 3)
+│   ├── bracket-rules.json       # Bracket rules
 │   ├── bracket3-*.json          # Bracket 3 card lists
-│   └── edhrec_structures/       # EDHREC JSON examples
+│   └── edhrec_structures/       # EDHREC JSON data
 └── package.json
 ```
 
@@ -59,11 +69,29 @@ cd mtg-commander-analyzer-mcp
 npm install
 ```
 
-### 2. Download Scryfall Data (REQUIRED)
+### 2. Set Up Card Database (REQUIRED)
 
-⚠️ **IMPORTANT**: The `oracle-cards.json` file (158 MB) is not included in the repository as it exceeds GitHub's file size limit.
+The project uses SQLite to efficiently query card data. This supports files of any size, including the full Scryfall "All Cards" database (2GB+).
 
-**Option A - Automated Setup (Recommended):**
+**Option A - Use Pre-existing oracle-cards.json:**
+
+If you already have `data/oracle-cards.json`:
+
+```bash
+# Create the database schema
+npm run db:create
+
+# Import cards (supports streaming, handles 2GB+ files)
+npm run db:import
+```
+
+The import script:
+- ✅ Uses streaming JSON parsing (never loads full file in memory)
+- ✅ Processes ~2,800 cards/second
+- ✅ Creates indexes for fast lookups
+- ✅ Full-text search support
+
+**Option B - Download Fresh Scryfall Data:**
 
 ```bash
 # Linux/macOS
@@ -74,31 +102,76 @@ chmod +x setup.sh
 .\setup.ps1
 ```
 
-The script automatically:
-- ✅ Installs npm dependencies
-- ✅ Downloads the latest Oracle Cards from Scryfall
-- ✅ Saves the file to `data/oracle-cards.json`
+Then run the database setup:
+```bash
+npm run db:create
+npm run db:import
+```
 
-**Option B - Manual Download:**
+**Option C - Manual Download:**
 
 1. Visit [Scryfall Bulk Data](https://scryfall.com/docs/api/bulk-data)
-2. In the **Oracle Cards** section, download the latest JSON file
-3. Save the file as `data/oracle-cards.json` in your project
+2. Download "Oracle Cards" (unique cards) or "All Cards" (all printings)
+3. Save as `data/oracle-cards.json`
+4. Run `npm run db:create && npm run db:import`
 
-**Option C - Direct Command (Linux/macOS/Windows with curl):**
+**Database Commands:**
 
-```bash
-# Automatically download the latest version
-curl -L $(curl -s https://api.scryfall.com/bulk-data/oracle-cards | grep -o '"download_uri":"[^"]*' | cut -d'"' -f4) -o data/oracle-cards.json
+| Command | Description |
+|---------|-------------|
+| `npm run db:create` | Create empty SQLite database with schema |
+| `npm run db:import` | Import cards from `data/oracle-cards.json` |
+| `npm run db:import /path/to/file.json` | Import from custom path |
+
+### 2.5 Custom Banlist (Optional)
+
+Edit `data/Banlist.txt` to customize which cards are banned. One card name per line:
+
+```
+Mana Crypt
+Dockside Extortionist
+Black Lotus
+Jeweled Lotus
 ```
 
-**Windows PowerShell (Option C):**
+**Features:**
+- ✅ Banned cards are automatically excluded from deck building autofill
+- ✅ Banned seed cards are filtered with a warning
+- ✅ Deck analysis shows banlist violations
+- ✅ No budget restrictions (only the banlist controls card legality)
+- ✅ Case-insensitive matching
+- ✅ Supports quantity prefixes (e.g., "1 Mana Crypt")
 
-```powershell
-# Download with PowerShell
-$url = (Invoke-RestMethod "https://api.scryfall.com/bulk-data/oracle-cards").download_uri
-Invoke-WebRequest -Uri $url -OutFile "data/oracle-cards.json"
-```
+The default banlist includes 74 cards commonly considered problematic for casual Commander play.
+
+### 2.6 Reference Files for LLM/AI Agents
+
+When using this MCP with an AI agent (Cursor, Claude Desktop, etc.), the agent should always reference these resources for accurate deck building:
+
+| Resource | Purpose |
+|----------|---------|
+| `data/cards.db` | SQLite database with all card data (use MCP tools to query) |
+| `data/rulings.json` | Card-specific rulings from Scryfall (indexed by `oracle_id`) |
+| `data/MagicCompRules.txt` | Official Magic: The Gathering Comprehensive Rules |
+| `data/Banlist.txt` | Custom banned cards list |
+
+**⚠️ IMPORTANT: Deck Validation Rules**
+
+The AI agent MUST always validate:
+
+1. **Exactly 100 cards** (99 + 1 commander)
+2. **All cards within commander's color identity**
+3. **No banned cards** (from `data/Banlist.txt`)
+4. **Singleton rule** (only 1 copy of each card, except basic lands)
+5. **Commander legality** (commander must be a legendary creature or have "can be your commander")
+
+**For card lookups**, the agent should:
+- Use the MCP `analyze_deck` or `build_deck_from_commander` tools (they query `cards.db` automatically)
+- The SQLite database contains all Scryfall card data with full-text search support
+
+**For complex card interactions**, the agent should:
+- Check `data/rulings.json` for official rulings on specific cards
+- Reference `data/MagicCompRules.txt` for rules questions (e.g., layers, priority, replacement effects)
 
 ### 3. Build (Optional)
 
@@ -226,6 +299,55 @@ Builds a Commander deck from a commander name with optional EDHREC autofill.
 - ✅ Color identity validation
 - ✅ Role classification for all cards
 
+#### 3. `build_deck_with_llm` ⭐ NEW
+
+**FULLY AUTONOMOUS** deck builder using GPT-4.1. Builds a complete 99-card deck without human intervention.
+
+> ⚠️ **Requires OpenAI API key.** See [LLM Configuration](#llm-configuration-openai) below.
+
+**Input:**
+```json
+{
+  "commanderName": "Atraxa, Praetors' Voice",
+  "seedCards": ["Doubling Season", "Deepglow Skate"]
+}
+```
+
+**Output:**
+```json
+{
+  "deck": {
+    "commanderName": "Atraxa, Praetors' Voice",
+    "cards": [
+      { "name": "Sol Ring", "quantity": 1, "roles": ["ramp"] },
+      { "name": "Breeding Pool", "quantity": 1, "roles": ["land"] },
+      ... // EXACTLY 99 cards
+    ]
+  },
+  "analysis": {
+    "totalCards": 99,
+    "banlistValid": true,
+    "categories": [ ... ]
+  },
+  "notes": [
+    "[LLM] Using gpt-4.1 for deck building",
+    "Commander: Atraxa, Praetors' Voice (Color Identity: BGUW)",
+    "✓ EDHREC: Fetched 100 card suggestions",
+    "✓ LLM response received (2847 in, 1923 out)",
+    "Strategy: Superfriends/Planeswalker deck focusing on proliferate..."
+  ]
+}
+```
+
+**Features:**
+- ✅ **Complete 99-card deck** (not a skeleton)
+- ✅ AI-powered card selection based on commander synergy
+- ✅ Uses EDHREC data for informed choices
+- ✅ Respects custom banlist
+- ✅ Validates color identity and singleton rule
+- ✅ Bracket 3 power level
+- ✅ Cost: ~$0.002-0.01 per deck
+
 ### Local Testing
 
 **Deck analysis:**
@@ -239,6 +361,53 @@ npm run test:build
 ```
 
 Both scripts display detailed results in the console.
+
+## 🤖 LLM Configuration (OpenAI)
+
+To use the `build_deck_with_llm` tool, you need to configure an OpenAI API key.
+
+### 1. Get an API Key
+
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create a new API key
+3. Copy the key (starts with `sk-`)
+
+### 2. Configure the Key
+
+Copy the example environment file and add your key:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+```env
+# Required
+OPENAI_API_KEY=sk-your-actual-api-key-here
+
+# Optional (defaults shown)
+OPENAI_MODEL=gpt-4.1
+OPENAI_TEMPERATURE=0.7
+OPENAI_MAX_TOKENS=4096
+```
+
+### 3. Available Models
+
+| Model | Speed | Cost | Recommendation |
+|-------|-------|------|----------------|
+| `gpt-4.1` | Fast | ~$0.005/deck | ⭐ **Default** - Best balance |
+| `gpt-4o` | Fast | ~$0.01/deck | More creative |
+| `gpt-4o-mini` | Fastest | ~$0.001/deck | Most economical |
+| `o3-mini` | Slow | ~$0.02/deck | Deep reasoning |
+
+### 4. Verify Configuration
+
+```bash
+npm run build
+npm run mcp
+```
+
+If configured correctly, the `build_deck_with_llm` tool will be available.
 
 ## 🔧 MCP Client Configuration
 
@@ -274,18 +443,29 @@ In `claude_desktop_config.json`:
 }
 ```
 
-## 🛠️ Current Functionality (v0.2.0)
+## 🛠️ Current Functionality (v0.4.0)
 
 ### ✅ Implemented
 
 **Core:**
 - ✅ Decklist parser for `<quantity> <name>` format
-- ✅ Complete Scryfall integration (local oracle-cards.json)
+- ✅ **SQLite database** for efficient card lookups (supports 2GB+ datasets)
+- ✅ **Streaming JSON import** - never loads full file in memory
+- ✅ Automatic fallback to JSON file if database unavailable
 - ✅ Role classification by type and oracle text (ramp, draw, removal, wipes)
 - ✅ Template system (Bracket 3)
 - ✅ Bracket 3 rules with card lists
-- ✅ EDHREC JSON endpoints integration (top cards, lands by color)
+- ✅ **Always-on EDHREC integration** (enabled by default)
 - ✅ In-memory caching for EDHREC requests
+- ✅ **Custom banlist** (`data/Banlist.txt`) - 74 banned cards
+- ✅ **LLM-powered deck builder** (GPT-4.1) - builds complete 99-card decks
+
+**Database:**
+- ✅ Full Scryfall schema with 60+ columns
+- ✅ Optimized indexes for common queries
+- ✅ Full-text search (FTS5) for card names and oracle text
+- ✅ JSON columns for complex data (legalities, prices, images)
+- ✅ ~520,000+ cards from "All Cards" bulk data
 
 **Analysis:**
 - ✅ Deck size validation (99 + commander)
@@ -297,6 +477,7 @@ In `claude_desktop_config.json`:
 **Building:**
 - ✅ Skeleton generation from commander
 - ✅ Automatic basic land distribution by color identity
+- ✅ **EDHREC always enabled by default** (can be disabled)
 - ✅ EDHREC suggestions (top 50 cards + top 50 lands)
 - ✅ Intelligent autofill for deficit categories
 - ✅ Color identity validation
@@ -310,7 +491,7 @@ In `claude_desktop_config.json`:
 - ✅ Input validation with zod schemas
 - ✅ Graceful error handling
 
-### 🔜 Next Steps (v0.3.0+)
+### 🔜 Next Steps (v0.4.0+)
 
 - [ ] Commander-specific EDHREC endpoints (`commanders/atraxa.json`)
 - [ ] Theme detection and thematic autofill
@@ -318,6 +499,7 @@ In `claude_desktop_config.json`:
 - [ ] Infinite combo detection
 - [ ] Support for other brackets (1, 2, 4)
 - [ ] Additional MCP tool: `optimize_deck`
+- [ ] Additional MCP tool: `search_cards` (SQL-powered search)
 - [ ] MCP Resources: direct Scryfall data access
 - [ ] MCP Prompts: contextual suggestions
 

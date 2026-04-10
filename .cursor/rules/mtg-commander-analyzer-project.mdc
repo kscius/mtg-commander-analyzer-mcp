@@ -1,0 +1,57 @@
+---
+description: Contexto y convenciones del proyecto MTG Commander Analyzer MCP (solo este repo)
+alwaysApply: true
+---
+
+# MTG Commander Analyzer MCP — Reglas del proyecto
+
+Estas reglas aplican **únicamente a este proyecto**. No extenderlas a otros repositorios.
+
+## Alcance del proyecto
+
+- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y construcción con LLM.
+- **Stack**: TypeScript (strict), Node.js, MCP (Model Context Protocol), SQLite (`data/cards.db`), Zod para validación.
+- **Estructura**: `src/core/` (lógica), `src/mcp/` (servidor y herramientas MCP), `src/scripts/` (DB, import), `data/` (plantillas, banlist, reglas).
+
+## Herramientas MCP
+
+Usar siempre las herramientas del MCP cuando el usuario pida analizar o construir mazos:
+
+| Herramienta | Uso |
+|-------------|-----|
+| `analyze_deck` | Analizar un decklist existente: categorías, Bracket 3, banlist, recomendaciones. |
+| `build_deck_from_commander` | Construir esqueleto desde comandante + EDHREC (opcional) y autofill por categorías. |
+| `build_deck_with_llm` | Construir mazo completo de 99 cartas con GPT; requiere `OPENAI_API_KEY`. |
+
+- **Entrada de mazos**: texto plano, una carta por línea con cantidad (ej. `1 Sol Ring`).
+- **Template por defecto**: `bracket3`. Bracket por defecto: `bracket3`.
+
+## Fuentes de datos (no inventar cartas)
+
+- **Cartas**: consultar mediante MCP o `data/cards.db` (Scryfall). No asumir nombres ni legalidad.
+- **Banlist**: `data/Banlist.txt` (una carta por línea). Las herramientas MCP ya la respetan.
+- **Reglas / rulings**: `data/MagicCompRules.txt`, `data/rulings.json` para interacciones complejas.
+- **Plantilla y bracket**: `data/deck-template-bracket3.json`, `data/bracket-rules.json`.
+
+## Validación de mazos Commander
+
+Todo mazo construido o analizado debe cumplir:
+
+1. **100 cartas** en total: 1 comandante + 99 en el mazo.
+2. **Color identity**: todas las cartas dentro de la identidad de color del comandante.
+3. **Singleton**: máximo 1 copia por carta (salvo tierras básicas).
+4. **Banlist**: ninguna carta de `data/Banlist.txt`.
+5. **Bracket 3** (si aplica): máx. 3 Game Changers, máx. 3 cartas de turnos extra, sin destrucción masiva de tierras, sin combos de 2 cartas que terminen la partida antes del turno 6.
+
+## Convenciones de código (este repo)
+
+- TypeScript en modo estricto; funciones puras donde sea posible.
+- JSDoc en APIs públicas.
+- Separación: `core/` (lógica) vs `mcp/` (protocolo).
+- Schemas Zod en `src/core/schemas.ts` para entradas de herramientas MCP.
+
+## Qué no hacer
+
+- No usar estas reglas ni este MCP en otros proyectos.
+- No inventar nombres de cartas ni legalidad; usar siempre datos del proyecto o MCP.
+- No omitir la validación de formato Commander (100 cartas, color identity, singleton, banlist, Bracket 3) al construir o revisar mazos.

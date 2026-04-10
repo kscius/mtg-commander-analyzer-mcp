@@ -1,0 +1,17 @@
+{
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "cardviews": [
+            { "name": "Sol Ring", "rank": 1, "inclusion": 0.99 },
+            { "name": "Arcane Signet", "rank": 2, "inclusion": 0.95 },
+            { "name": "Command Tower", "rank": 3, "inclusion": 0.92 },
+            { "name": "Swords to Plowshares", "rank": 4 },
+            { "name": "Teferi's Protection", "rank": 5 }
+          ]
+        }
+      ]
+    }
+  }
+}

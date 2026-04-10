@@ -5,7 +5,7 @@
  * Provides helpers to get popular cards and lands based on color identity.
  */
 
-import { EdhrecCardSuggestion } from './types';
+import { EdhrecCardSuggestion, EdhrecTheme } from './types';
 
 /**
  * EDHREC JSON API base URL
@@ -455,6 +455,323 @@ export async function getTopLandsForColorIdentity(
   });
 
   return suggestions.slice(0, limit);
+}
+
+/**
+ * Normalize commander name to EDHREC slug (e.g. "Atraxa, Praetors' Voice" -> "atraxa-praetors-voice").
+ */
+export function commanderNameToSlug(commanderName: string): string {
+  return commanderName
+    .trim()
+    .toLowerCase()
+    .replace(/'/g, '')
+    .replace(/,/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Gets card suggestions for a specific commander from EDHREC.
+ * Uses commanders/{slug}.json when available. Returns [] on 404 or parse failure.
+ *
+ * @param slug - Commander slug (e.g. "atraxa-praetors-voice"); use commanderNameToSlug(name) to build
+ * @param limit - Max suggestions to return (default 80)
+ */
+export async function getCardsForCommander(
+  slug: string,
+  limit: number = 80
+): Promise<EdhrecCardSuggestion[]> {
+  const path = `commanders/${slug}.json`;
+  try {
+    const json = await fetchEdhrecJson(path);
+    const extracted = extractSuggestionsFromJson(json, `commanders/${slug}`);
+    return extracted.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Discovers available themes/archetypes for a commander from EDHREC.
+ * Parses the commander page JSON for theme links (e.g. tokens, voltron, counters).
+ *
+ * @param slug - Commander slug
+ * @returns Array of available themes, or [] if not found
+ */
+export async function getThemesForCommander(slug: string): Promise<EdhrecTheme[]> {
+  const path = `commanders/${slug}.json`;
+  try {
+    const json = await fetchEdhrecJson(path);
+    const themes: EdhrecTheme[] = [];
+
+    const panels = json.panels ?? json.container?.json_dict?.panels ?? [];
+    if (Array.isArray(panels)) {
+      for (const panel of panels) {
+        if (panel.tag === 'themes' && Array.isArray(panel.entries)) {
+          for (const entry of panel.entries) {
+            if (entry.name && entry.slug) {
+              themes.push({
+                name: entry.name,
+                slug: entry.slug,
+                count: entry.count ?? entry.num_decks,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: check for themes in the header/navigation
+    const header = json.container?.json_dict?.header ?? json.header;
+    if (header?.themes && Array.isArray(header.themes)) {
+      for (const t of header.themes) {
+        if (t.value && !themes.some(existing => existing.slug === t.value)) {
+          themes.push({
+            name: t.label ?? t.value,
+            slug: t.value,
+            count: t.count ?? t.num_decks,
+          });
+        }
+      }
+    }
+
+    return themes;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Gets card suggestions for a commander + specific theme from EDHREC.
+ * Uses commanders/{slug}/{theme}.json endpoint.
+ *
+ * @param slug - Commander slug
+ * @param theme - Theme slug (e.g., "tokens", "voltron", "+1+1-counters")
+ * @param limit - Max suggestions (default 100)
+ */
+export async function getCardsForCommanderTheme(
+  slug: string,
+  theme: string,
+  limit: number = 100
+): Promise<EdhrecCardSuggestion[]> {
+  const path = `commanders/${slug}/${theme}.json`;
+  try {
+    const json = await fetchEdhrecJson(path);
+    const extracted = extractSuggestionsFromJson(json, `commanders/${slug}/${theme}`);
+    return extracted.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Gets lands for a specific color combination using the guild/shard name.
+ * E.g., for ["W","U"] → lands/azorius.json
+ *
+ * Falls back to individual monocolor land pages if no match.
+ *
+ * @param colorIdentity - Array of color letters
+ * @param limit - Max suggestions (default 40)
+ */
+export async function getLandsForColorCombination(
+  colorIdentity: string[],
+  limit: number = 40
+): Promise<EdhrecCardSuggestion[]> {
+  const suggestions: EdhrecCardSuggestion[] = [];
+  const seen = new Set<string>();
+
+  const normalized = normalizeColorIdentity(colorIdentity);
+  const guildName = COLOR_COMBINATIONS[normalized];
+
+  if (guildName && colorIdentity.length >= 2) {
+    try {
+      const json = await fetchEdhrecJson(`lands/${guildName}.json`);
+      const extracted = extractSuggestionsFromJson(json, `lands/${guildName}`);
+      for (const sug of extracted) {
+        if (!seen.has(sug.name)) {
+          suggestions.push(sug);
+          seen.add(sug.name);
+        }
+      }
+    } catch {
+      // Guild land page not found, fall through to monocolor
+    }
+  }
+
+  // Supplement with monocolor land pages
+  if (suggestions.length < limit) {
+    const monoPages = await getTopLandsForColorIdentity(colorIdentity, limit);
+    for (const sug of monoPages) {
+      if (!seen.has(sug.name)) {
+        suggestions.push(sug);
+        seen.add(sug.name);
+      }
+    }
+  }
+
+  return suggestions.slice(0, limit);
+}
+
+/**
+ * Gets EDHREC combo data for a specific commander.
+ * Uses combos/{slug}.json endpoint.
+ *
+ * @param slug - Commander slug
+ * @returns Array of combo descriptions, or [] if unavailable
+ */
+export async function getCombosForCommander(
+  slug: string
+): Promise<Array<{ cards: string[]; description?: string; colorIdentity?: string[] }>> {
+  const path = `combos/${slug}.json`;
+  try {
+    const json = await fetchEdhrecJson(path);
+    const combos: Array<{ cards: string[]; description?: string; colorIdentity?: string[] }> = [];
+
+    const comboLists = json.container?.json_dict?.cardlists ?? json.cardlists ?? [];
+    if (Array.isArray(comboLists)) {
+      for (const list of comboLists) {
+        const cards: string[] = [];
+        if (Array.isArray(list.cardviews)) {
+          for (const cv of list.cardviews) {
+            if (cv.name) cards.push(cv.name);
+          }
+        }
+        if (cards.length >= 2) {
+          combos.push({
+            cards,
+            description: list.header ?? list.description,
+            colorIdentity: list.color_identity,
+          });
+        }
+      }
+    }
+
+    return combos;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Sorts suggestions by synergy score descending (highest synergy first).
+ * Cards without synergy scores are placed after scored cards.
+ */
+export function sortBySynergy(suggestions: EdhrecCardSuggestion[]): EdhrecCardSuggestion[] {
+  return [...suggestions].sort((a, b) => {
+    const aScore = a.synergyScore ?? -999;
+    const bScore = b.synergyScore ?? -999;
+    return bScore - aScore;
+  });
+}
+
+/**
+ * Filters suggestions to exclude high-salt cards (above threshold).
+ * Useful for Bracket 3 to avoid "unfun" cards.
+ *
+ * @param suggestions - Card list to filter
+ * @param threshold - Salt score threshold (default 2.0)
+ * @returns Filtered list and list of excluded high-salt card names
+ */
+export function filterHighSalt(
+  suggestions: EdhrecCardSuggestion[],
+  threshold: number = 2.0
+): { filtered: EdhrecCardSuggestion[]; highSaltCards: string[] } {
+  const filtered: EdhrecCardSuggestion[] = [];
+  const highSaltCards: string[] = [];
+
+  for (const s of suggestions) {
+    if (s.saltScore != null && s.saltScore >= threshold) {
+      highSaltCards.push(s.name);
+    } else {
+      filtered.push(s);
+    }
+  }
+
+  return { filtered, highSaltCards };
+}
+
+/**
+ * Gets a comprehensive EDHREC profile for a commander: cards, themes, combos, and lands.
+ * Combines multiple endpoints for maximum data.
+ *
+ * @param commanderName - Commander card name
+ * @param colorIdentity - Commander's color identity
+ * @param options - Optional: theme slug, salt threshold, limits
+ */
+export async function getFullCommanderProfile(
+  commanderName: string,
+  colorIdentity: string[],
+  options?: {
+    theme?: string;
+    saltThreshold?: number;
+    cardLimit?: number;
+    landLimit?: number;
+  }
+): Promise<{
+  cards: EdhrecCardSuggestion[];
+  lands: EdhrecCardSuggestion[];
+  themes: EdhrecTheme[];
+  combos: Array<{ cards: string[]; description?: string }>;
+  highSaltCards: string[];
+  sourcesUsed: string[];
+}> {
+  const slug = commanderNameToSlug(commanderName);
+  const cardLimit = options?.cardLimit ?? 120;
+  const landLimit = options?.landLimit ?? 40;
+  const saltThreshold = options?.saltThreshold ?? 2.5;
+  const sourcesUsed: string[] = [];
+
+  // Parallel fetch for performance
+  const [commanderCards, themes, combos, lands] = await Promise.all([
+    options?.theme
+      ? getCardsForCommanderTheme(slug, options.theme, cardLimit)
+      : getCardsForCommander(slug, cardLimit),
+    getThemesForCommander(slug),
+    getCombosForCommander(slug),
+    getLandsForColorCombination(colorIdentity, landLimit),
+  ]);
+
+  sourcesUsed.push(`commanders/${slug}.json`);
+  if (options?.theme) {
+    sourcesUsed.push(`commanders/${slug}/${options.theme}.json`);
+  }
+  sourcesUsed.push(`combos/${slug}.json`);
+  sourcesUsed.push(`lands/${normalizeColorIdentity(colorIdentity) ? COLOR_COMBINATIONS[normalizeColorIdentity(colorIdentity)] ?? 'mono' : 'colorless'}.json`);
+
+  // Supplement with color-based cards for breadth
+  const colorCards = await getTopCardsForColorIdentity(colorIdentity, 80);
+  sourcesUsed.push('top/[color].json');
+
+  // Merge and deduplicate, preferring commander-specific data
+  const seen = new Set<string>();
+  const allCards: EdhrecCardSuggestion[] = [];
+  for (const c of commanderCards) {
+    if (!seen.has(c.name)) {
+      allCards.push(c);
+      seen.add(c.name);
+    }
+  }
+  for (const c of colorCards) {
+    if (!seen.has(c.name)) {
+      allCards.push(c);
+      seen.add(c.name);
+    }
+  }
+
+  // Sort by synergy, then filter salt
+  const sorted = sortBySynergy(allCards);
+  const { filtered, highSaltCards } = filterHighSalt(sorted, saltThreshold);
+
+  return {
+    cards: filtered.slice(0, cardLimit),
+    lands,
+    themes,
+    combos,
+    highSaltCards,
+    sourcesUsed,
+  };
 }
 
 /**

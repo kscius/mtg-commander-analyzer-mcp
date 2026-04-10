@@ -45,6 +45,8 @@ export interface AnalyzeDeckInput {
     inferCommander?: boolean;
     /** Language of card names (default: "en") */
     language?: string;
+    /** Use OpenAI to classify cards with no tags (fallback when heuristics miss) */
+    useLLMFallbackForCategories?: boolean;
   };
 }
 
@@ -70,6 +72,43 @@ export interface CategorySummary {
 }
 
 /**
+ * Information about a banned card found in a deck
+ */
+export interface BannedCardInfo {
+  /** Card name */
+  name: string;
+  /** Quantity in the deck */
+  quantity: number;
+}
+
+/**
+ * Severity of a lint issue (hard = must fix for template; soft = recommendation)
+ */
+export type LintSeverity = 'hard' | 'soft';
+
+/**
+ * Single lint issue from template-based validation
+ */
+export interface LintIssue {
+  /** Identifier (e.g. "curve:avg_mv", "mana_base:tapped_total") */
+  key: string;
+  severity: LintSeverity;
+  message: string;
+  /** Suggested section to regenerate (e.g. "mana_base", "curve") */
+  sectionSuggest?: string;
+  details?: unknown;
+}
+
+/**
+ * Lint report: issues and metrics from template validation
+ */
+export interface LintReport {
+  ok: boolean;
+  issues: LintIssue[];
+  metrics: Record<string, unknown>;
+}
+
+/**
  * Complete deck analysis result
  */
 export interface DeckAnalysis {
@@ -89,6 +128,12 @@ export interface DeckAnalysis {
   bracketLabel?: string;
   /** Bracket-specific warnings (empty if no bracket or no violations) */
   bracketWarnings: string[];
+  /** List of banned cards found in the deck (empty if none) */
+  bannedCards: BannedCardInfo[];
+  /** Whether the deck passes banlist validation */
+  banlistValid: boolean;
+  /** Template lint report (curva, land_mix, interaction_coverage, category constraints) when template is full (e.g. bracket3) */
+  lintReport?: LintReport;
 }
 
 /**
@@ -130,6 +175,23 @@ export interface DeckTemplate {
   label?: string;
   /** Array of category configurations */
   categories: TemplateCategoryConfig[];
+  /** Optional Bracket 3 policies (max_game_changers, ban_mass_land_denial, etc.) */
+  policies?: Record<string, unknown>;
+}
+
+/**
+ * Definition of a known combo for Bracket 3 validation (no 2-card game-enders before T6).
+ */
+export interface ComboDef {
+  id: string;
+  name?: string;
+  /** Card names (exact) that form the combo */
+  pieces: string[];
+  /** Number of pieces (e.g. 2 for two-card combo) */
+  size: number;
+  /** Minimum turn at which this combo is allowed (e.g. 6 = no before turn 6) */
+  turnFloor: number;
+  kind?: 'infinite' | 'lock' | 'game_end';
 }
 
 /**
@@ -158,10 +220,28 @@ export interface EdhrecCardSuggestion {
   rank?: number;
   /** Salt score (measure of "unfun" cards, optional) */
   saltScore?: number;
-  /** Synergy score with commander (optional) */
+  /** Synergy score with commander (optional, -1.0 to 1.0) */
   synergyScore?: number;
   /** Category/source (e.g., "top/white", "lands/azorius") */
   category?: string;
+  /** Percentage of EDHREC decks that include this card */
+  inclusionRate?: number;
+  /** Number of decks this card appears in */
+  numDecks?: number;
+  /** Card label from EDHREC (e.g. "New", "High Synergy") */
+  label?: string;
+}
+
+/**
+ * EDHREC theme/archetype available for a commander
+ */
+export interface EdhrecTheme {
+  /** Theme name (e.g., "Tokens", "+1/+1 Counters", "Voltron") */
+  name: string;
+  /** URL slug (e.g., "tokens", "counters", "voltron") */
+  slug: string;
+  /** Number of decks using this theme */
+  count?: number;
 }
 
 /**
@@ -172,6 +252,14 @@ export interface EdhrecContext {
   sourcesUsed: string[];
   /** Flat list of card suggestions from EDHREC */
   suggestions: EdhrecCardSuggestion[];
+  /** Themes/archetypes available for this commander */
+  availableThemes?: EdhrecTheme[];
+  /** Theme that was used for building (if any) */
+  selectedTheme?: string;
+  /** Average synergy score of included cards */
+  avgSynergyScore?: number;
+  /** Cards flagged as high-salt (saltScore >= threshold) */
+  highSaltCards?: string[];
 }
 
 /**
@@ -194,6 +282,8 @@ export interface BuildDeckInput {
   useEdhrec?: boolean;
   /** Whether to autofill missing categories using EDHREC suggestions (default: false) */
   useEdhrecAutofill?: boolean;
+  /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC + OpenAI fallback) instead of skeleton + autofill */
+  useTemplateGenerator?: boolean;
 }
 
 /**

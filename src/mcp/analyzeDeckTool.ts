@@ -41,9 +41,8 @@ export async function runAnalyzeDeck(
   const parsedDeck = parseDeckText(input.deckText);
 
   // Step 2: Analyze the parsed deck
-  const result = analyzeDeckBasic(input, parsedDeck);
+  const result = await analyzeDeckBasic(input, parsedDeck);
 
-  // Step 3: Return the result (currently synchronous, but async for future expansion)
   return result;
 }
 
