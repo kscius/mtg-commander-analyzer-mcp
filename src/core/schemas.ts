@@ -80,7 +80,13 @@ export const BuildDeckInputSchema = z.object({
   useEdhrecAutofill: z.boolean().optional().default(true).describe("Whether to autofill missing categories (ramp, draw, removal, wipes) using EDHREC suggestions. Defaults to true."),
 
   /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC + OpenAI fallback) for a full 99-card deck */
-  useTemplateGenerator: z.boolean().optional().describe("When true with templateId bracket3, build deck using template-driven generator (mana_base, curve, categories, EDHREC + OpenAI fallback). Defaults to false.")
+  useTemplateGenerator: z.boolean().optional().describe("When true with templateId bracket3, build deck using template-driven generator (mana_base, curve, categories, EDHREC + OpenAI fallback). Defaults to false."),
+
+  /** When true (default), repeat EDHREC autofill until category deficits clear or no progress (see maxRefinementIterations). */
+  refineUntilStable: z.boolean().optional().default(true).describe("Repeat EDHREC category autofill until template gaps are filled or iteration cap is reached. Defaults to true."),
+
+  /** Maximum autofill passes when refineUntilStable is true (default 5). */
+  maxRefinementIterations: z.number().int().min(1).max(12).optional().default(5).describe("Max EDHREC autofill passes (1–12). Defaults to 5.")
 });
 
 /**

@@ -107,8 +107,9 @@ const TOOLS: Tool[] = [
       "Build a Commander deck from a commander name. " +
       "With templateId bracket3 and useTemplateGenerator true: builds a full 99-card deck using " +
       "template (mana_base, curve, categories, combo_rules), EDHREC as primary source and OpenAI as fallback. " +
-      "Otherwise: skeleton + lands + optional EDHREC autofill. Respects Bracket 3 and banlist. " +
-      "Returns built deck and analysis.",
+      "Otherwise: skeleton + lands + optional EDHREC autofill. " +
+      "By default (refineUntilStable), repeats EDHREC category autofill until template category deficits clear or no progress (maxRefinementIterations). " +
+      "Respects Bracket 3 and banlist. Returns built deck and analysis.",
     inputSchema: {
       type: "object",
       properties: {
@@ -149,6 +150,15 @@ const TOOLS: Tool[] = [
           type: "boolean",
           description: "When true with templateId bracket3, use template-driven generator for full 99-card deck (mana_base, categories, EDHREC + OpenAI fallback). Defaults to false.",
         },
+        refineUntilStable: {
+          type: "boolean",
+          description:
+            "When true (default), repeat EDHREC category autofill passes until deficits resolve or iteration cap. When false, only one autofill pass.",
+        },
+        maxRefinementIterations: {
+          type: "number",
+          description: "Maximum EDHREC autofill passes when refineUntilStable is true (default 5, max 12).",
+        },
       },
       required: ["commanderName"],
     },
@@ -159,6 +169,7 @@ const TOOLS: Tool[] = [
       "Build a COMPLETE 99-card Commander deck using GPT-4.1 AI. " +
       "This tool is FULLY AUTONOMOUS and builds the entire deck without human intervention. " +
       "Uses EDHREC suggestions, respects the custom banlist, and enforces Bracket 3 rules. " +
+      "After the LLM list, optionally runs iterative EDHREC category refinement (refineUntilStable, same as build_deck_from_commander). " +
       "Requires OPENAI_API_KEY to be configured in .env file. " +
       "Returns a complete, playable 99-card deck with analysis.",
     inputSchema: {
@@ -177,6 +188,23 @@ const TOOLS: Tool[] = [
           type: "boolean",
           description: "Whether to fetch EDHREC suggestions to inform card choices. Defaults to true.",
         },
+        useEdhrecAutofill: {
+          type: "boolean",
+          description:
+            "When true (default), after the LLM decklist, run iterative EDHREC category autofill to close template deficits. Set false to skip.",
+        },
+        refineUntilStable: {
+          type: "boolean",
+          description: "Repeat EDHREC autofill until deficits clear or no progress (default true).",
+        },
+        maxRefinementIterations: {
+          type: "number",
+          description: "Max autofill passes (default 5).",
+        },
+        templateId: { type: "string", description: "Template ID for analysis/refinement (default bracket3)." },
+        bracketId: { type: "string", description: "Bracket ID (default bracket3)." },
+        banlistId: { type: "string", description: "Banlist ID for analysis." },
+        preferredStrategy: { type: "string", description: "Optional EDHREC theme slug." },
       },
       required: ["commanderName"],
     },

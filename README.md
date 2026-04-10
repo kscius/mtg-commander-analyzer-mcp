@@ -38,7 +38,8 @@ mtg-commander-analyzer-mcp/
 │   ├── mcp/                     # MCP server implementation
 │   │   ├── server.ts            # MCP server (stdio transport)
 │   │   ├── analyzeDeckTool.ts   # analyze_deck tool
-│   │   └── buildDeckFromCommanderTool.ts  # build_deck tool
+│   │   ├── buildDeckFromCommanderTool.ts  # build_deck_from_commander
+│   │   └── buildDeckWithLLMTool.ts        # build_deck_with_llm
 │   ├── testLocal.ts             # Analysis testing
 │   ├── testBuildLocal.ts        # Build testing
 │   └── testEndToEnd.ts          # End-to-end testing
@@ -179,11 +180,20 @@ The AI agent MUST always validate:
 npm run build
 ```
 
+### 4. Unit tests (Vitest)
+
+```bash
+npm test
+npm run test:watch   # watch mode during development
+```
+
+Pull requests and pushes to `main` / `master` run `npm ci`, `npm run build`, and `npm test` on Node 18 and 20 via GitHub Actions (see `.github/workflows/ci.yml`).
+
 ## 📖 Usage
 
 ### MCP Server (Recommended)
 
-The MCP server exposes two tools for compatible clients (Cursor, Claude Desktop, etc.):
+The MCP server exposes three tools for compatible clients (Cursor, Claude Desktop, etc.): `analyze_deck`, `build_deck_from_commander`, and `build_deck_with_llm` (requires `OPENAI_API_KEY`).
 
 **Start the server:**
 ```bash

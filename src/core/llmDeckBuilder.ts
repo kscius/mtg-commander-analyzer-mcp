@@ -18,14 +18,16 @@ import {
   BuildDeckInput,
   BuildDeckResult,
   BuiltCardEntry,
+  DeckAnalysis,
   EdhrecCardSuggestion,
   EdhrecContext,
 } from './types';
 import { classifyCardRoles } from './roles';
 import { loadDeckTemplate } from './templates';
-import { loadBracketRules } from './brackets';
+import { loadBracketRules, type BracketRules } from './brackets';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
+import { runIterativeEdhrecAutofill } from './edhrecAutofill';
 
 /** Maximum OpenAI retry attempts on transient/validation failures */
 const MAX_LLM_RETRIES = 2;
@@ -511,36 +513,64 @@ export async function buildDeckWithLLM(
   }
 
   // Step 8: Build result
-  const builtCards: BuiltCardEntry[] = parsedResponse.cards.map(name => {
+  let builtCards: BuiltCardEntry[] = parsedResponse.cards.map((name) => {
     const cardData = getCardByName(name);
     const roles = cardData ? classifyCardRoles(cardData) : undefined;
     return { name, quantity: 1, roles };
   });
 
-  // Step 9: Analyze the deck
+  // Step 9: Analyze and optionally refine with iterative EDHREC autofill
   const templateId = input.templateId || 'bracket3';
   const bracketId = input.bracketId || 'bracket3';
+  const template = loadDeckTemplate(templateId);
 
-  const deckText = builtCards.map(c => `1 ${c.name}`).join('\n');
-  const parsedDeck = parseDeckText(deckText);
-  const analysisResult = await analyzeDeckBasic(
-    { deckText, templateId },
-    parsedDeck
-  );
-
-  // Load bracket info
+  let bracketRules: BracketRules | undefined;
   let bracketLabel: string | undefined;
   try {
-    const bracketRules = loadBracketRules(bracketId);
-    bracketLabel = bracketRules.label;
+    const br = loadBracketRules(bracketId);
+    bracketRules = br;
+    bracketLabel = br.label;
   } catch {
-    // Ignore
+    bracketRules = undefined;
   }
 
-  if (analysisResult.analysis.bracketWarnings.length > 0) {
+  let finalAnalysis: DeckAnalysis;
+
+  if (input.useEdhrecAutofill !== false && edhrecContext && edhrecContext.suggestions.length > 0) {
+    const maxIt = input.maxRefinementIterations ?? 5;
+    const refineOn = input.refineUntilStable !== false;
+    builderNotes.push(
+      `[LLM] Post-build EDHREC refinement (${refineOn ? `up to ${maxIt} passes` : 'single pass'}).`
+    );
+    const refined = await runIterativeEdhrecAutofill(
+      input,
+      commanderCard,
+      template,
+      bracketRules,
+      bracketId,
+      templateId,
+      edhrecContext,
+      builtCards,
+      refineOn,
+      maxIt
+    );
+    builtCards = refined.builtCards;
+    finalAnalysis = refined.analysis;
+    builderNotes.push(...refined.iterationNotes);
+  } else {
+    const deckText = builtCards.map((c) => `1 ${c.name}`).join('\n');
+    const parsedDeck = parseDeckText(deckText);
+    const analysisResult = await analyzeDeckBasic(
+      { deckText, templateId, banlistId: input.banlistId, options: { inferCommander: false } },
+      parsedDeck
+    );
+    finalAnalysis = analysisResult.analysis;
+  }
+
+  if (finalAnalysis.bracketWarnings.length > 0) {
     builderNotes.push('---');
     builderNotes.push('Bracket 3 validation:');
-    for (const w of analysisResult.analysis.bracketWarnings) {
+    for (const w of finalAnalysis.bracketWarnings) {
       builderNotes.push(`  ${w}`);
     }
   }
@@ -558,7 +588,7 @@ export async function buildDeckWithLLM(
       commanderName: commanderCard.name,
       cards: builtCards,
     },
-    analysis: analysisResult.analysis,
+    analysis: finalAnalysis,
     notes: builderNotes,
     edhrecContext,
   };

@@ -284,6 +284,13 @@ export interface BuildDeckInput {
   useEdhrecAutofill?: boolean;
   /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC + OpenAI fallback) instead of skeleton + autofill */
   useTemplateGenerator?: boolean;
+  /**
+   * When true (default), run EDHREC category autofill in multiple passes until deficits clear or progress stops.
+   * Set false for a single autofill pass only (faster, may leave template gaps).
+   */
+  refineUntilStable?: boolean;
+  /** Max autofill passes when refineUntilStable is true (default 5). */
+  maxRefinementIterations?: number;
 }
 
 /**

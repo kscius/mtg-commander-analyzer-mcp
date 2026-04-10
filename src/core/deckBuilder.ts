@@ -18,8 +18,6 @@ import { getCardByName, OracleCard } from './scryfall';
 import { loadDeckTemplate } from './templates';
 import { loadBracketRules } from './brackets';
 import { classifyCardRoles } from './roles';
-import { autoTags, getDefaultBracket3Options, tagsToTemplateCategories, ScryCard } from './autoTags';
-import { validateBracket3, validateTwoCardCombosBeforeT6, loadCombos, Bracket3Policies, CardWithTags } from './bracket3Validation';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
 import {
@@ -29,8 +27,7 @@ import {
   getLandsForColorCombination,
   sortBySynergy,
 } from './edhrec';
-import { computeCategoryDeficits } from './categoryUtils';
-import { isGameChanger, isMassLandDenial, isExtraTurnCard } from './bracketCards';
+import { runIterativeEdhrecAutofill, analysisHasAutomatableGaps } from './edhrecAutofill';
 import { isBanned, isBanlistAvailable, getBannedCount } from './banlist';
 
 /**
@@ -129,7 +126,7 @@ export async function buildDeckFromCommander(
   }
 
   // Step 4: Initialize deck cards array
-  const builtCards: BuiltCardEntry[] = [];
+  let builtCards: BuiltCardEntry[] = [];
 
   // Step 5: Add seed cards (if provided, excluding banned cards)
   if (input.seedCards && input.seedCards.length > 0) {
@@ -317,162 +314,33 @@ export async function buildDeckFromCommander(
     }
   }
 
-  // Step 9.6: EDHREC Autofill (if enabled)
+  // Step 9.6: EDHREC Autofill (iterative until stable when refineUntilStable is true)
   if (input.useEdhrecAutofill && edhrecContext && edhrecContext.suggestions.length > 0) {
     builderNotes.push('---');
-    builderNotes.push('EDHREC Autofill enabled. Attempting to fill category deficits...');
-
-    const autofillCategories = [
-      'ramp', 'card_draw', 'card_selection', 'spot_removal',
-      'artifact_enchantment_hate', 'graveyard_hate', 'board_wipes',
-      'protection', 'value_engines', 'win_conditions'
-    ];
-    const deficits = computeCategoryDeficits(
-      analyzeResult.analysis,
-      template,
-      autofillCategories
-    );
-
-    // Track cards already in deck (case-insensitive)
-    const cardsInDeck = new Set<string>(
-      builtCards.map(card => card.name.toLowerCase())
-    );
-
-    // Track Game Changer count (to respect bracket limits)
-    let gameChangerCount = builtCards.filter(card =>
-      isGameChanger(card.name, bracketId)
-    ).reduce((sum, card) => sum + card.quantity, 0);
-
-    const maxGameChangers = bracketRules?.maxGameChangers ?? 3;
-
-    const autofillCounts: Record<string, number> = {};
-    for (const cat of autofillCategories) {
-      autofillCounts[cat] = 0;
-    }
-
-    const tagOpts = getDefaultBracket3Options('bracket3');
-    const maxExtraTurns = bracketRules?.maxExtraTurnCards ?? 3;
-    let extraTurnCount = builtCards.filter(c => isExtraTurnCard(c.name, bracketId)).reduce((s, c) => s + c.quantity, 0);
-
-    const priorityOrder = autofillCategories;
-
-    for (const categoryName of priorityOrder) {
-      const deficit = deficits.find(d => d.name === categoryName);
-      if (!deficit || deficit.deficit <= 0) {
-        continue; // No deficit for this category
-      }
-
-      let remaining = deficit.deficit;
-      builderNotes.push(`  → ${categoryName}: deficit of ${remaining}`);
-
-      // Try to fill from EDHREC suggestions
-      for (const suggestion of edhrecContext.suggestions) {
-        if (remaining <= 0) break;
-
-        // Skip if already in deck
-        if (cardsInDeck.has(suggestion.name.toLowerCase())) {
-          continue;
-        }
-
-        // Get card from Scryfall
-        const card = getCardByName(suggestion.name);
-        if (!card) {
-          continue; // Skip if card not found
-        }
-
-        // Check color identity (must be subset of commander's colors)
-        const cardColors = card.color_identity || [];
-        const isWithinColorIdentity = cardColors.every(c => colorIdentity.includes(c));
-        if (!isWithinColorIdentity) {
-          continue; // Skip if outside color identity
-        }
-
-        // Check banlist first (never include banned cards)
-        if (isBanned(suggestion.name)) {
-          continue;
-        }
-
-        // Check bracket constraints
-        // 1. Game Changers limit
-        if (isGameChanger(suggestion.name, bracketId)) {
-          if (gameChangerCount >= maxGameChangers) {
-            continue; // Skip to avoid exceeding Game Changer limit
-          }
-        }
-
-        // 2. Mass Land Denial (never autofill these)
-        if (isMassLandDenial(suggestion.name, bracketId)) {
-          continue;
-        }
-
-        // 3. Extra Turn cards (only up to limit)
-        if (isExtraTurnCard(suggestion.name, bracketId)) {
-          if (extraTurnCount >= maxExtraTurns) continue;
-        }
-
-        // Match by tags (from DB or autoTags)
-        let tags = card.tags && card.tags.length > 0 ? card.tags : autoTags(card as ScryCard, tagOpts);
-        const categories = tagsToTemplateCategories(tags);
-
-        if (!categories.includes(categoryName)) {
-          continue;
-        }
-
-        builtCards.push({
-          name: card.name,
-          quantity: 1,
-          roles: classifyCardRoles(card)
-        });
-
-        cardsInDeck.add(card.name.toLowerCase());
-        remaining--;
-        autofillCounts[categoryName]++;
-
-        if (isGameChanger(card.name, bracketId)) {
-          gameChangerCount++;
-        }
-        if (isExtraTurnCard(card.name, bracketId)) {
-          extraTurnCount++;
-        }
-      }
-
-      if (remaining > 0) {
-        builderNotes.push(`    ⚠️  Could not fill all ${categoryName} slots (${remaining} remaining)`);
-      } else {
-        builderNotes.push(`    ✓ Filled ${autofillCounts[categoryName]} ${categoryName} slots`);
-      }
-    }
-
-    const totalAutofilled = Object.values(autofillCounts).reduce((a, b) => a + b, 0);
-    const breakdown = autofillCategories.filter(c => (autofillCounts[c] ?? 0) > 0).map(c => `${c}: ${autofillCounts[c]}`).join(', ');
+    const maxIt = input.maxRefinementIterations ?? 5;
+    const refineOn = input.refineUntilStable !== false;
     builderNotes.push(
-      `✓ EDHREC Autofill complete: added ${totalAutofilled} cards${breakdown ? ` (${breakdown})` : ''}`
+      `EDHREC autofill: ${refineOn ? `iterative refinement (up to ${maxIt} passes)` : 'single pass'}.`
     );
-    builderNotes.push('---');
 
-    // Re-analyze the deck with autofilled cards
-    const updatedDeckTextLines = builtCards.flatMap(entry =>
-      Array(entry.quantity).fill(`1 ${entry.name}`)
-    );
-    const updatedDeckText = updatedDeckTextLines.join('\n');
-
-    const updatedAnalyzeInput: AnalyzeDeckInput = {
-      deckText: updatedDeckText,
+    const refineResult = await runIterativeEdhrecAutofill(
+      input,
+      commanderCard,
+      template,
+      bracketRules,
+      bracketId,
       templateId,
-      banlistId: input.banlistId,
-      options: {
-        inferCommander: false
-      }
-    };
+      edhrecContext,
+      builtCards,
+      refineOn,
+      maxIt
+    );
 
-    const updatedParsed = parseDeckText(updatedDeckText);
-    const updatedAnalyzeResult = await analyzeDeckBasic(updatedAnalyzeInput, updatedParsed);
-
-    // Update deck object and analysis
+    builtCards = refineResult.builtCards;
     deck.cards = builtCards;
-    analyzeResult.analysis = updatedAnalyzeResult.analysis;
+    analyzeResult.analysis = refineResult.analysis;
+    builderNotes.push(...refineResult.iterationNotes);
 
-    // Update deck size notes
     const updatedTotalCards = builtCards.reduce((sum, card) => sum + card.quantity, 0);
     if (updatedTotalCards < COMMANDER_DECK_SIZE) {
       const missing = COMMANDER_DECK_SIZE - updatedTotalCards;
@@ -489,32 +357,6 @@ export async function buildDeckFromCommander(
         `✓ Deck size: ${updatedTotalCards} cards (correct for Commander format).`
       );
     }
-
-    // Bracket 3 validation (post-autofill)
-    const deckForValidation: CardWithTags[] = builtCards.map(c => {
-      const card = getCardByName(c.name);
-      let tags = card?.tags && card.tags.length > 0 ? card.tags : [];
-      if (tags.length === 0 && card) {
-        tags = autoTags(card as ScryCard, tagOpts);
-      }
-      return { name: c.name, tags };
-    });
-    const policies: Bracket3Policies = {
-      max_game_changers: bracketRules?.maxGameChangers ?? 3,
-      max_extra_turn_cards: bracketRules?.maxExtraTurnCards ?? 3,
-      ban_mass_land_denial: !bracketRules?.allowMassLandDestruction,
-      ban_extra_turn_chains: true,
-      ban_2card_gameenders_before_turn: 6,
-    };
-    const b3 = validateBracket3(deckForValidation, policies);
-    const combos = loadCombos();
-    const comboErrs = validateTwoCardCombosBeforeT6(deckForValidation, combos, 6);
-    if (b3.errors.length > 0 || b3.warnings.length > 0 || comboErrs.length > 0) {
-      builderNotes.push('Bracket 3 validation:');
-      builderNotes.push(...b3.errors.map(e => `  ⛔ ${e}`));
-      builderNotes.push(...b3.warnings.map(w => `  ⚠ ${w}`));
-      builderNotes.push(...comboErrs.map(e => `  ⛔ ${e}`));
-    }
   }
 
   // Step 10: Build and return BuildDeckResult
@@ -529,9 +371,12 @@ export async function buildDeckFromCommander(
       ...builderNotes,
       '---',
       'Deck Builder Info:',
-      `- This is a skeleton Bracket 3 deck generated from commander "${commanderCard.name}".`,
-      `- Nonland categories are not fully auto-filled yet; manual tuning required.`,
-      `- Use EDHREC or other resources to complete the deck with appropriate cards.`,
+      `- Bracket 3 deck generated from commander "${commanderCard.name}".`,
+      input.useEdhrecAutofill && edhrecContext && edhrecContext.suggestions.length > 0
+        ? analysisHasAutomatableGaps(analyzeResult.analysis)
+          ? `- EDHREC autofill finished; some template/lint opportunities may remain (see analysis.lintReport and category notes).`
+          : `- Automated category refinement: no remaining deficits in tracked categories for this template pass.`
+        : `- Skeleton or partial fill; enable useEdhrecAutofill for iterative category completion.`,
       '---',
       'Analysis Notes:',
       ...analyzeResult.analysis.notes

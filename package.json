@@ -14,6 +14,8 @@
   "homepage": "https://github.com/kscius/mtg-commander-analyzer-mcp#readme",
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "ts-node src/mcp/server.ts",
     "mcp": "ts-node src/mcp/server.ts",
     "test:local": "ts-node src/testLocal.ts",
@@ -50,7 +52,8 @@
     "@types/node": "^20.0.0",
     "@types/stream-json": "^1.7.8",
     "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.5"
   },
   "engines": {
     "node": ">=18.0.0"
