@@ -33,7 +33,8 @@
     "db:import-rulings": "ts-node src/scripts/importRulings.ts",
     "db:tag": "ts-node src/scripts/tagCards.ts",
     "db:tag-stats": "ts-node src/scripts/dbTagStats.ts",
-    "db:stats": "ts-node -e \"const db = require('./src/core/cardDatabase'); console.log(db.getDatabaseStats());\""
+    "db:stats": "ts-node -e \"const db = require('./src/core/cardDatabase'); console.log(db.getDatabaseStats());\"",
+    "postinstall": "npm rebuild better-sqlite3"
   },
   "keywords": [
     "mtg",

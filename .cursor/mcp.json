@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mtg-commander-analyzer": {
+      "command": "npm",
+      "args": ["run", "mcp"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
