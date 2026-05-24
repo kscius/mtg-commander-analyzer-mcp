@@ -20,7 +20,13 @@ describe("parseDeckText", () => {
     expect(deck.cards[0].name).toBe("Plains");
   });
 
-  it("returns commanderName null (not yet detected)", () => {
+  it("parses Commander: line", () => {
+    const deck = parseDeckText("Commander: Y'shtola, Night's Blessed\n1 Island");
+    expect(deck.commanderName).toBe("Y'shtola, Night's Blessed");
+    expect(deck.cards.length).toBe(1);
+  });
+
+  it("returns commanderName null when no Commander line", () => {
     expect(parseDeckText("1 Commander").commanderName).toBeNull();
   });
 });

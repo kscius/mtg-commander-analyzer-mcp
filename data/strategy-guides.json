@@ -1,0 +1,86 @@
+{
+  "tokens": {
+    "summary": "Go-wide token army with anthems, token makers, and mass protection. Prefer one-sided wipes and creature-based ramp.",
+    "guidePath": "docs/strategy-guides/tokens.md",
+    "keyRatios": { "tokenMakers": "15-20", "anthems": "5-8", "sacOutlets": "3-5", "massProtection": "3-5" },
+    "packages": ["Go Wide (Anointed Procession, Doubling Season)", "Token Sacrifice (Ashnod's Altar, Skullclamp)"],
+    "antiPatterns": ["Mass creature board wipes without protection", "Cards that sacrifice all your creatures", "Mixing voltron without token payoffs"]
+  },
+  "voltron": {
+    "summary": "Stack equipment and auras on the commander; prioritize protection, evasion, and efficient removal.",
+    "guidePath": "docs/strategy-guides/voltron.md",
+    "keyRatios": { "equipmentAuras": "12-18", "protection": "6-10", "evasion": "4-6" },
+    "packages": ["Equipment Suite (Swiftfoot Boots, Greaves, premium swords)"],
+    "antiPatterns": ["Too many board wipes that kill your commander setup", "Slow five-mana engines with no equip support"]
+  },
+  "aristocrats": {
+    "summary": "Sacrifice creatures for value and drain; need outlets, death triggers, and recursion.",
+    "guidePath": "docs/strategy-guides/aristocrats.md",
+    "keyRatios": { "sacOutlets": "6-10", "deathPayoffs": "8-12", "tokenFodder": "8-12" },
+    "packages": ["Sac Outlet Core (Viscera Seer, Ashnod's Altar)"],
+    "antiPatterns": ["Exile-heavy meta with no recursion", "Board wipes without recovery"]
+  },
+  "blink": {
+    "summary": "Flicker creatures for ETB value; prioritize enter-the-battlefield payoffs and protection for key pieces.",
+    "guidePath": "docs/strategy-guides/blink.md",
+    "keyRatios": { "blinkSpells": "10-14", "etbPayoffs": "12-18", "protection": "4-6" },
+    "packages": ["ETB Blink (Ephemerate, Brago-style engines)"],
+    "antiPatterns": ["ETB hate without graveyard backup", "Creatures with weak ETB effects"]
+  },
+  "group-slug": {
+    "summary": "Make everyone lose life/resources while you stabilize; incremental drain and tax effects.",
+    "guidePath": "docs/strategy-guides/group-slug.md",
+    "keyRatios": { "groupDrain": "10-15", "taxEffects": "6-10", "selfProtection": "4-6" },
+    "packages": ["Group Slug Core (Ob Nixilis, Bloodchief Ascension)", "Lifegain + drain (Sanguine Bond, Exquisite Blood)"],
+    "antiPatterns": ["Two-card combo wins before turn 6", "Too few ways to protect your life total", "Symmetric lifegain that only helps opponents"]
+  },
+  "counters": {
+    "summary": "+1/+1 counter synergy with proliferate and counter payoffs; protect your board.",
+    "guidePath": "docs/strategy-guides/counters.md",
+    "keyRatios": { "counterPlacement": "12-16", "proliferate": "4-6", "payoffs": "8-12" },
+    "packages": ["Proliferate (Doubling Season, Karn's Bastion)"],
+    "antiPatterns": ["Mass -X/-X effects without protection", "Counter removal without backup plan"]
+  },
+  "reanimator": {
+    "summary": "Fill the graveyard then reanimate large threats; recursion and protection for reanimated bodies.",
+    "guidePath": "docs/strategy-guides/reanimator.md",
+    "keyRatios": { "enablers": "10-14", "reanimation": "8-12", "targets": "8-12" },
+    "packages": ["Entomb + reanimate (cheap cheat)", "Mill + mass reanimate (meta-dependent)"],
+    "antiPatterns": ["Too many fatties without enablers", "Exile-heavy meta with no graveyard plan", "Mixing voltron as primary plan"]
+  },
+  "spellslinger": {
+    "summary": "Instants and sorceries matter; copy, discount, and cast triggers generate advantage.",
+    "guidePath": "docs/strategy-guides/spellslinger.md",
+    "keyRatios": { "instantsSorceries": "35-45", "copyStormPayoffs": "4-8", "creatures": "8-15" },
+    "packages": ["Cantrip + Magecraft payoffs", "Copy big spell (Fork-style)"],
+    "antiPatterns": ["Creature-heavy midrange with no spell synergy", "Extra turns over Bracket 3 cap", "Mixing voltron as primary plan"]
+  },
+  "lands": {
+    "summary": "Extra land drops, landfall, and lands-as-resources; mana base is the deck.",
+    "guidePath": "docs/strategy-guides/lands.md",
+    "keyRatios": { "lands": "38-45", "landfallPayoffs": "10-16", "landEnablers": "8-12" },
+    "packages": ["Extra land + landfall (Azusa, Retreat to Coralhelm)", "Land animation payoffs"],
+    "antiPatterns": ["Too few lands for the strategy", "Mass land destruction", "Typical 35-land midrange manabase"]
+  },
+  "tribal": {
+    "summary": "Shared creature type with lords and density; interaction and ramp still required.",
+    "guidePath": "docs/strategy-guides/tribal.md",
+    "keyRatios": { "tribalCreatures": "28-40", "lordsAnthems": "6-10", "protection": "2-4" },
+    "packages": ["Lord stack + haste enabler", "Tribal tutor + lord"],
+    "antiPatterns": ["Too few creatures of the tribe", "Mixing two tribes without commander support", "Board wipes without recovery"]
+  },
+  "superfriends": {
+    "summary": "Planeswalkers as engines and win conditions; proliferate and protection extend loyalty plans.",
+    "guidePath": "docs/strategy-guides/superfriends.md",
+    "keyRatios": { "planeswalkers": "8-14", "proliferate": "4-7", "removal": "6-8" },
+    "packages": ["Proliferate + ult rush (meta-dependent)", "Doubling Season + walker (check Bracket 3)"],
+    "antiPatterns": ["Too few walkers for proliferate payoffs", "Creature-only deck with 2 walkers", "Extra turns over Bracket cap"]
+  },
+  "artifacts": {
+    "summary": "Artifact mana, payoffs, and finishers; affinity, tokens, or sacrifice sub-themes.",
+    "guidePath": "docs/strategy-guides/artifacts.md",
+    "keyRatios": { "artifactPayoffs": "10-16", "artifactCreaturesEngines": "8-14", "ramp": "12-16" },
+    "packages": ["Affordable artifacts + cost reducer", "Sacrifice artifacts (Deadly Dispute-style)"],
+    "antiPatterns": ["Too few artifacts for payoff cards", "No interaction with only artifacts", "Mixing unrelated tribal or voltron packages"]
+  }
+}

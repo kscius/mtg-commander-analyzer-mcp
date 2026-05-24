@@ -32,3 +32,53 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  golden-deck-regression:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build cards database
+        run: |
+          npm run db:create
+          npm run db:import
+
+      - name: Golden deck analyze regression
+        run: npm run test:golden
+
+  benchmark-decks:
+    runs-on: ubuntu-latest
+    needs: golden-deck-regression
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build cards database
+        run: |
+          npm run db:create
+          npm run db:import
+
+      - name: Template build benchmark (offline EDHREC)
+        run: npm run benchmark:decks

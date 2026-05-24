@@ -30,6 +30,9 @@ import { ParsedCardEntry, ParsedDeck } from './types';
 export function parseDeckText(deckText: string): ParsedDeck {
   const cards: ParsedCardEntry[] = [];
   const lines = deckText.split('\n');
+  let commanderName: string | null = null;
+
+  const commanderLine = /^\s*commander\s*:\s*(.+)\s*$/i;
 
   // Regex to capture: <quantity> <card name>
   // Example: "1 Sol Ring", "2 Island", "10 Forest"
@@ -40,6 +43,12 @@ export function parseDeckText(deckText: string): ParsedDeck {
     
     // Skip empty lines
     if (!trimmedLine) {
+      continue;
+    }
+
+    const cmdMatch = commanderLine.exec(trimmedLine);
+    if (cmdMatch) {
+      commanderName = cmdMatch[1].trim();
       continue;
     }
 
@@ -60,7 +69,7 @@ export function parseDeckText(deckText: string): ParsedDeck {
 
   return {
     cards,
-    commanderName: null // Commander detection not yet implemented
+    commanderName,
   };
 }
 

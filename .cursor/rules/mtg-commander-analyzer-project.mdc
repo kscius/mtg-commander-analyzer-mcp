@@ -9,9 +9,10 @@ Estas reglas aplican **únicamente a este proyecto**. No extenderlas a otros rep
 
 ## Alcance del proyecto
 
-- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y construcción con LLM.
+- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y generación por plantilla. El **agente Cursor** es el LLM; el MCP aporta datos y validación (sin API key OpenAI).
 - **Stack**: TypeScript (strict), Node.js, MCP (Model Context Protocol), SQLite (`data/cards.db`), Zod para validación.
 - **Estructura**: `src/core/` (lógica), `src/mcp/` (servidor y herramientas MCP), `src/scripts/` (DB, import), `data/` (plantillas, banlist, reglas).
+- **Tagging**: una **categoría primaria** por carta vía `autoTags.ts` (`getPrimaryTemplateCategory`); `roles.ts` solo re-exporta compatibilidad.
 
 ## Herramientas MCP
 
@@ -19,9 +20,16 @@ Usar siempre las herramientas del MCP cuando el usuario pida analizar o construi
 
 | Herramienta | Uso |
 |-------------|-----|
-| `analyze_deck` | Analizar un decklist existente: categorías, Bracket 3, banlist, recomendaciones. |
-| `build_deck_from_commander` | Construir esqueleto desde comandante + EDHREC (opcional) y autofill por categorías. |
-| `build_deck_with_llm` | Construir mazo completo de 99 cartas con GPT; requiere `OPENAI_API_KEY`. |
+| `get_synergies` | Listar sinergias/slugs EDHREC antes de construir (preguntar al usuario). |
+| `get_strategy_guide` | Guía de construcción para el slug elegido (ratios, paquetes, anti-patrones). |
+| `build_deck_from_commander` | Construir 99 cartas (template + EDHREC; **preferido**). Defaults: `useEdhrec`/`useTemplateGenerator`/`useEdhrecAutofill` **true**. |
+| `analyze_deck` | Validar mazo: categorías, singleton, legalidad, Bracket 3, `prioritizedActions`, `synergyScore`, `decklistText`. |
+| `optimize_deck` | Mejora automática (cortes/añadidos + autofill EDHREC; `maxIterations` default 4). |
+| `evaluate_card_swap` | Previsualizar un reemplazo (`proceed` / `skip`, deltas de categoría y sinergia). |
+| `search_cards` | Buscar cartas reales en `cards.db` (FTS + filtros). |
+| `resolve_card` | Resolver un nombre y comprobar legalidad/color vs comandante. |
+
+Ver **`AGENTS.md`** en la raíz del repo para el flujo completo.
 
 - **Entrada de mazos**: texto plano, una carta por línea con cantidad (ej. `1 Sol Ring`).
 - **Template por defecto**: `bracket3`. Bracket por defecto: `bracket3`.

@@ -65,10 +65,7 @@ const exampleInput: AnalyzeDeckInput = {
 `,
   templateId: 'bracket3',
   banlistId: 'commander',
-  options: {
-    inferCommander: false,
-    language: 'en'
-  }
+  options: {}
 };
 
 async function main() {

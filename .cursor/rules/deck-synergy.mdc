@@ -17,7 +17,7 @@ Cada mazo Commander debe construirse y evaluarse con **una sola sinergia** clara
 1. **Detectar sinergias posibles**
    - A partir del **comandante** (habilidades, tipos, keywords, identidad de color).
    - Usar **EDHREC** y sugerencias del MCP cuando estén disponibles.
-   - Considerar arquetipos típicos: tokens, voltron, +1/+1, reanimator, spellslinger, artifacts, lands, tribal, superfriends, etc.
+   - Considerar arquetipos típicos (slugs EDHREC): `tokens`, `voltron`, `counters`, `blink`, `aristocrats`, `group-slug`, `reanimator`, `spellslinger`, `lands`, `tribal`, `superfriends`, `artifacts`.
 
 2. **Preguntar al usuario**
    - Listar las sinergias detectadas (nombre corto + breve descripción).
@@ -25,7 +25,7 @@ Cada mazo Commander debe construirse y evaluarse con **una sola sinergia** clara
    - No asumir una sinergia sin confirmación del usuario.
 
 3. **Construir/validar según la sinergia elegida**
-   - Al construir: usar `build_deck_from_commander` o `build_deck_with_llm` con contexto de la sinergia (ej. `preferredStrategy` si está soportado, o seed cards temáticas).
+   - Al construir: usar `build_deck_from_commander` con contexto de la sinergia (`preferredStrategy`, seed cards temáticas si aplica).
    - Al analizar: comprobar que las cartas del mazo son coherentes con esa sinergia y señalar desvíos si los hay.
    - El mazo debe cumplir además las reglas de formato (100 cartas, color identity, singleton, banlist, Bracket 3).
 
@@ -33,12 +33,15 @@ Cada mazo Commander debe construirse y evaluarse con **una sola sinergia** clara
 
 - **Tokens**: criaturas/efectos que generan fichas; apoyo a token (anthem, sacrificio).
 - **Voltron**: equipos/auras en el comandante; protección y evasión.
-- **+1/+1 contadores**: proliferate, colocación de contadores, sinergias con el comandante.
+- **+1/+1 contadores** (`counters`): proliferate, colocación de contadores, sinergias con el comandante.
 - **Reanimator**: descartar/enterrar criaturas y reanimarlas.
 - **Spellslinger**: instantes y conjuros; reducción de coste o copia de hechizos.
 - **Tierras**: jugar tierras adicionales, tierra-en-el-combatiente, landfall.
 - **Tribal**: tipo de criatura compartido (elfos, dragones, etc.).
-- **Superfriends**: planeswalkers y proliferate/protección.
+- **Superfriends** (`superfriends`): planeswalkers y proliferate/protección.
+- **Blink** (`blink`): flicker y ETB.
+- **Aristocrats** (`aristocrats`): sacrificio y drain.
+- **Group slug** (`group-slug`): daño/drenaje a la mesa.
 
 ## Qué evitar
 

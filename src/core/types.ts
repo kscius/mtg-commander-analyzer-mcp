@@ -5,6 +5,60 @@
  * These types define the contract for the analyze_deck MCP tool and related functionality.
  */
 
+import type { BuildQualityReport, SuggestedUpgrade } from './buildQualityReport';
+
+export interface ManaBaseQualitySummary {
+  score: number;
+  summary: string;
+  metrics: {
+    landCount?: number;
+    tappedAlways?: number;
+    tappedConditional?: number;
+    landMix?: Record<string, number>;
+  };
+}
+
+export interface CurveAnalysisSummary {
+  score: number;
+  summary: string;
+  averageMv: number;
+  distribution: Record<string, number>;
+}
+
+/** Params for search_cards when an action needs a replacement. */
+export interface SuggestedCardSearch {
+  category?: string;
+  query?: string;
+  maxMV?: number;
+  preferredStrategy?: string;
+}
+
+/** Ordered improvement step for agents (unified across recommendations + quality). */
+export interface PrioritizedAction {
+  priority: number;
+  action: 'add' | 'cut' | 'swap' | 'search' | 'fix';
+  category?: string;
+  detail: string;
+  suggestedSearch?: SuggestedCardSearch;
+  suggestedCard?: string;
+}
+
+/** Per-card thematic score when preferredStrategy is set. */
+export interface CardSynergyScore {
+  name: string;
+  /** 0–100 */
+  score: number;
+  relevance: 'high' | 'medium' | 'low';
+}
+
+export interface DeckQualityReport {
+  deckScore: number;
+  strengthsAndWeaknesses: { strengths: string[]; weaknesses: string[] };
+  prioritizedActions: PrioritizedAction[];
+  manaBaseQuality?: ManaBaseQualitySummary;
+  curveAnalysis?: CurveAnalysisSummary;
+}
+
 /**
  * Represents a single card entry in a parsed decklist
  */
@@ -33,25 +87,22 @@ export interface ParsedDeck {
 export interface AnalyzeDeckInput {
   /** Raw decklist text to analyze */
   deckText: string;
+  /** When true (default), infer commander from deck if no Commander: line */
+  inferCommander?: boolean;
+  /** Commander name for color identity validation (optional if deckText includes Commander: line) */
+  commanderName?: string;
   /** Optional template ID for deck building strategy */
   templateId?: string;
   /** Bracket ID for rule enforcement (e.g. bracket3); used with template when set */
   bracketId?: string;
-  /** Optional synergy or theme label (same idea as build_deck preferredStrategy). Echoed in result and notes for human review only — no automatic synergy score. */
+  /** EDHREC theme slug (e.g. tokens, voltron); enables synergyScore and recommendations when set */
   preferredStrategy?: string;
-  /** Optional banlist ID (e.g., "commander", "duel-commander") */
+  /** Internal banlist key (default commander); not exposed on MCP tool schema */
   banlistId?: string;
-  /** Optional EDHREC URLs for additional context */
-  edhrecUrls?: string[];
   /** Additional options for analysis */
-  options?: {
-    /** Whether to attempt to infer the commander from the decklist */
-    inferCommander?: boolean;
-    /** Language of card names (default: "en") */
-    language?: string;
-    /** Use OpenAI to classify cards with no tags (fallback when heuristics miss) */
-    useLLMFallbackForCategories?: boolean;
-  };
+  options?: Record<string, never>;
+  /** MCP response size: brief (default) omits heavy analysis fields */
+  responseMode?: 'brief' | 'full';
 }
 
 /**
@@ -138,11 +189,108 @@ export interface DeckAnalysis {
   banlistValid: boolean;
   /** Template lint report (curva, land_mix, interaction_coverage, category constraints) when template is full (e.g. bracket3) */
   lintReport?: LintReport;
+  /** 0–100 thematic coherence when preferredStrategy is set */
+  synergyScore?: number;
+  /** Structured cut/add suggestions */
+  recommendations?: DeckRecommendations;
+  /** Composite 0–100 score (synergy + categories + lint) */
+  deckScore?: number;
+  /** Brief strengths and weaknesses for agents */
+  strengthsAndWeaknesses?: { strengths: string[]; weaknesses: string[] };
+  /** Per-card synergy when preferredStrategy is set */
+  cardSynergyScores?: CardSynergyScore[];
+  /** Top ordered improvement steps (structured) */
+  prioritizedActions?: PrioritizedAction[];
+  /** Mana base sub-score from lint metrics */
+  manaBaseQuality?: ManaBaseQualitySummary;
+  /** Curve sub-score from lint metrics */
+  curveAnalysis?: CurveAnalysisSummary;
+  /** Card names from deckText that did not resolve in cards.db */
+  unresolvedCardNames?: string[];
+  /** @deprecated Prefer deckScore, prioritizedActions, etc. */
+  qualityReport?: DeckQualityReport;
+}
+
+/** Compact MCP payload for LLM agents (read before full analysis JSON). */
+export interface AgentBrief {
+  summary: string;
+  commanderName?: string | null;
+  decklistText?: string;
+  converged?: boolean;
+  readyToShip?: boolean;
+  synergyScore?: number;
+  categoriesBelow?: string[];
+  remainingGapCount?: number;
+  nextSuggestedAction?: string;
+  buildQualityOverall?: 'strong' | 'acceptable' | 'needs_work';
+}
+
+export interface DeckRecommendationCut {
+  name: string;
+  reason: string;
+  /** Impact tier for ordering (1 = highest). */
+  priority?: number;
+  /** Category this cut helps balance. */
+  category?: string;
+}
+
+export interface DeckRecommendationAdd {
+  name: string;
+  reason: string;
+  category?: string;
+  priority?: number;
+}
+
+/** Paired cut + add with shared rationale. */
+export interface DeckRecommendationSwap {
+  cut: string;
+  add: string;
+  reason: string;
+  category?: string;
+  priority?: number;
+  impact?: 'high' | 'medium' | 'low';
+}
+
+/** Thematic 2–3 card package from strategy profile. */
+export interface DeckSynergyPackageSuggestion {
+  name: string;
+  cards: string[];
+  reason: string;
+  missingCards?: string[];
+}
+
+export interface DeckRecommendations {
+  cuts: DeckRecommendationCut[];
+  adds: DeckRecommendationAdd[];
+  swaps?: DeckRecommendationSwap[];
+  synergyPackages?: DeckSynergyPackageSuggestion[];
+  /** Ordered high-impact actions */
+  prioritizedActions?: PrioritizedAction[];
 }
 
 /**
  * Complete result from the analyze_deck tool
  */
+/** Actionable gap after build/optimize convergence check */
+export interface RemainingGap {
+  kind: 'category' | 'lint' | 'bracket' | 'banlist' | 'format' | 'synergy';
+  detail: string;
+  category?: string;
+  severity?: 'hard' | 'soft';
+}
+
+/** Agent-facing pass/fail gate for deck delivery */
+export interface QualityGate {
+  /** True when no blocking gaps and convergence checks pass */
+  readyToShip: boolean;
+  /** True when hard issues and automatable category gaps are resolved */
+  converged: boolean;
+  /** Must fix before delivery */
+  blocking: RemainingGap[];
+  /** Optional polish (soft lint, minor synergy) */
+  polish: RemainingGap[];
+}
+
 export interface AnalyzeDeckResult {
   /** Echo of relevant input parameters */
   input: {
@@ -159,6 +307,28 @@ export interface AnalyzeDeckResult {
   analysis: DeckAnalysis;
   /** Parsed deck structure */
   parsedDeck: ParsedDeck;
+  /** Copy-paste decklist (mainboard lines) */
+  decklistText?: string;
+  /** Top-level synergy score (mirrors analysis.synergyScore) */
+  synergyScore?: number;
+  /** Structured recommendations (mirrors analysis.recommendations) */
+  recommendations?: DeckRecommendations;
+  /** Composite quality metrics */
+  qualityReport?: DeckQualityReport;
+  /** Top-level composite score (mirrors analysis.deckScore) */
+  deckScore?: number;
+  /** Short executive summary for agents */
+  summary?: string;
+  /** Suggested next MCP tool step */
+  nextSuggestedAction?: string;
+  /** Same convergence flag as build/optimize when synergy target is met */
+  converged?: boolean;
+  /** Structured gaps blocking or polishing the deck */
+  remainingGaps?: RemainingGap[];
+  /** Pass/fail gate for LLM delivery decisions */
+  qualityGate?: QualityGate;
+  /** Token-efficient summary for LLM agents */
+  agentBrief?: AgentBrief;
 }
 
 /**
@@ -278,19 +448,19 @@ export interface BuildDeckInput {
   commanderName: string;
   /** Template ID to use for deck building (default: "bracket3") */
   templateId?: string;
-  /** Banlist ID (reserved for future use) */
+  /** Internal banlist key (default commander); not exposed on MCP tool schema */
   banlistId?: string;
   /** Bracket ID to apply rules from (default: "bracket3") */
   bracketId?: string;
-  /** Preferred strategy/theme (reserved for future use) */
+  /** EDHREC theme slug (e.g. tokens, voltron, blink) — boosts EDHREC pool and fill scoring */
   preferredStrategy?: string;
   /** Optional list of additional cards to include in the 99 */
   seedCards?: string[];
-  /** Whether to fetch EDHREC suggestions (default: false) */
+  /** Whether to fetch EDHREC suggestions (default: true) */
   useEdhrec?: boolean;
-  /** Whether to autofill missing categories using EDHREC suggestions (default: false) */
+  /** Whether to autofill missing categories using EDHREC suggestions (default: true) */
   useEdhrecAutofill?: boolean;
-  /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC + OpenAI fallback) instead of skeleton + autofill */
+  /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC) instead of skeleton + autofill */
   useTemplateGenerator?: boolean;
   /**
    * When true (default), run EDHREC category autofill in multiple passes until deficits clear or progress stops.
@@ -299,6 +469,14 @@ export interface BuildDeckInput {
   refineUntilStable?: boolean;
   /** Max autofill passes when refineUntilStable is true (default 5). */
   maxRefinementIterations?: number;
+  /** Optional template.meta overrides for the generator (advanced). */
+  metaOverride?: Partial<{
+    graveyard_meta_share: number;
+    fast_combo_density: 'low' | 'mid' | 'high';
+    creature_meta_share: number;
+  }>;
+  /** MCP response size: brief (default) omits heavy analysis fields */
+  responseMode?: 'brief' | 'full';
 }
 
 /**
@@ -343,4 +521,80 @@ export interface BuildDeckResult {
   notes: string[];
   /** EDHREC integration context (if useEdhrec was true) */
   edhrecContext?: EdhrecContext;
+  /** Auto-evaluation of build quality (category gaps, bracket, synergy). */
+  buildQualityReport?: BuildQualityReport;
+  /** Top upgrade suggestions for iterative improvement. */
+  suggestedUpgrades?: SuggestedUpgrade[];
+  /** Copy-paste mainboard lines */
+  decklistText?: string;
+  /** True when template/bracket/synergy targets are met */
+  converged?: boolean;
+  /** Outstanding issues after build */
+  remainingGaps?: RemainingGap[];
+  /** Suggested next MCP tool step */
+  nextSuggestedAction?: string;
+  /** Token-efficient summary for LLM agents */
+  agentBrief?: AgentBrief;
+  /** Short executive summary */
+  summary?: string;
+  /** Pass/fail gate for LLM delivery (same semantics as analyze_deck) */
+  qualityGate?: QualityGate;
+}
+
+/** optimize_deck tool input */
+export interface OptimizeDeckInput {
+  deckText: string;
+  commanderName: string;
+  preferredStrategy?: string;
+  templateId?: string;
+  bracketId?: string;
+  banlistId?: string;
+  maxIterations?: number;
+  focusCategories?: string[];
+  /** Stop when synergyScore reaches this threshold */
+  stopWhenScore?: number;
+  /** Card names that must not be cut */
+  preserveCards?: string[];
+  /** MCP response size: brief (default) omits heavy analysis fields */
+  responseMode?: 'brief' | 'full';
+}
+
+export interface OptimizeDeckMetrics {
+  synergyScore?: number;
+  categoriesBelow: number;
+  lintHardIssues: number;
+}
+
+export interface OptimizeDeckChange {
+  type: 'cut' | 'add' | 'swap';
+  name: string;
+  reason: string;
+  /** For swap: card added */
+  pairedWith?: string;
+}
+
+export interface OptimizeDeckResult {
+  input: {
+    commanderName: string;
+    preferredStrategy?: string;
+    templateId?: string;
+    bracketId?: string;
+    maxIterations?: number;
+    focusCategories?: string[];
+  };
+  deckText: string;
+  decklistText: string;
+  changes: OptimizeDeckChange[];
+  metricsBefore: OptimizeDeckMetrics;
+  metricsAfter: OptimizeDeckMetrics;
+  analysis: DeckAnalysis;
+  iterationNotes: string[];
+  converged?: boolean;
+  remainingGaps?: RemainingGap[];
+  nextSuggestedAction?: string;
+  /** Token-efficient summary for LLM agents */
+  agentBrief?: AgentBrief;
+  summary?: string;
+  /** Pass/fail gate for LLM delivery */
+  qualityGate?: QualityGate;
 }

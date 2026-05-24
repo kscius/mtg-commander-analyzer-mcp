@@ -1,0 +1,97 @@
+{
+  "tokens": {
+    "oracleBoost": [
+      { "pattern": "create .* token", "weight": 0.35 },
+      { "pattern": "populate", "weight": 0.25 },
+      { "pattern": "token creatures you control get", "weight": 0.3 }
+    ],
+    "tagBoost": ["value_engine", "win_condition"],
+    "roleBoost": { "enabler": 0.2, "payoff": 0.25 },
+    "antiPatterns": [
+      { "pattern": "destroy all creatures", "penalty": 0.35 },
+      { "pattern": "sacrifice all creatures", "penalty": 0.4 }
+    ]
+  },
+  "voltron": {
+    "oracleBoost": [
+      { "pattern": "equipped creature", "weight": 0.35 },
+      { "pattern": "aura", "weight": 0.15 },
+      { "pattern": "commander damage", "weight": 0.2 }
+    ],
+    "tagBoost": ["protection", "spot_removal"],
+    "antiPatterns": [{ "pattern": "destroy all equipments", "penalty": 0.35 }]
+  },
+  "counters": {
+    "oracleBoost": [
+      { "pattern": "\\+1/\\+1 counter", "weight": 0.35 },
+      { "pattern": "proliferate", "weight": 0.3 }
+    ],
+    "tagBoost": ["value_engine", "protection"]
+  },
+  "aristocrats": {
+    "oracleBoost": [
+      { "pattern": "sacrifice a creature", "weight": 0.3 },
+      { "pattern": "whenever .* dies", "weight": 0.25 }
+    ],
+    "tagBoost": ["value_engine", "spot_removal"]
+  },
+  "blink": {
+    "oracleBoost": [
+      { "pattern": "exile .* return", "weight": 0.3 },
+      { "pattern": "enters the battlefield", "weight": 0.15 }
+    ],
+    "tagBoost": ["value_engine", "protection"]
+  },
+  "reanimator": {
+    "oracleBoost": [
+      { "pattern": "return .* from your graveyard", "weight": 0.35 },
+      { "pattern": "mill", "weight": 0.2 }
+    ],
+    "tagBoost": ["recursion", "value_engine"],
+    "antiPatterns": [{ "pattern": "exile all cards from all graveyards", "penalty": 0.4 }]
+  },
+  "spellslinger": {
+    "oracleBoost": [
+      { "pattern": "instant or sorcery", "weight": 0.3 },
+      { "pattern": "copy target instant", "weight": 0.25 }
+    ],
+    "tagBoost": ["card_draw", "spell_copy"]
+  },
+  "lands": {
+    "oracleBoost": [
+      { "pattern": "landfall", "weight": 0.35 },
+      { "pattern": "play an additional land", "weight": 0.3 }
+    ],
+    "tagBoost": ["ramp", "value_engine"],
+    "antiPatterns": [{ "pattern": "destroy all lands", "penalty": 0.5 }]
+  },
+  "group-slug": {
+    "oracleBoost": [
+      { "pattern": "each opponent loses", "weight": 0.35 },
+      { "pattern": "each player loses", "weight": 0.2 }
+    ],
+    "tagBoost": ["win_condition", "value_engine"]
+  },
+  "tribal": {
+    "oracleBoost": [
+      { "pattern": "creature type", "weight": 0.2 },
+      { "pattern": "other .* creatures you control get", "weight": 0.3 }
+    ],
+    "tagBoost": ["value_engine", "protection"]
+  },
+  "superfriends": {
+    "oracleBoost": [
+      { "pattern": "planeswalker", "weight": 0.35 },
+      { "pattern": "proliferate", "weight": 0.25 }
+    ],
+    "tagBoost": ["protection", "card_draw"]
+  },
+  "artifacts": {
+    "oracleBoost": [
+      { "pattern": "artifact", "weight": 0.2 },
+      { "pattern": "affinity for artifacts", "weight": 0.3 }
+    ],
+    "tagBoost": ["ramp", "value_engine"],
+    "antiPatterns": [{ "pattern": "destroy all artifacts", "penalty": 0.35 }]
+  }
+}

@@ -1,48 +1,32 @@
 /**
- * analyzeDeckTool.ts
- * 
- * MCP tool wrapper for the analyze_deck functionality.
- * This is not yet a full MCP server integration - it's a plain async function
- * that will later be wrapped with proper MCP protocol handlers.
- * 
- * Future: Will integrate with @modelcontextprotocol/sdk for full MCP server.
+ * MCP tool wrapper for analyze_deck.
  */
 
 import { AnalyzeDeckInput, AnalyzeDeckResult } from '../core/types';
 import { parseDeckText } from '../core/deckParser';
 import { analyzeDeckBasic } from '../core/analyzer';
+import {
+  attachAnalyzeConvergence,
+  buildAnalyzeSummary,
+} from './mcpOutputHelpers';
+import { validatePreferredStrategySlug } from '../core/strategyProfiles';
 
-/**
- * Runs the analyze_deck tool with the given input
- * 
- * This function orchestrates the deck analysis workflow:
- * 1. Parse the deck text into structured format
- * 2. Analyze the parsed deck
- * 3. Return the complete result
- * 
- * @param input - AnalyzeDeckInput with deck text and options
- * @returns Promise<AnalyzeDeckResult> with complete analysis
- * 
- * @example
- * ```typescript
- * const input: AnalyzeDeckInput = {
- *   deckText: "1 Sol Ring\n1 Command Tower",
- *   templateId: "default",
- *   banlistId: "commander"
- * };
- * const result = await runAnalyzeDeck(input);
- * console.log(result.analysis.totalCards); // 2
- * ```
- */
 export async function runAnalyzeDeck(
   input: AnalyzeDeckInput
 ): Promise<AnalyzeDeckResult> {
-  // Step 1: Parse the deck text
   const parsedDeck = parseDeckText(input.deckText);
-
-  // Step 2: Analyze the parsed deck
   const result = await analyzeDeckBasic(input, parsedDeck);
 
-  return result;
-}
+  if (input.preferredStrategy?.trim()) {
+    const slugCheck = validatePreferredStrategySlug(input.preferredStrategy);
+    if (!slugCheck.ok) {
+      const sample = (slugCheck.knownSlugs ?? []).slice(0, 10).join(', ');
+      result.analysis.notes.push(
+        `Unknown preferredStrategy "${input.preferredStrategy}". Known slugs include: ${sample}. Use get_synergies for commander-specific themes.`
+      );
+    }
+  }
 
+  const summary = buildAnalyzeSummary(result);
+  return attachAnalyzeConvergence({ ...result, summary });
+}

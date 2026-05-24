@@ -3,7 +3,7 @@
  *
  * MCP tool wrapper for the deck builder.
  * When templateId is bracket3 and useTemplateGenerator is true, uses the
- * template-driven generator (mana_base, categories, EDHREC + OpenAI fallback).
+ * template-driven generator (mana_base, categories, EDHREC + local DB fallback).
  * Otherwise uses the legacy skeleton + EDHREC autofill builder.
  */
 
@@ -18,22 +18,37 @@ import { loadDeckTemplate } from '../core/templates';
 import { getFullCommanderProfile, getTopCardsForColorIdentity, getTopLandsForColorIdentity, sortBySynergy } from '../core/edhrec';
 import { runIterativeEdhrecAutofill } from '../core/edhrecAutofill';
 import { formatDecklistText } from '../core/deckTextFormat';
+import { buildBuildQualityReport, buildSuggestedUpgrades } from '../core/buildQualityReport';
+import { validatePreferredStrategySlug } from '../core/strategyProfiles';
+import { attachBuildConvergence } from './mcpOutputHelpers';
 
 /**
  * Runs the build_deck_from_commander tool.
  *
  * With templateId "bracket3" and useTemplateGenerator true: builds a full 99-card
  * deck using the template (mana_base, curve, categories, combo_rules, generator_hints),
- * EDHREC as primary source and OpenAI as fallback for underfilled categories.
+ * EDHREC as primary source and local DB search for underfilled categories.
  *
  * Otherwise: uses skeleton + basic lands + optional EDHREC autofill.
  */
 export async function runBuildDeckFromCommander(
   input: BuildDeckInput
 ): Promise<BuildDeckResult> {
+  const strategyWarnings: string[] = [];
+  if (input.preferredStrategy?.trim()) {
+    const slugCheck = validatePreferredStrategySlug(input.preferredStrategy);
+    if (!slugCheck.ok) {
+      const sample = (slugCheck.knownSlugs ?? []).slice(0, 10).join(', ');
+      strategyWarnings.push(
+        `Unknown preferredStrategy "${input.preferredStrategy}". Known slugs include: ${sample}. Use get_synergies for commander-specific themes.`
+      );
+    }
+  }
+
   const templateId = input.templateId ?? 'bracket3';
   const bracketId = input.bracketId ?? 'bracket3';
-  const useTemplateGenerator = input.useTemplateGenerator === true && templateId === 'bracket3';
+  const useTemplateGenerator =
+    input.useTemplateGenerator !== false && templateId === 'bracket3';
 
   if (useTemplateGenerator) {
     const gen = await generateDeckFromTemplate({
@@ -41,7 +56,7 @@ export async function runBuildDeckFromCommander(
       templateId,
       seedCards: input.seedCards,
       preferredTheme: input.preferredStrategy,
-      metaOverride: undefined,
+      metaOverride: input.metaOverride,
     });
 
     const inputMerged: BuildDeckInput = {
@@ -73,13 +88,14 @@ export async function runBuildDeckFromCommander(
 
     if (inputMerged.useEdhrec || inputMerged.useEdhrecAutofill) {
       try {
-        const colors = commanderCard.color_identity ?? [];
-        const profile = await getFullCommanderProfile(commanderCard.name, colors, {
-          theme: inputMerged.preferredStrategy,
-          saltThreshold: 2.5,
-          cardLimit: 100,
-          landLimit: 40,
-        });
+        const profile =
+          gen.edhrecProfile ??
+          (await getFullCommanderProfile(commanderCard.name, commanderCard.color_identity ?? [], {
+            theme: inputMerged.preferredStrategy,
+            saltThreshold: 2.5,
+            cardLimit: 100,
+            landLimit: 40,
+          }));
         const allSuggestions = sortBySynergy([...profile.cards, ...profile.lands]);
         edhrecContext = {
           sourcesUsed: profile.sourcesUsed,
@@ -93,7 +109,9 @@ export async function runBuildDeckFromCommander(
           highSaltCards: profile.highSaltCards,
         };
         builderNotes.push(
-          `✓ EDHREC profile: ${profile.cards.length} cards, ${profile.lands.length} lands (for refinement).`
+          gen.edhrecProfile
+            ? `✓ Reused EDHREC profile from generator (${profile.cards.length} cards, ${profile.lands.length} lands).`
+            : `✓ EDHREC profile: ${profile.cards.length} cards, ${profile.lands.length} lands (for refinement).`
         );
       } catch {
         builderNotes.push('⚠ Full EDHREC profile failed; trying basic color suggestions for refinement.');
@@ -145,9 +163,11 @@ export async function runBuildDeckFromCommander(
         await analyzeDeckBasic(
           {
             deckText: deckTextFromGen,
+            commanderName: inputMerged.commanderName,
+            preferredStrategy: inputMerged.preferredStrategy,
             templateId,
             banlistId: inputMerged.banlistId,
-            options: { inferCommander: false },
+            options: {},
           },
           parsedFromGen
         )
@@ -161,16 +181,22 @@ export async function runBuildDeckFromCommander(
       // ignore
     }
 
-    return {
+    const buildQualityReport = buildBuildQualityReport(analysis);
+    const suggestedUpgrades = buildSuggestedUpgrades(analysis, analysis.recommendations);
+
+    return attachBuildConvergence({
       input: { ...inputMerged, templateId, bracketId },
       templateId,
       bracketId,
       bracketLabel,
       deck,
       analysis,
-      notes: builderNotes,
+      notes: [...strategyWarnings, ...builderNotes],
       edhrecContext,
-    };
+      buildQualityReport,
+      suggestedUpgrades,
+      decklistText: formatDecklistText(deck.cards),
+    });
   }
 
   const inputWithDefaults: BuildDeckInput = {
@@ -181,5 +207,10 @@ export async function runBuildDeckFromCommander(
     useEdhrecAutofill: true,
     ...input,
   };
-  return buildDeckFromCommander(inputWithDefaults);
+  const legacy = await buildDeckFromCommander(inputWithDefaults);
+  return attachBuildConvergence({
+    ...legacy,
+    notes: [...strategyWarnings, ...legacy.notes],
+    decklistText: formatDecklistText(legacy.deck.cards),
+  });
 }

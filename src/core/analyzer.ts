@@ -17,13 +17,29 @@ import {
   BannedCardInfo,
   LintReport,
   LintIssue,
-  LintSeverity
+  LintSeverity,
+  CardSynergyScore,
 } from './types';
-import { getCardByName } from './scryfall';
+import { getCardByName, getColorIdentity } from './scryfall';
+import { inferCommanderFromDeckEntries } from './commanderInference';
+import { getFullCommanderProfile } from './edhrec';
+import type { EdhrecCardSuggestion } from './types';
+import {
+  COMMANDER_MAINBOARD_SIZE,
+  findColorIdentityViolations,
+  findSingletonViolations,
+  findIllegalCards,
+} from './commanderFormat';
+import { buildCardSynergyScores, scoreDeckSynergy } from './synergyScorer';
+import { buildDeckRecommendations } from './deckRecommendations';
+import { mergePrioritizedActions } from './prioritizedActions';
+import { formatDecklistText } from './deckTextFormat';
+import { getPrimaryTemplateCategory } from './autoTags';
+import { normalizeParsedCardNames } from './cardResolution';
 import { loadDeckTemplate } from './templates';
 import { loadBracketRules, BracketRules } from './brackets';
 import { checkDeckForBannedCards, isBanlistAvailable, getBannedCount } from './banlist';
-import { autoTags, getDefaultBracket3Options, tagsToTemplateCategories, ScryCard } from './autoTags';
+import { autoTags, getDefaultBracket3Options, ScryCard } from './autoTags';
 import {
   validateBracket3,
   validateTwoCardCombosBeforeT6,
@@ -31,7 +47,6 @@ import {
   Bracket3Policies,
   CardWithTags
 } from './bracket3Validation';
-import { classifyCardWithLLM, isLLMClassifierAvailable } from './llmCardClassifier';
 import type { DeckTemplateValidated } from './templateSchema';
 import {
   getManaValue,
@@ -44,11 +59,12 @@ import {
   type CardLike
 } from './scryfallNormalize';
 import { isInstant } from './scryfall';
+import { buildDeckQualityExtensions } from './deckQualityReport';
 
 /**
  * Commander deck size rules
  */
-const COMMANDER_DECK_SIZE = 99; // Excluding commander
+const COMMANDER_DECK_SIZE = COMMANDER_MAINBOARD_SIZE;
 
 /**
  * Calculates the status of a category based on count and min/max bounds
@@ -82,6 +98,20 @@ function calculateCategoryStatus(
   }
 
   return 'unknown';
+}
+
+/** Merge Commander format violations into lint report as hard issues. */
+function mergeFormatLintIssues(
+  lintReport: LintReport | undefined,
+  formatIssues: LintIssue[]
+): LintReport | undefined {
+  if (formatIssues.length === 0) return lintReport;
+  const base: LintReport = lintReport ?? { ok: true, issues: [], metrics: {} };
+  return {
+    ok: false,
+    issues: [...formatIssues, ...base.issues],
+    metrics: base.metrics,
+  };
 }
 
 /** Template has full schema (curve, mana_base) for advanced lint */
@@ -374,10 +404,26 @@ export async function analyzeDeckBasic(
 
   const strategyLabel = input.preferredStrategy?.trim();
   if (strategyLabel) {
+    notes.push(`Stated synergy/theme: "${strategyLabel}" (EDHREC theme slug).`);
+  }
+
+  const normalized = normalizeParsedCardNames(parsedDeck.cards);
+  if (normalized.renamed.length > 0) {
+    notes.push(`Resolved ${normalized.renamed.length} card name(s) to canonical Scryfall names.`);
+    if (normalized.renamed.length <= 5) {
+      notes.push(...normalized.renamed.map((r) => `  ${r}`));
+    }
+  }
+  if (normalized.unresolved.length > 0) {
     notes.push(
-      `Stated synergy/theme: "${strategyLabel}". Review card choices for coherence with this theme (the analyzer does not auto-score thematic fit).`
+      `⚠ ${normalized.unresolved.length} card(s) not found in database: ${normalized.unresolved.slice(0, 8).join(', ')}${normalized.unresolved.length > 8 ? '…' : ''}`
     );
   }
+  parsedDeck.cards = normalized.entries.map((e) => ({
+    rawLine: e.rawLine ?? `${e.quantity} ${e.name}`,
+    quantity: e.quantity,
+    name: e.name,
+  }));
 
   // Calculate total cards (sum of all quantities)
   const totalCards = parsedDeck.cards.reduce(
@@ -388,22 +434,124 @@ export async function analyzeDeckBasic(
   // Calculate unique cards
   const uniqueCards = parsedDeck.cards.length;
 
-  // Commander name (not detected yet)
-  const commanderName = parsedDeck.commanderName || null;
+  let commanderName =
+    input.commanderName?.trim() ||
+    parsedDeck.commanderName?.trim() ||
+    null;
+
+  if (!commanderName && input.inferCommander !== false) {
+    const inferred = inferCommanderFromDeckEntries(
+      parsedDeck.cards.map((c) => ({ name: c.name }))
+    );
+    if (inferred.commanderName) {
+      commanderName = inferred.commanderName;
+      if (inferred.candidates.length > 1) {
+        notes.push(
+          `Inferred commander "${inferred.commanderName}" (${inferred.candidates.length} candidates: ${inferred.candidates.slice(0, 5).join(', ')}). Pass commanderName to override.`
+        );
+      } else {
+        notes.push(
+          `Inferred commander "${inferred.commanderName}" from deck (commander-eligible legendary).`
+        );
+      }
+    }
+  }
+
+  const formatLintIssues: LintIssue[] = [];
+  let colorIdentityViolations: string[] = [];
+
+  if (commanderName) {
+    const commanderCard = getCardByName(commanderName);
+    if (!commanderCard) {
+      notes.push(`⚠ Commander "${commanderName}" could not be resolved in card database.`);
+    } else {
+      const cmdCi = getColorIdentity(commanderCard);
+      colorIdentityViolations = findColorIdentityViolations(parsedDeck.cards, cmdCi);
+      if (colorIdentityViolations.length > 0) {
+        notes.push(`⛔ ${colorIdentityViolations.length} card(s) outside commander color identity (${cmdCi.join('') || 'C'}):`);
+        for (const v of colorIdentityViolations.slice(0, 12)) {
+          notes.push(`  - ${v}`);
+        }
+        if (colorIdentityViolations.length > 12) {
+          notes.push(`  … and ${colorIdentityViolations.length - 12} more`);
+        }
+      } else {
+        notes.push(`Color identity: all resolved mainboard cards fit commander (${cmdCi.join('') || 'C'}).`);
+      }
+    }
+  } else {
+    notes.push(
+      'Color identity: pass commanderName or a "Commander:" line in deckText to validate color identity.'
+    );
+  }
 
   // Commander deck size validation
   if (totalCards < COMMANDER_DECK_SIZE) {
     notes.push(
       `Deck has fewer than ${COMMANDER_DECK_SIZE} cards (excluding commander). Current: ${totalCards} cards.`
     );
+    formatLintIssues.push({
+      key: 'format:deck_size',
+      severity: 'hard',
+      message: `Mainboard has ${totalCards} cards (expected ${COMMANDER_DECK_SIZE})`,
+      details: { totalCards, expected: COMMANDER_DECK_SIZE },
+    });
   } else if (totalCards > COMMANDER_DECK_SIZE) {
     notes.push(
       `Deck has more than ${COMMANDER_DECK_SIZE} cards (excluding commander). Current: ${totalCards} cards.`
     );
+    formatLintIssues.push({
+      key: 'format:deck_size',
+      severity: 'hard',
+      message: `Mainboard has ${totalCards} cards (expected ${COMMANDER_DECK_SIZE})`,
+      details: { totalCards, expected: COMMANDER_DECK_SIZE },
+    });
   } else {
     notes.push(
       `Deck size is correct: ${totalCards} cards (excluding commander).`
     );
+  }
+
+  const singletonViolations = findSingletonViolations(parsedDeck.cards);
+  if (singletonViolations.length > 0) {
+    notes.push(`⛔ Singleton violations: ${singletonViolations.length} card(s) with quantity > 1.`);
+    for (const v of singletonViolations.slice(0, 8)) {
+      notes.push(`  - ${v.name} (x${v.quantity})`);
+    }
+    for (const v of singletonViolations) {
+      formatLintIssues.push({
+        key: 'format:singleton',
+        severity: 'hard',
+        message: `${v.name}: quantity ${v.quantity} (max 1 except basic lands)`,
+        details: { name: v.name, quantity: v.quantity },
+      });
+    }
+  } else {
+    notes.push('Singleton: no duplicate non-basic cards.');
+  }
+
+  const illegalCards = findIllegalCards(parsedDeck.cards);
+  if (illegalCards.length > 0) {
+    notes.push(`⛔ Not Commander-legal: ${illegalCards.length} card(s).`);
+    for (const v of illegalCards.slice(0, 8)) {
+      notes.push(`  - ${v.name} (${v.reason})`);
+    }
+    for (const v of illegalCards) {
+      formatLintIssues.push({
+        key: 'format:legality',
+        severity: 'hard',
+        message: `${v.name}: ${v.reason}`,
+        details: { name: v.name, reason: v.reason },
+      });
+    }
+  }
+
+  for (const v of colorIdentityViolations) {
+    formatLintIssues.push({
+      key: 'format:color_identity',
+      severity: 'hard',
+      message: v,
+    });
   }
 
   // Initialize category counts from template
@@ -415,8 +563,6 @@ export async function analyzeDeckBasic(
   const tagBracket = input.bracketId ?? effectiveTemplateId;
   const tagOpts = tagBracket === 'bracket3' ? getDefaultBracket3Options('bracket3') : {};
   const deckWithTags: CardWithTags[] = [];
-
-  const useLLMFallback = input.options?.useLLMFallbackForCategories === true && isLLMClassifierAvailable();
 
   for (const entry of parsedDeck.cards) {
     const card = getCardByName(entry.name);
@@ -432,10 +578,6 @@ export async function analyzeDeckBasic(
         all_parts: card.all_parts,
       };
       tags = autoTags(scryCard, tagOpts);
-      if (tags.length === 0 && useLLMFallback) {
-        const llmTags = await classifyCardWithLLM(scryCard);
-        if (llmTags.length > 0) tags = llmTags;
-      }
     }
 
     deckWithTags.push({ name: entry.name, tags });
@@ -446,12 +588,10 @@ export async function analyzeDeckBasic(
       categoryCounts['lands'] = (categoryCounts['lands'] ?? 0) + entry.quantity;
     }
 
-    // Count by template categories from tags (skip "ramp" for lands — they're not ramp in template sense)
-    const categoriesFromTags = tagsToTemplateCategories(tags);
-    for (const catName of categoriesFromTags) {
-      if (catName === 'ramp' && isLand) continue;
-      if (Object.prototype.hasOwnProperty.call(categoryCounts, catName)) {
-        categoryCounts[catName] += entry.quantity;
+    const primary = getPrimaryTemplateCategory(tags);
+    if (primary && Object.prototype.hasOwnProperty.call(categoryCounts, primary)) {
+      if (!(primary === 'ramp' && isLand)) {
+        categoryCounts[primary] += entry.quantity;
       }
     }
   }
@@ -532,9 +672,57 @@ export async function analyzeDeckBasic(
       notes.push(`Template lint: ${lintReport.issues.filter((i) => i.severity === 'hard').length} hard issue(s), ${lintReport.issues.filter((i) => i.severity === 'soft').length} soft.`);
     }
   }
+  lintReport = mergeFormatLintIssues(lintReport, formatLintIssues);
+  if (formatLintIssues.length > 0) {
+    notes.push(`Format validation: ${formatLintIssues.length} hard issue(s) (singleton, legality, color identity, or deck size).`);
+  }
 
-  // Build the DeckAnalysis object
-  const analysis: DeckAnalysis = {
+  const { synergyScore, offThemeCards } = scoreDeckSynergy(
+    parsedDeck.cards,
+    strategyLabel,
+    commanderName ?? undefined
+  );
+  if (strategyLabel) {
+    notes.push(`Synergy score (${strategyLabel}): ${synergyScore}/100.`);
+    if (offThemeCards.length > 0) {
+      notes.push(`Possible off-theme cards: ${offThemeCards.join(', ')}`);
+    }
+  }
+
+  let edhrecPool: EdhrecCardSuggestion[] | undefined;
+  if (commanderName && strategyLabel) {
+    const commanderCard = getCardByName(commanderName);
+    if (commanderCard) {
+      try {
+        const profile = await getFullCommanderProfile(commanderName, getColorIdentity(commanderCard), {
+          theme: strategyLabel,
+          cardLimit: 80,
+          landLimit: 0,
+          saltThreshold: 99,
+        });
+        edhrecPool = profile.cards;
+      } catch {
+        notes.push('EDHREC unavailable; add suggestions use search_cards placeholders.');
+      }
+    }
+  }
+
+  const recommendations = buildDeckRecommendations(
+    parsedDeck.cards,
+    categories,
+    input,
+    edhrecPool
+  );
+
+  const cardSynergyScores = strategyLabel
+    ? buildCardSynergyScores(
+        parsedDeck.cards,
+        strategyLabel,
+        commanderName ?? undefined
+      )
+    : undefined;
+
+  const draftAnalysis: DeckAnalysis = {
     commanderName,
     totalCards,
     uniqueCards,
@@ -545,8 +733,33 @@ export async function analyzeDeckBasic(
     bracketWarnings,
     bannedCards,
     banlistValid,
-    lintReport
+    lintReport,
+    synergyScore: strategyLabel ? synergyScore : undefined,
+    recommendations,
+    unresolvedCardNames:
+      normalized.unresolved.length > 0 ? [...normalized.unresolved] : undefined,
   };
+
+  const quality = buildDeckQualityExtensions(draftAnalysis, strategyLabel);
+  const prioritizedActions = mergePrioritizedActions(
+    recommendations.prioritizedActions,
+    quality.prioritizedActions
+  );
+
+  const analysis: DeckAnalysis = {
+    ...draftAnalysis,
+    cardSynergyScores,
+    deckScore: quality.deckScore,
+    strengthsAndWeaknesses: quality.strengthsAndWeaknesses,
+    prioritizedActions,
+    manaBaseQuality: quality.manaBaseQuality,
+    curveAnalysis: quality.curveAnalysis,
+    qualityReport: { ...quality, prioritizedActions },
+  };
+
+  const decklistText = formatDecklistText(
+    parsedDeck.cards.map((c) => ({ name: c.name, quantity: c.quantity }))
+  );
 
   // Build the complete AnalyzeDeckResult
   const result: AnalyzeDeckResult = {
@@ -557,7 +770,12 @@ export async function analyzeDeckBasic(
       banlistId: input.banlistId
     },
     analysis,
-    parsedDeck
+    parsedDeck,
+    decklistText,
+    synergyScore: analysis.synergyScore,
+    recommendations: analysis.recommendations,
+    deckScore: analysis.deckScore,
+    qualityReport: analysis.qualityReport,
   };
 
   return result;

@@ -1,6 +1,6 @@
 # MTG Commander Deck Analyzer - MCP
 
-> 🎉 **Current Status:** v0.4.0 - GPT-4.1 LLM deck builder, SQLite database, EDHREC integration, custom banlist
+> **Current status:** v0.7.0 — Template + EDHREC deck builder for Cursor and other MCP clients (see **[AGENTS.md](./AGENTS.md)**). **No API key required** — the host agent is the LLM; MCP provides data and validation. **Agent chat setup:** [docs/agent-chat-setup.md](./docs/agent-chat-setup.md).
 
 Open-source TypeScript library and MCP server for analyzing and building Magic: The Gathering Commander (EDH) decks.
 
@@ -25,7 +25,7 @@ mtg-commander-analyzer-mcp/
 │   │   ├── cardDatabase.ts      # SQLite database queries
 │   │   ├── banlist.ts           # Custom banlist enforcement
 │   │   ├── edhrec.ts            # EDHREC integration
-│   │   ├── roles.ts             # Role classification
+│   │   ├── autoTags.ts          # Primary-category tagging (roles.ts deprecated shim)
 │   │   ├── templates.ts         # Deck templates
 │   │   ├── brackets.ts          # Bracket rules
 │   │   ├── bracketCards.ts      # Card lists by bracket
@@ -39,7 +39,8 @@ mtg-commander-analyzer-mcp/
 │   │   ├── server.ts            # MCP server (stdio transport)
 │   │   ├── analyzeDeckTool.ts   # analyze_deck tool
 │   │   ├── buildDeckFromCommanderTool.ts  # build_deck_from_commander
-│   │   └── buildDeckWithLLMTool.ts        # build_deck_with_llm
+│   │   ├── searchCardsTool.ts             # search_cards
+│   │   └── ...                            # analyze, optimize, synergies, etc.
 │   ├── testLocal.ts             # Analysis testing
 │   ├── testBuildLocal.ts        # Build testing
 │   └── testEndToEnd.ts          # End-to-end testing
@@ -193,7 +194,40 @@ Pull requests and pushes to `main` / `master` run `npm ci`, `npm run build`, and
 
 ### MCP Server (Recommended)
 
-The MCP server exposes three tools for compatible clients (Cursor, Claude Desktop, etc.): `analyze_deck`, `build_deck_from_commander`, and `build_deck_with_llm` (requires `OPENAI_API_KEY`).
+The MCP server exposes **ten tools** for compatible clients (Cursor, Claude Desktop, etc.):
+
+| Tool | Purpose |
+|------|---------|
+| `get_synergies` | List EDHREC themes for a commander |
+| `get_strategy_guide` | Markdown construction guide for a synergy slug |
+| `build_deck_from_commander` | Build 99-card mainboard (template + EDHREC; **preferred**) |
+| `get_category_candidates` | Ranked DB candidates for a template category (gap-fill without guessing names) |
+| `analyze_deck` | Validate decklist, categories, Bracket 3, `qualityGate`, `agentBrief` |
+| `optimize_deck` | Iterative analyze → cut/add → EDHREC autofill |
+| `apply_deck_changes` | Apply cut/add swaps to `deckText` without re-pasting 99 lines |
+| `evaluate_card_swap` | Preview impact of one card swap |
+| `search_cards` | Query `cards.db` with synergy-aware sorting |
+| `resolve_card` | Resolve one card name + legality/color fit |
+
+See **[AGENTS.md](./AGENTS.md)** for the recommended agent workflow.
+
+**MCP resources** (read-only docs/data via `resources/list` and `resources/read`):
+
+| URI | Content |
+|-----|---------|
+| `mtg-commander:///template/bracket3` | Bracket 3 deck template JSON |
+| `mtg-commander:///banlist` | Project banlist |
+| `mtg-commander:///agents` | AGENTS.md |
+| `mtg-commander:///strategy-guide/{slug}` | Archetype markdown guides |
+
+EDHREC responses are cached on disk at `data/cache/edhrec/` (24h TTL) to speed up repeated builds.
+
+**MCP prompts** (workflow templates via `prompts/list` and `prompts/get`):
+
+| Prompt | Arguments | Purpose |
+|--------|-----------|---------|
+| `build-commander-deck` | `commanderName` (required), `preferredStrategy` (optional) | Full build workflow + Bracket 3 checklist |
+| `optimize-decklist` | `commanderName`, `preferredStrategy` (required), `deckText` (optional) | Optimize loop + quality gate |
 
 **Start the server:**
 ```bash
@@ -229,7 +263,7 @@ Analyzes an existing Commander decklist with Bracket 3 validation.
       { "name": "lands", "count": 37, "min": 35, "max": 38, "status": "within" },
       { "name": "ramp", "count": 9, "min": 8, "max": 10, "status": "within" },
       { "name": "card_draw", "count": 8, "min": 8, "max": 10, "status": "within" },
-      { "name": "target_removal", "count": 6, "min": 6, "max": 8, "status": "within" },
+      { "name": "spot_removal", "count": 6, "min": 4, "max": 7, "status": "within" },
       { "name": "board_wipes", "count": 3, "min": 3, "max": 4, "status": "within" }
     ],
     "bracketWarnings": [
@@ -309,55 +343,6 @@ Builds a Commander deck from a commander name with optional EDHREC autofill.
 - ✅ Color identity validation
 - ✅ Role classification for all cards
 
-#### 3. `build_deck_with_llm` ⭐ NEW
-
-**FULLY AUTONOMOUS** deck builder using GPT-4.1. Builds a complete 99-card deck without human intervention.
-
-> ⚠️ **Requires OpenAI API key.** See [LLM Configuration](#llm-configuration-openai) below.
-
-**Input:**
-```json
-{
-  "commanderName": "Atraxa, Praetors' Voice",
-  "seedCards": ["Doubling Season", "Deepglow Skate"]
-}
-```
-
-**Output:**
-```json
-{
-  "deck": {
-    "commanderName": "Atraxa, Praetors' Voice",
-    "cards": [
-      { "name": "Sol Ring", "quantity": 1, "roles": ["ramp"] },
-      { "name": "Breeding Pool", "quantity": 1, "roles": ["land"] },
-      ... // EXACTLY 99 cards
-    ]
-  },
-  "analysis": {
-    "totalCards": 99,
-    "banlistValid": true,
-    "categories": [ ... ]
-  },
-  "notes": [
-    "[LLM] Using gpt-4.1 for deck building",
-    "Commander: Atraxa, Praetors' Voice (Color Identity: BGUW)",
-    "✓ EDHREC: Fetched 100 card suggestions",
-    "✓ LLM response received (2847 in, 1923 out)",
-    "Strategy: Superfriends/Planeswalker deck focusing on proliferate..."
-  ]
-}
-```
-
-**Features:**
-- ✅ **Complete 99-card deck** (not a skeleton)
-- ✅ AI-powered card selection based on commander synergy
-- ✅ Uses EDHREC data for informed choices
-- ✅ Respects custom banlist
-- ✅ Validates color identity and singleton rule
-- ✅ Bracket 3 power level
-- ✅ Cost: ~$0.002-0.01 per deck
-
 ### Local Testing
 
 **Deck analysis:**
@@ -372,53 +357,11 @@ npm run test:build
 
 Both scripts display detailed results in the console.
 
-## 🤖 LLM Configuration (OpenAI)
+## 🤖 Agent / LLM (no API key in MCP)
 
-To use the `build_deck_with_llm` tool, you need to configure an OpenAI API key.
+Deck construction and card choices are made by the **host agent** (e.g. Cursor). The MCP server exposes **ten tools** for building, validation, gap-fill (`get_category_candidates`), incremental edits (`apply_deck_changes`), and optimization — **no OpenAI dependency** in this repo.
 
-### 1. Get an API Key
-
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create a new API key
-3. Copy the key (starts with `sk-`)
-
-### 2. Configure the Key
-
-Copy the example environment file and add your key:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-```env
-# Required
-OPENAI_API_KEY=sk-your-actual-api-key-here
-
-# Optional (defaults shown)
-OPENAI_MODEL=gpt-4.1
-OPENAI_TEMPERATURE=0.7
-OPENAI_MAX_TOKENS=4096
-# OPENAI_BASE_URL=https://api.openai.com/v1
-```
-
-### 3. Available Models
-
-| Model | Speed | Cost | Recommendation |
-|-------|-------|------|----------------|
-| `gpt-4.1` | Fast | ~$0.005/deck | ⭐ **Default** - Best balance |
-| `gpt-4o` | Fast | ~$0.01/deck | More creative |
-| `gpt-4o-mini` | Fastest | ~$0.001/deck | Most economical |
-| `o3-mini` | Slow | ~$0.02/deck | Deep reasoning |
-
-### 4. Verify Configuration
-
-```bash
-npm run build
-npm run mcp
-```
-
-If configured correctly, the `build_deck_with_llm` tool will be available.
+Template generation fills category gaps with **EDHREC** plus **local SQLite** lookups (`searchCardsFiltered`, same database as `search_cards`). Build/analyze/optimize default to **`responseMode: "brief"`** (`agentBrief`, `qualityGate`); pass `responseMode: "full"` when you need the complete `analysis` object. Use `get_category_candidates`, `search_cards`, `apply_deck_changes`, or `optimize_deck` when gaps remain after a build.
 
 ## 🔧 MCP Client Configuration
 
@@ -454,7 +397,7 @@ In `claude_desktop_config.json`:
 }
 ```
 
-## 🛠️ Current Functionality (v0.4.0)
+## 🛠️ Current Functionality (v0.7.0)
 
 ### ✅ Implemented
 
@@ -469,7 +412,7 @@ In `claude_desktop_config.json`:
 - ✅ **Always-on EDHREC integration** (enabled by default)
 - ✅ In-memory caching for EDHREC requests
 - ✅ **Custom banlist** (`data/Banlist.txt`) - 74 banned cards
-- ✅ **LLM-powered deck builder** (GPT-4.1) - builds complete 99-card decks
+- ✅ **Template deck generator** — EDHREC + SQLite fill for complete 99-card decks
 
 **Database:**
 - ✅ Full Scryfall schema with 60+ columns
@@ -498,7 +441,7 @@ In `claude_desktop_config.json`:
 **MCP Server:**
 - ✅ Complete MCP server with @modelcontextprotocol/sdk
 - ✅ Stdio transport for universal compatibility
-- ✅ Three tools: `analyze_deck`, `build_deck_from_commander`, `build_deck_with_llm` (optional OpenAI)
+- ✅ Ten MCP tools: `get_synergies`, `get_strategy_guide`, `get_category_candidates`, `search_cards`, `resolve_card`, `build_deck_from_commander`, `analyze_deck`, `optimize_deck`, `apply_deck_changes`, `evaluate_card_swap`. Agent entry: **AGENTS.md**
 - ✅ Input validation with zod schemas
 - ✅ Graceful error handling
 
@@ -509,10 +452,15 @@ In `claude_desktop_config.json`:
 - [ ] Mana curve analysis
 - [ ] Infinite combo detection
 - [ ] Support for other brackets (1, 2, 4)
-- [ ] Additional MCP tool: `optimize_deck`
-- [ ] Additional MCP tool: `search_cards` (SQL-powered search)
+- [x] MCP tool: `optimize_deck` — shipped
+- [x] MCP tool: `evaluate_card_swap` — shipped
+- [x] MCP tool: `get_strategy_guide` — shipped
+- [x] MCP tool: `search_cards` (SQL-powered search + synergy relevance) — shipped
+- [x] MCP tool: `get_synergies` — shipped
+- [x] MCP Resources: template, banlist, strategy guides, AGENTS.md (`mtg-commander:///` URIs)
+- [x] MCP Prompts: `build-commander-deck`, `optimize-decklist` (AGENTS checklist embedded)
+- [x] Golden-deck CI artifact: `data/golden/shadrix-group-slug-analyze.expected.json` + `npm run test:golden`
 - [ ] MCP Resources: direct Scryfall data access
-- [ ] MCP Prompts: contextual suggestions
 
 ## 📋 Commander (EDH) Format Rules
 

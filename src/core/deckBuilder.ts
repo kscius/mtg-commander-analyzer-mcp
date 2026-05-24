@@ -17,7 +17,7 @@ import {
 import { getCardByName, OracleCard } from './scryfall';
 import { loadDeckTemplate } from './templates';
 import { loadBracketRules } from './brackets';
-import { classifyCardRoles } from './roles';
+import { classifyCardRoles } from './autoTags';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
 import {
@@ -30,22 +30,16 @@ import {
 import { runIterativeEdhrecAutofill, analysisHasAutomatableGaps } from './edhrecAutofill';
 import { isBanned, isBanlistAvailable, getBannedCount } from './banlist';
 import { formatDecklistText } from './deckTextFormat';
+import type { DeckTemplateValidated } from './templateSchema';
+import { fillManaBaseFromTemplate } from './manaBaseGenerator';
+import { COMMANDER_MAINBOARD_SIZE, isBasicLandName } from './commanderFormat';
+import { resolveCardNameSync } from './cardResolution';
 
-/**
- * Map MTG color letters to basic land names
- */
-const COLOR_TO_BASIC_LAND: Record<string, string> = {
-  'W': 'Plains',
-  'U': 'Island',
-  'B': 'Swamp',
-  'R': 'Mountain',
-  'G': 'Forest'
-};
+const COMMANDER_DECK_SIZE = COMMANDER_MAINBOARD_SIZE;
 
-/**
- * Default land count for Commander decks
- */
-const COMMANDER_DECK_SIZE = 99; // Non-commander cards
+function isFullTemplate(t: { mana_base?: unknown; categories?: unknown[] }): t is DeckTemplateValidated {
+  return Array.isArray(t.categories) && t.categories.length > 0 && 'mana_base' in t && t.mana_base != null;
+}
 
 /**
  * Builds a Commander deck from a commander name
@@ -160,48 +154,78 @@ export async function buildDeckFromCommander(
     }
   }
 
-  // Step 6: Fill basic lands according to color identity
+  // Step 6: Mana base (template mix + EDHREC when bracket3 full template; else warn)
   const landsToAdd = targetLands;
-  
-  if (colorIdentity.length === 0) {
-    // Colorless commander: use Wastes or a mix of basics
-    builderNotes.push(
-      `Colorless commander detected. Adding ${landsToAdd} Wastes (or generic basics).`
-    );
+  const cardsInDeck = new Set(
+    builtCards.map((c) => (resolveCardNameSync(c.name)?.canonicalName ?? c.name).toLowerCase())
+  );
+
+  const addLandCard = (name: string): boolean => {
+    const resolved = resolveCardNameSync(name);
+    const canonical = resolved?.canonicalName ?? name;
+    const key = canonical.toLowerCase();
+    if (isBasicLandName(canonical)) {
+      const existing = builtCards.find((c) => c.name.toLowerCase() === key);
+      if (existing) {
+        existing.quantity += 1;
+        return true;
+      }
+    } else if (cardsInDeck.has(key)) {
+      return false;
+    }
+    const card = resolved?.card ?? getCardByName(canonical);
     builtCards.push({
-      name: 'Wastes',
-      quantity: landsToAdd,
-      roles: ['land']
+      name: canonical,
+      quantity: 1,
+      roles: card ? classifyCardRoles(card) : ['land'],
+    });
+    cardsInDeck.add(key);
+    return true;
+  };
+
+  if (isFullTemplate(template)) {
+    builderNotes.push(
+      'Using four-system mana base (curve_land_count, template_mix, pip_basics, edhrec_synergy). Prefer useTemplateGenerator for a full 99-card deck.'
+    );
+    let profileLands: Awaited<ReturnType<typeof getLandsForColorCombination>> = [];
+    try {
+      profileLands = await getLandsForColorCombination(colorIdentity, 60);
+    } catch {
+      builderNotes.push('EDHREC lands unavailable; basics + mix targets only.');
+    }
+    await fillManaBaseFromTemplate({
+      commanderCard,
+      colorIdentity,
+      manaBase: template.mana_base,
+      landsToAdd,
+      profileLands,
+      builtCards,
+      cardsInDeck,
+      addCard: addLandCard,
+      notes: builderNotes,
     });
   } else {
-    // Distribute lands evenly among colors in identity
-    const basicLandTypes = colorIdentity
-      .map(color => COLOR_TO_BASIC_LAND[color])
-      .filter(Boolean); // Remove undefined values
-
-    if (basicLandTypes.length === 0) {
-      builderNotes.push(
-        `Warning: Could not map color identity to basic lands. Defaulting to Wastes.`
-      );
-      builtCards.push({
-        name: 'Wastes',
-        quantity: landsToAdd,
-        roles: ['land']
-      });
+    builderNotes.push(
+      '⚠ Legacy skeleton: basic-only lands. Set useTemplateGenerator true with templateId bracket3 for non-basic mana base.'
+    );
+    const COLOR_TO_BASIC: Record<string, string> = {
+      W: 'Plains',
+      U: 'Island',
+      B: 'Swamp',
+      R: 'Mountain',
+      G: 'Forest',
+    };
+    if (colorIdentity.length === 0) {
+      builtCards.push({ name: 'Wastes', quantity: landsToAdd, roles: ['land'] });
     } else {
+      const basicLandTypes = colorIdentity.map((c) => COLOR_TO_BASIC[c]).filter(Boolean) as string[];
       const landsPerColor = Math.floor(landsToAdd / basicLandTypes.length);
       const remainder = landsToAdd % basicLandTypes.length;
-
-      builderNotes.push(
-        `Distributing ${landsToAdd} basic lands among ${basicLandTypes.length} colors.`
-      );
-
       basicLandTypes.forEach((landName, index) => {
-        const quantity = landsPerColor + (index < remainder ? 1 : 0);
         builtCards.push({
           name: landName,
-          quantity,
-          roles: ['land']
+          quantity: landsPerColor + (index < remainder ? 1 : 0),
+          roles: ['land'],
         });
       });
     }
@@ -246,7 +270,6 @@ export async function buildDeckFromCommander(
     preferredStrategy: input.preferredStrategy,
     banlistId: input.banlistId,
     options: {
-      inferCommander: false
     }
   };
 

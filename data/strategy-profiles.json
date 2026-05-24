@@ -1,0 +1,149 @@
+{
+  "tokens": {
+    "displayName": "Tokens",
+    "keyPatterns": ["create.*token", "populate", "anthem", "token creature"],
+    "preferredCategories": {
+      "ramp": { "prefer": "creature-based", "notes": "Mana dorks and token-producing ramp" },
+      "protection": { "prefer": "mass-protection", "examples": ["Heroic Intervention", "Teferi's Protection"] },
+      "board_wipes": { "prefer": "one-sided", "examples": ["Austere Command", "Farewell"] }
+    },
+    "synergyPackages": [
+      { "name": "Go Wide", "cards": ["Anointed Procession", "Doubling Season", "Parallel Lives"] },
+      { "name": "Token Payoffs", "cards": ["Cathars' Crusade", "Intangible Virtue", "Mondrak, Glory Dominus"] }
+    ],
+    "antisynergyPatterns": ["sacrifice all creatures", "each creature gets -", "destroy all creatures"]
+  },
+  "voltron": {
+    "displayName": "Voltron",
+    "keyPatterns": ["equipped creature", "aura", "commander damage", "double strike"],
+    "preferredCategories": {
+      "protection": { "prefer": "hexproof-indestructible", "examples": ["Lightning Greaves", "Swiftfoot Boots"] },
+      "spot_removal": { "prefer": "instant-speed", "notes": "Protect the commander line" },
+      "ramp": { "prefer": "efficient-artifacts", "min": 8 }
+    },
+    "synergyPackages": [
+      { "name": "Equipment Suite", "cards": ["Sword of Feast and Famine", "Sigarda's Aid", "Stoneforge Mystic"] }
+    ],
+    "antisynergyPatterns": ["destroy all equipments", "destroy all auras"]
+  },
+  "counters": {
+    "displayName": "+1/+1 Counters",
+    "keyPatterns": ["\\+1/\\+1 counter", "proliferate", "modular"],
+    "preferredCategories": {
+      "value_engines": { "prefer": "counter-synergy", "examples": ["Hardened Scales", "Doubling Season"] },
+      "protection": { "prefer": "save-payoffs", "notes": "Protect large creatures" }
+    },
+    "synergyPackages": [
+      { "name": "Proliferate", "cards": ["Atraxa, Praetors' Voice", "Inexorable Tide", "Tekuthal, Inquiry Dominus"] }
+    ],
+    "antisynergyPatterns": ["remove all counters", "-1/-1 counter on each"]
+  },
+  "aristocrats": {
+    "displayName": "Aristocrats",
+    "keyPatterns": ["sacrifice a creature", "whenever a creature dies", "drain"],
+    "preferredCategories": {
+      "value_engines": { "prefer": "death-payoffs", "examples": ["Blood Artist", "Zulaport Cutthroat"] },
+      "board_wipes": { "prefer": "symmetrical-with-recursion", "notes": "Wraths that feed sacrifice" }
+    },
+    "synergyPackages": [
+      { "name": "Sac Outlets", "cards": ["Viscera Seer", "Ashnod's Altar", "Phyrexian Altar"] }
+    ],
+    "antisynergyPatterns": ["exile all creatures from graveyards only without payoff"]
+  },
+  "blink": {
+    "displayName": "Blink / Flicker",
+    "keyPatterns": ["exile.*return", "flicker", "enters the battlefield"],
+    "preferredCategories": {
+      "value_engines": { "prefer": "etb-payoffs", "examples": ["Soulherder", "Brago, King Eternal"] },
+      "protection": { "prefer": "save-etb", "notes": "Blink as protection" }
+    },
+    "synergyPackages": [
+      { "name": "ETB Engines", "cards": ["Panharmonicon", "Conjurer's Closet", "Thassa, Deep-Dwelling"] }
+    ],
+    "antisynergyPatterns": ["exile all permanents you control"]
+  },
+  "reanimator": {
+    "displayName": "Reanimator",
+    "keyPatterns": ["return.*from your graveyard", "reanimate", "mill"],
+    "preferredCategories": {
+      "graveyard_hate": { "prefer": "minimal", "notes": "Usually run minimal gy hate unless meta demands" },
+      "card_draw": { "prefer": "entomb-mill", "notes": "Fill graveyard reliably" }
+    },
+    "synergyPackages": [
+      { "name": "Reanimation", "cards": ["Reanimate", "Animate Dead", "Victimize"] }
+    ],
+    "antisynergyPatterns": ["exile all cards from all graveyards"]
+  },
+  "spellslinger": {
+    "displayName": "Spellslinger",
+    "keyPatterns": ["instant or sorcery", "magecraft", "storm", "copy target instant"],
+    "preferredCategories": {
+      "card_draw": { "prefer": "instant-speed", "notes": "Keep gas for spell chains" },
+      "spot_removal": { "prefer": "instant", "min": 5 }
+    },
+    "synergyPackages": [
+      { "name": "Spell Payoffs", "cards": ["Archmage Emeritus", "Storm-Kiln Artist", "Thousand-Year Storm"] }
+    ],
+    "antisynergyPatterns": ["counter target spell unless you control a creature"]
+  },
+  "lands": {
+    "displayName": "Lands Matter",
+    "keyPatterns": ["landfall", "play an additional land", "land card"],
+    "preferredCategories": {
+      "lands": { "prefer": "high-count", "min": 36 },
+      "ramp": { "prefer": "land-based", "notes": "Extra land drops over rocks" }
+    },
+    "synergyPackages": [
+      { "name": "Landfall", "cards": ["Azusa, Lost but Seeking", "Scapeshift", "Tireless Provisioner"] }
+    ],
+    "antisynergyPatterns": ["destroy all lands", "each player sacrifices a land"]
+  },
+  "group-slug": {
+    "displayName": "Group Slug",
+    "keyPatterns": ["each opponent loses", "each player loses", "each opponent sacrifices"],
+    "preferredCategories": {
+      "win_conditions": { "prefer": "incremental-damage", "examples": ["Exsanguinate", "Debt to the Deathless"] },
+      "board_wipes": { "prefer": "asymmetric", "notes": "Punish while you recover" }
+    },
+    "synergyPackages": [
+      { "name": "Drain", "cards": ["Bloodchief Ascension", "Sanguine Bond", "Exquisite Blood"] }
+    ],
+    "antisynergyPatterns": ["each opponent gains", "each player gains life"]
+  },
+  "tribal": {
+    "displayName": "Tribal",
+    "keyPatterns": ["creature type", "lord", "choose a creature type"],
+    "preferredCategories": {
+      "value_engines": { "prefer": "lord-anthems", "notes": "Type-specific anthems" },
+      "protection": { "prefer": "lord-protection", "examples": ["Heroic Intervention"] }
+    },
+    "synergyPackages": [
+      { "name": "Lords", "cards": ["Herald's Horn", "Urza's Incubator", "Kindred Discovery"] }
+    ],
+    "antisynergyPatterns": ["destroy all creatures of the chosen type only if off-tribe"]
+  },
+  "superfriends": {
+    "displayName": "Superfriends",
+    "keyPatterns": ["planeswalker", "proliferate", "loyalty"],
+    "preferredCategories": {
+      "protection": { "prefer": "counter-spells", "notes": "Protect walkers" },
+      "card_draw": { "prefer": "repeatable", "min": 9 }
+    },
+    "synergyPackages": [
+      { "name": "Walkers", "cards": ["Doubling Season", "Oath of Teferi", "The Chain Veil"] }
+    ],
+    "antisynergyPatterns": ["destroy all planeswalkers with no replacement"]
+  },
+  "artifacts": {
+    "displayName": "Artifacts",
+    "keyPatterns": ["artifact", "affinity", "metalcraft", "improvise"],
+    "preferredCategories": {
+      "ramp": { "prefer": "artifact-mana", "examples": ["Sol Ring", "Arcane Signet"] },
+      "artifact_enchantment_hate": { "prefer": "selective", "notes": "Avoid over-hating your own artifacts" }
+    },
+    "synergyPackages": [
+      { "name": "Artifact Synergy", "cards": ["Urza, Lord High Artificer", "Mystic Forge", "Sensei's Divining Top"] }
+    ],
+    "antisynergyPatterns": ["destroy all artifacts"]
+  }
+}

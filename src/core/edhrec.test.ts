@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
+import * as os from 'os';
 import {
   extractEdhrecSuggestionsFromJson,
   commanderNameToSlug,
@@ -8,7 +9,9 @@ import {
   getThemesForCommander,
   getCombosForCommander,
   clearEdhrecCache,
+  getCardsForCommander,
 } from './edhrec';
+import { writeEdhrecDiskCache } from './edhrecDiskCache';
 
 function loadFixture(name: string): unknown {
   const p = join(process.cwd(), 'data', 'edhrec_structures', name);
@@ -93,7 +96,7 @@ function mockFetchReturningJson(data: unknown): void {
 
 describe('getThemesForCommander (fixture-backed fetch)', () => {
   beforeEach(() => {
-    clearEdhrecCache();
+    clearEdhrecCache(true);
   });
 
   afterEach(() => {
@@ -119,7 +122,7 @@ describe('getThemesForCommander (fixture-backed fetch)', () => {
 
 describe('getCombosForCommander (fixture-backed fetch)', () => {
   beforeEach(() => {
-    clearEdhrecCache();
+    clearEdhrecCache(true);
   });
 
   afterEach(() => {
@@ -133,5 +136,36 @@ describe('getCombosForCommander (fixture-backed fetch)', () => {
     expect(combos[0].cards).toEqual(['Basalt Monolith', 'Rings of Brighthearth']);
     expect(combos[0].description).toBe('Example combo');
     expect(combos[0].colorIdentity).toEqual(['G', 'U']);
+  });
+});
+
+describe('fetchEdhrecJson disk cache', () => {
+  let tempDir: string;
+  let prevDir: string | undefined;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(os.tmpdir(), 'edhrec-int-'));
+    prevDir = process.env.EDHREC_CACHE_DIR;
+    process.env.EDHREC_CACHE_DIR = tempDir;
+    clearEdhrecCache(true);
+  });
+
+  afterEach(() => {
+    clearEdhrecCache(true);
+    rmSync(tempDir, { recursive: true, force: true });
+    if (prevDir === undefined) delete process.env.EDHREC_CACHE_DIR;
+    else process.env.EDHREC_CACHE_DIR = prevDir;
+    vi.restoreAllMocks();
+  });
+
+  it('reads from disk on second fetch without network', async () => {
+    const url = 'https://json.edhrec.com/pages/commanders/disk-cache-test.json';
+    const payload = loadFixture('top-color-sample.json');
+    writeEdhrecDiskCache(url, payload);
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const cards = await getCardsForCommander('disk-cache-test');
+    expect(cards.length).toBeGreaterThan(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

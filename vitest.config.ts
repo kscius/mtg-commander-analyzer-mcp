@@ -5,5 +5,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     passWithNoTests: false,
+    /** Deck analyze golden tests may hit JSON fallback + many card lookups */
+    testTimeout: 60_000,
+    hookTimeout: 30_000,
   },
 });

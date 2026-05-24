@@ -10,19 +10,30 @@ import type {
   DeckTemplate,
   EdhrecContext,
   BuildDeckInput,
+  EdhrecCardSuggestion,
 } from './types';
 import type { BracketRules } from './brackets';
 import type { OracleCard } from './scryfall';
 import { getCardByName } from './scryfall';
+import { cardFitsCommanderColorIdentity } from './commanderFormat';
+import { resolveCardNameSync } from './cardResolution';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
 import { computeCategoryDeficits } from './categoryUtils';
-import { autoTags, getDefaultBracket3Options, tagsToTemplateCategories, ScryCard } from './autoTags';
-import { classifyCardRoles } from './roles';
+import {
+  autoTags,
+  getDefaultBracket3Options,
+  getPrimaryTemplateCategory,
+  primaryCategoryToRoles,
+  ScryCard,
+} from './autoTags';
 import { isBanned } from './banlist';
 import { isGameChanger, isMassLandDenial, isExtraTurnCard } from './bracketCards';
 import { CardWithTags, loadCombos, validateBracket3, validateTwoCardCombosBeforeT6, Bracket3Policies } from './bracket3Validation';
 import { formatDecklistText } from './deckTextFormat';
+import { scoreEdhrecSuggestionForTheme } from './edhrecStrategyScoring';
+import { OFF_THEME_CARD_THRESHOLD, scoreCardForStrategy } from './synergyScorer';
+import { getOracleText, getPrimaryTypeLine } from './scryfallNormalize';
 
 export const AUTOFILL_CATEGORY_NAMES = [
   'ramp',
@@ -48,18 +59,89 @@ function deckTextFromBuilt(cards: BuiltCardEntry[]): string {
 }
 
 /**
- * True when template lint lists any issue, or a tracked category is below minimum.
+ * True when hard template lint, lands deficit, or a tracked category is below minimum.
+ * Soft-only lint does not trigger autofill.
  */
 export function analysisHasAutomatableGaps(analysis: DeckAnalysis): boolean {
-  if (analysis.lintReport && analysis.lintReport.issues.length > 0) {
+  const hardLint =
+    analysis.lintReport?.issues.filter((i) => i.severity === 'hard') ?? [];
+  if (hardLint.length > 0) {
     return true;
   }
   for (const c of analysis.categories) {
-    if (AUTOFILL_CATEGORY_NAMES.includes(c.name as (typeof AUTOFILL_CATEGORY_NAMES)[number]) && c.status === 'below') {
+    if (c.name === 'lands' && c.status === 'below') {
+      return true;
+    }
+    if (
+      AUTOFILL_CATEGORY_NAMES.includes(
+        c.name as (typeof AUTOFILL_CATEGORY_NAMES)[number]
+      ) &&
+      c.status === 'below'
+    ) {
       return true;
     }
   }
   return false;
+}
+
+function rankSuggestion(
+  suggestion: EdhrecCardSuggestion,
+  card: OracleCard,
+  themeSlug: string | undefined,
+  commanderName: string
+): number {
+  const edhrec = scoreEdhrecSuggestionForTheme(suggestion, themeSlug);
+  const scry: ScryCard = {
+    name: card.name,
+    oracle_text: getOracleText(card),
+    type_line: getPrimaryTypeLine(card),
+    mana_cost: card.mana_cost,
+    cmc: card.cmc,
+    tags: card.tags,
+  };
+  return edhrec + scoreCardForStrategy(scry, themeSlug ?? '', commanderName) * 0.9;
+}
+
+/**
+ * When mainboard is full, pick lowest-synergy card from above-max or off-theme slots.
+ */
+function findSwapCutIndex(
+  cards: BuiltCardEntry[],
+  analysis: DeckAnalysis,
+  themeSlug: string | undefined,
+  commanderName: string,
+  tagOpts: ReturnType<typeof getDefaultBracket3Options>
+): number | null {
+  const aboveCats = new Set(
+    analysis.categories.filter((c) => c.status === 'above' && c.max != null).map((c) => c.name)
+  );
+  let worstIdx: number | null = null;
+  let worstScore = Infinity;
+
+  for (let i = 0; i < cards.length; i++) {
+    const entry = cards[i];
+    const card = getCardByName(entry.name);
+    if (!card || getPrimaryTypeLine(card).toLowerCase().includes('land')) continue;
+
+    const tags = card.tags?.length ? card.tags : autoTags(card as ScryCard, tagOpts);
+    const primary = getPrimaryTemplateCategory(tags);
+    const scry: ScryCard = {
+      name: card.name,
+      oracle_text: getOracleText(card),
+      type_line: getPrimaryTypeLine(card),
+      mana_cost: card.mana_cost,
+      cmc: card.cmc,
+      tags: card.tags,
+    };
+    const score = scoreCardForStrategy(scry, themeSlug ?? '', commanderName);
+    const cuttable = (primary && aboveCats.has(primary)) || score < OFF_THEME_CARD_THRESHOLD;
+    if (!cuttable) continue;
+    if (score < worstScore) {
+      worstScore = score;
+      worstIdx = i;
+    }
+  }
+  return worstIdx;
 }
 
 /**
@@ -96,12 +178,10 @@ export function runSingleEdhrecAutofillPass(
 
   let addedCount = 0;
 
-  for (const categoryName of AUTOFILL_CATEGORY_NAMES) {
-    if (sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE) {
-      passNotes.push(`  → Stopped: mainboard at ${COMMANDER_DECK_SIZE} cards.`);
-      break;
-    }
+  const themeSlug = edhrecContext.selectedTheme;
+  const commanderName = commanderCard.name;
 
+  for (const categoryName of AUTOFILL_CATEGORY_NAMES) {
     const deficit = deficits.find((d) => d.name === categoryName);
     if (!deficit || deficit.deficit <= 0) {
       continue;
@@ -110,57 +190,55 @@ export function runSingleEdhrecAutofillPass(
     let remaining = deficit.deficit;
     passNotes.push(`  → ${categoryName}: deficit of ${remaining}`);
 
-    for (const suggestion of edhrecContext.suggestions) {
-      if (remaining <= 0 || sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE) {
-        break;
-      }
+    const sortedSuggestions = [...edhrecContext.suggestions].sort((a, b) => {
+      const ca = getCardByName(a.name);
+      const cb = getCardByName(b.name);
+      const sa = ca ? rankSuggestion(a, ca, themeSlug, commanderName) : 0;
+      const sb = cb ? rankSuggestion(b, cb, themeSlug, commanderName) : 0;
+      return sb - sa;
+    });
+
+    for (const suggestion of sortedSuggestions) {
+      if (remaining <= 0) break;
 
       if (cardsInDeck.has(suggestion.name.toLowerCase())) {
         continue;
       }
 
-      const card = getCardByName(suggestion.name);
-      if (!card) {
+      const resolved = resolveCardNameSync(suggestion.name);
+      const card = resolved?.card ?? getCardByName(suggestion.name);
+      if (!card || !cardFitsCommanderColorIdentity(card, colorIdentity)) {
         continue;
       }
 
-      const cardColors = card.color_identity || [];
-      const isWithinColorIdentity = cardColors.every((c) => colorIdentity.includes(c));
-      if (!isWithinColorIdentity) {
-        continue;
-      }
+      if (isBanned(suggestion.name)) continue;
+      if (isGameChanger(suggestion.name, bracketId) && gameChangerCount >= maxGameChangers) continue;
+      if (isMassLandDenial(suggestion.name, bracketId)) continue;
+      if (isExtraTurnCard(suggestion.name, bracketId) && extraTurnCount >= maxExtraTurns) continue;
 
-      if (isBanned(suggestion.name)) {
-        continue;
-      }
+      const tags = card.tags?.length ? card.tags : autoTags(card as ScryCard, tagOpts);
+      const primary = getPrimaryTemplateCategory(tags);
+      if (primary !== categoryName) continue;
 
-      if (isGameChanger(suggestion.name, bracketId)) {
-        if (gameChangerCount >= maxGameChangers) {
-          continue;
+      const atCap = sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE;
+      if (atCap) {
+        const cutIdx = findSwapCutIndex(cards, analysis, themeSlug, commanderName, tagOpts);
+        if (cutIdx == null) {
+          passNotes.push(`    ⚠️  At ${COMMANDER_DECK_SIZE} cards; no swap cut for ${categoryName}.`);
+          break;
         }
-      }
-
-      if (isMassLandDenial(suggestion.name, bracketId)) {
-        continue;
-      }
-
-      if (isExtraTurnCard(suggestion.name, bracketId)) {
-        if (extraTurnCount >= maxExtraTurns) {
-          continue;
-        }
-      }
-
-      const tags = card.tags && card.tags.length > 0 ? card.tags : autoTags(card as ScryCard, tagOpts);
-      const categories = tagsToTemplateCategories(tags);
-
-      if (!categories.includes(categoryName)) {
-        continue;
+        const cutName = cards[cutIdx].name;
+        cards.splice(cutIdx, 1);
+        cardsInDeck.delete(cutName.toLowerCase());
+        if (isGameChanger(cutName, bracketId)) gameChangerCount = Math.max(0, gameChangerCount - 1);
+        if (isExtraTurnCard(cutName, bracketId)) extraTurnCount = Math.max(0, extraTurnCount - 1);
+        passNotes.push(`    ↔ Swap cut ${cutName} for ${card.name} (${categoryName})`);
       }
 
       cards.push({
         name: card.name,
         quantity: 1,
-        roles: classifyCardRoles(card),
+        roles: primaryCategoryToRoles(primary),
       });
 
       cardsInDeck.add(card.name.toLowerCase());
@@ -168,12 +246,8 @@ export function runSingleEdhrecAutofillPass(
       autofillCounts[categoryName]++;
       addedCount++;
 
-      if (isGameChanger(card.name, bracketId)) {
-        gameChangerCount++;
-      }
-      if (isExtraTurnCard(card.name, bracketId)) {
-        extraTurnCount++;
-      }
+      if (isGameChanger(card.name, bracketId)) gameChangerCount++;
+      if (isExtraTurnCard(card.name, bracketId)) extraTurnCount++;
     }
 
     if (remaining > 0) {
@@ -189,6 +263,58 @@ export function runSingleEdhrecAutofillPass(
       .map((c) => `${c}: ${autofillCounts[c]}`)
       .join(', ');
     passNotes.push(`✓ Pass added ${totalAutofilled} card(s)${breakdown ? ` (${breakdown})` : ''}`);
+  }
+
+  return { newCards: cards, addedCount, passNotes };
+}
+
+/**
+ * Add lands from EDHREC suggestions when the lands category is below template minimum.
+ */
+export function runLandAutofillPass(
+  builtCards: BuiltCardEntry[],
+  analysis: DeckAnalysis,
+  template: DeckTemplate,
+  colorIdentity: string[],
+  edhrecContext: EdhrecContext
+): { newCards: BuiltCardEntry[]; addedCount: number; passNotes: string[] } {
+  const passNotes: string[] = [];
+  const cards = builtCards.map((c) => ({ ...c }));
+  const landsCat = analysis.categories.find((c) => c.name === 'lands');
+  if (!landsCat || landsCat.status !== 'below' || landsCat.min == null) {
+    return { newCards: cards, addedCount: 0, passNotes };
+  }
+
+  const deficit = (landsCat.min ?? 0) - landsCat.count;
+  if (deficit <= 0) {
+    return { newCards: cards, addedCount: 0, passNotes };
+  }
+
+  const inDeck = new Set(cards.map((c) => c.name.toLowerCase()));
+  let addedCount = 0;
+
+  for (const sug of edhrecContext.suggestions) {
+    if (addedCount >= deficit || sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE) {
+      break;
+    }
+    if (inDeck.has(sug.name.toLowerCase())) continue;
+    const card = getCardByName(sug.name);
+    if (!card?.type_line?.toLowerCase().includes('land')) continue;
+    if (!cardFitsCommanderColorIdentity(card, colorIdentity)) continue;
+    if (isBanned(card.name)) continue;
+
+    cards.push({
+      name: card.name,
+      quantity: 1,
+      roles: primaryCategoryToRoles('lands'),
+    });
+    inDeck.add(card.name.toLowerCase());
+    addedCount++;
+    passNotes.push(`  → Land autofill: ${card.name}`);
+  }
+
+  if (addedCount > 0) {
+    passNotes.push(`Land autofill added ${addedCount} land(s) toward ${landsCat.min} minimum.`);
   }
 
   return { newCards: cards, addedCount, passNotes };
@@ -239,7 +365,7 @@ async function analyzeBuiltDeck(
       deckText,
       templateId,
       banlistId,
-      options: { inferCommander: false },
+      options: {},
     },
     parsed
   );

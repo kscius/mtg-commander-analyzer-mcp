@@ -63,7 +63,6 @@ async function scenarioA_AnalyzeDeck(): Promise<void> {
       templateId: 'bracket3',
       banlistId: 'commander',
       options: {
-        inferCommander: true
       }
     };
 

@@ -34,6 +34,10 @@ coverage/
 *.tmp
 temp/
 
+# EDHREC API disk cache (auto-created)
+data/cache/
+data/benchmark-latest.json
+
 # Large data files (must be downloaded separately)
 # Only ignore oracle-cards.json (exceeds GitHub 100MB limit)
 data/oracle-cards.json

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateLlmGeneratedDeck, isBasicLandName } from './llmDeckBuilder';
+import { validateMainboardDeck, isBasicLandName } from './deckListValidation';
 import { getBannedCards } from './banlist';
 import { getCardByName } from './scryfall';
 
@@ -11,9 +11,9 @@ describe('isBasicLandName', () => {
   });
 });
 
-describe('validateLlmGeneratedDeck', () => {
+describe('validateMainboardDeck', () => {
   it('rejects wrong card count', () => {
-    const r = validateLlmGeneratedDeck([], [], new Set());
+    const r = validateMainboardDeck([], [], new Set());
     expect(r.valid).toBe(false);
     expect(r.errors.some((e) => e.includes('expected 99'))).toBe(true);
   });
@@ -24,14 +24,14 @@ describe('validateLlmGeneratedDeck', () => {
     for (let i = 2; i < 99; i++) {
       cards.push(`__UniquePlaceholder${i}`);
     }
-    const r = validateLlmGeneratedDeck(cards, [], new Set());
+    const r = validateMainboardDeck(cards, [], new Set());
     expect(r.valid).toBe(false);
     expect(r.errors.some((e) => e.includes('Duplicate'))).toBe(true);
   });
 
   it('allows multiple copies of the same basic land name', () => {
     const cards = Array.from({ length: 99 }, () => 'Island');
-    const r = validateLlmGeneratedDeck(cards, ['U'], new Set());
+    const r = validateMainboardDeck(cards, ['U'], new Set());
     expect(r.errors.filter((e) => e.includes('Duplicate'))).toHaveLength(0);
   });
 
@@ -47,7 +47,7 @@ describe('validateLlmGeneratedDeck', () => {
     for (let i = 1; i < 99; i++) {
       cards.push(`__UniquePlaceholder${i}`);
     }
-    const r = validateLlmGeneratedDeck(cards, ci, bannedLower);
+    const r = validateMainboardDeck(cards, ci, bannedLower);
     expect(r.valid).toBe(false);
     expect(r.errors.some((e) => e.includes('Banned'))).toBe(true);
   });

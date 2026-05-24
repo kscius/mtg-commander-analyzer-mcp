@@ -563,7 +563,7 @@ export async function fetchRandomCommanderCard(): Promise<OracleCard | null> {
 /**
  * Map a raw Scryfall JSON card object to OracleCard.
  */
-function scryfallResponseToOracleCard(data: Record<string, unknown>): OracleCard | null {
+export function scryfallResponseToOracleCard(data: Record<string, unknown>): OracleCard | null {
   if (!data || typeof data.name !== 'string') return null;
 
   const faces = Array.isArray(data.card_faces)

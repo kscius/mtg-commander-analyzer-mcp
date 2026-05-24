@@ -4,10 +4,10 @@ Este documento describe los **flujos de proceso** del proyecto (no sustituye al 
 
 ## Analizar un mazo (`analyze_deck`)
 
-1. **Entrada:** texto de lista (`deckText`), opcionalmente `templateId`, `bracketId`, `preferredStrategy`, `banlistId`, `options` (p. ej. `useLLMFallbackForCategories` si hay `OPENAI_API_KEY`).
+1. **Entrada:** texto de lista (`deckText`), opcionalmente `templateId`, `bracketId`, `preferredStrategy` (slug EDHREC).
 2. **Plantilla efectiva:** `templateId ?? bracketId ?? 'bracket3'` (alineado con Bracket 3 por defecto en este repo).
 3. **Reglas de bracket:** se cargan con `bracketId ??` plantilla efectiva; si el id no existe en `data/bracket-rules.json`, el análisis sigue sin etiquetas de bracket en metadata.
-4. **Salida:** categorías, validación Bracket 3, banlist, lint de plantilla cuando aplica, y **notas**. Si indicas `preferredStrategy`, se añade una nota recordando revisar coherencia temática (no hay puntuación automática de “sinergia”).
+4. **Salida:** categorías, singleton/legality checks, Bracket 3, banlist, lint, **`synergyScore`** y **`recommendations`** (cuts/adds) si hay `preferredStrategy`, y **`decklistText`**.
 
 ### Plantilla por defecto: `bracket3` vs `default`
 
@@ -21,37 +21,32 @@ Para analizar con el template **`default`** (`data/deck-template-default.json`),
 
 Quien antes dependiera del template “default” implícito debe fijar `templateId: "default"` en la llamada.
 
-### Sinergia / `preferredStrategy` (alcance)
+### Sinergia / `preferredStrategy`
 
-- **Dentro de alcance:** el valor se **repite** en `result.input.preferredStrategy` y, si está presente, se añade una **nota** en `analysis.notes` para revisión humana.
-- **Fuera de alcance:** no existe **puntuación automática de sinergia** ni validación temática contra el texto de las cartas; el proyecto no asigna un “score” de coherencia. Cualquier mejora futura en ese sentido sería un cambio de producto explícito.
+- Usar **`get_synergies`** para listar slugs; el usuario elige **una** sinergia.
+- `preferredStrategy` debe ser un **slug EDHREC** (p. ej. `tokens`, `blink`).
+- `analyze_deck` devuelve **`synergyScore`** (0–100) y sugerencias **`recommendations`** cuando el slug está presente.
+
+## Buscar cartas (`search_cards`)
+
+Consulta `data/cards.db` con FTS y filtros (`colorIdentity`, `category`, `type`, `maxMV`). Los agentes deben usarla para **adds** concretos — no inventar nombres.
 
 ## Construir desde comandante (`build_deck_from_commander`)
 
-- **`useTemplateGenerator: false` (por defecto):** esqueleto + tierras básicas + opcional EDHREC/autofill según flags (`useEdhrec`, `useEdhrecAutofill`, `refineUntilStable`, etc.). Ver `src/core/deckBuilder.ts`.
-- **`useTemplateGenerator: true` y `templateId: bracket3`:** generación guiada por plantilla (`templateDeckGenerator`), con EDHREC y fallback LLM para huecos de categorías cuando corresponde.
+- **`useTemplateGenerator: true` (por defecto con `templateId: bracket3`):** generación guiada por plantilla (`templateDeckGenerator`), mana base de cuatro sistemas, EDHREC (perfil reutilizado en el wrapper MCP, sin doble fetch), scoring por `preferredStrategy`, relleno con crédito multi-categoría ponderado y curva; déficits restantes con **SQLite** (`searchCardsFiltered`, misma DB que `search_cards`).
+- **`useTemplateGenerator: false`:** esqueleto legacy; con plantilla `bracket3` aún usa mana base multi-sistema en tierras, pero no completa 99 cartas no-tierra. Ver `src/core/deckBuilder.ts`.
 
 **Tierras (manabase) con plantilla `bracket3`:** los objetivos de mezcla y límites salen de `data/deck-template-bracket3.json` → `mana_base` (`land_mix` por buckets alineados con el analizador, `tapped_lands`, `fetch_policy`). El relleno usa un solo perfil EDHREC del comandante (cartas + tierras sugeridas), básicas ponderadas por pips del coste de maná del comandante, asignación por buckets con redondeo, orden por prioridad de página / sinergia / ranking, y reglas de tope de entrando giradas y mínimo de duals tipados antes de permitir fetches. Implementación: `src/core/templateDeckGenerator.ts`, `src/core/manabaseLandHeuristics.ts`.
 
 Tras construir, el mazo se **re-analiza** con el mismo analizador que `analyze_deck` para devolver categorías y avisos.
 
-## Construir con LLM (`build_deck_with_llm`)
+## Descubrir sinergias (`get_synergies`)
 
-Requiere **OpenAI**. Genera 99 cartas vía modelo configurado; el servidor exige **exactamente 99** nombres en la respuesta JSON inicial y, si la validación falla (conteo, banlist, identidad de color, duplicados no básicos), se envían hasta **2** pasadas de reparación al modelo antes de devolver error. La banlist completa se aplica en servidor (el prompt solo muestra una muestra). Luego se valida Bracket 3 y se analiza el resultado. Usa `BuildDeckInput` (incluye `preferredStrategy` para contexto EDHREC en el flujo interno).
+Dado `commanderName`, devuelve temas EDHREC + heurísticas y un `recommendedStrategy` opcional. Ejecutar **antes** de `build_deck_from_commander`.
 
-## Variables de entorno (OpenAI / LLM)
+## Agente LLM (Cursor u otro cliente MCP)
 
-Definidas en `src/core/llmConfig.ts` y cargadas desde `.env` en la raíz del proyecto:
-
-| Variable | Rol | Por defecto |
-|----------|-----|----------------|
-| `OPENAI_API_KEY` | Obligatoria para herramientas LLM | — |
-| `OPENAI_MODEL` | Modelo | `gpt-4.1` |
-| `OPENAI_TEMPERATURE` | Temperatura | `0.7` |
-| `OPENAI_MAX_TOKENS` | Máximo de tokens de respuesta | `4096` |
-| `OPENAI_BASE_URL` | URL base de la API (proxies compatibles con OpenAI) | (por defecto cliente OpenAI) |
-
-Copia `.env.example` a `.env` y rellena la clave. No subas `.env` al repositorio (está en `.gitignore`).
+El **modelo del cliente** elige cartas temáticas y cierra huecos; el MCP no llama a OpenAI. Flujo recomendado: `build_deck_from_commander` → `analyze_deck` → `optimize_deck` / `search_cards` hasta `qualityGate.readyToShip` o convergencia.
 
 ## Validación local
 

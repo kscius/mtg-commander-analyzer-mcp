@@ -15,6 +15,7 @@ import {
   type Color,
 } from './scryfallNormalize';
 import type { EdhrecCardSuggestion } from './types';
+import { scoreEdhrecSuggestionForTheme } from './edhrecStrategyScoring';
 
 const BASIC_NAMES = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 
@@ -213,7 +214,8 @@ export function allocateBasicsByPips(
 export function mergeAndSortLandCandidates(
   commanderLands: EdhrecCardSuggestion[],
   colorLands: EdhrecCardSuggestion[],
-  commanderLandNamesLower: Set<string>
+  commanderLandNamesLower: Set<string>,
+  preferredTheme?: string
 ): EdhrecCardSuggestion[] {
   const seen = new Set<string>();
   const merged: EdhrecCardSuggestion[] = [];
@@ -246,6 +248,10 @@ export function mergeAndSortLandCandidates(
     const ta = tapRank(a.name);
     const tb = tapRank(b.name);
     if (ta !== tb) return ta - tb;
+
+    const themeScoreA = scoreEdhrecSuggestionForTheme(a, preferredTheme);
+    const themeScoreB = scoreEdhrecSuggestionForTheme(b, preferredTheme);
+    if (themeScoreA !== themeScoreB) return themeScoreB - themeScoreA;
 
     const sa = a.synergyScore ?? -999;
     const sb = b.synergyScore ?? -999;

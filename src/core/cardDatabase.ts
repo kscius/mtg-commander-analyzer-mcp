@@ -8,6 +8,12 @@
 import Database, { Database as DatabaseType } from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
+import {
+  autoTags,
+  getDefaultBracket3Options,
+  getPrimaryTemplateCategory,
+  ScryCard,
+} from './autoTags';
 
 const DB_PATH = path.join(__dirname, '..', '..', 'data', 'cards.db');
 
@@ -312,19 +318,39 @@ export function searchCardsByName(query: string, limit: number = 20): DatabaseCa
 }
 
 /**
- * Full-text search on card name, oracle text, and type line
+ * Prefer one English printing per oracle_id (best edhrec_rank).
+ */
+function dedupeCardsByOracleId(cards: DatabaseCard[], limit: number): DatabaseCard[] {
+  const byOracle = new Map<string, DatabaseCard>();
+  for (const card of cards) {
+    const key = card.oracle_id ?? card.id;
+    const prev = byOracle.get(key);
+    if (!prev) {
+      byOracle.set(key, card);
+      continue;
+    }
+    const rankA = card.edhrec_rank ?? 999999;
+    const rankB = prev.edhrec_rank ?? 999999;
+    if (rankA < rankB) byOracle.set(key, card);
+  }
+  return [...byOracle.values()].slice(0, limit);
+}
+
+/**
+ * Full-text search on card name, oracle text, and type line (deduped by oracle_id).
  */
 export function searchCardsFTS(query: string, limit: number = 20): DatabaseCard[] {
   const database = getDatabase();
   const stmt = database.prepare(`
     SELECT c.* FROM cards c
     INNER JOIN cards_fts fts ON c.rowid = fts.rowid
-    WHERE cards_fts MATCH ?
-    ORDER BY rank
+    WHERE cards_fts MATCH ? AND c.lang = 'en'
+    ORDER BY rank, c.edhrec_rank ASC NULLS LAST
     LIMIT ?
   `);
-  const rows = stmt.all(query, limit) as RawCardRow[];
-  return rows.map(parseRow);
+  const fetchLimit = Math.max(limit * 4, limit);
+  const rows = stmt.all(query, fetchLimit) as RawCardRow[];
+  return dedupeCardsByOracleId(rows.map(parseRow), limit);
 }
 
 /**
@@ -469,6 +495,77 @@ export function canBeCommander(card: DatabaseCard): boolean {
   }
   
   return false;
+}
+
+export interface SearchCardsFilters {
+  query?: string;
+  colorIdentity?: string[];
+  category?: string;
+  type?: string;
+  maxMV?: number;
+  commanderLegal?: boolean;
+  limit?: number;
+}
+
+/**
+ * Search cards with FTS and optional filters (English printings).
+ */
+export function searchCardsFiltered(filters: SearchCardsFilters): DatabaseCard[] {
+  const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100);
+  const commanderLegal = filters.commanderLegal !== false;
+
+  let candidates: DatabaseCard[];
+  if (filters.query?.trim()) {
+    const q = filters.query.trim().split(/\s+/).map((t) => `"${t}"*`).join(' ');
+    try {
+      candidates = searchCardsFTS(q, limit * 5);
+    } catch {
+      candidates = searchCardsByName(filters.query.trim(), limit * 5);
+    }
+  } else {
+    candidates = commanderLegal
+      ? findCommanderLegalCards(limit * 5)
+      : findCardsByType('Creature', limit * 5);
+  }
+
+  const colorSet = filters.colorIdentity?.map((c) => c.toUpperCase());
+  const categoryTag = filters.category?.trim().toLowerCase();
+
+  const filtered = candidates.filter((card) => {
+    if (commanderLegal && card.legalities?.commander !== 'legal') return false;
+    if (filters.maxMV != null && (card.cmc ?? 99) > filters.maxMV) return false;
+    if (filters.type && !(card.type_line ?? '').toLowerCase().includes(filters.type.toLowerCase())) {
+      return false;
+    }
+    if (colorSet?.length) {
+      const ci = card.color_identity ?? [];
+      if (!ci.every((c) => colorSet.includes(c.toUpperCase()))) return false;
+    }
+    if (categoryTag) {
+      const tagOpts = getDefaultBracket3Options('bracket3');
+      const tags = card.tags?.length
+        ? card.tags
+        : autoTags(
+            {
+              name: card.name,
+              oracle_text: card.oracle_text ?? undefined,
+              type_line: card.type_line ?? undefined,
+              cmc: card.cmc ?? undefined,
+              card_faces: card.card_faces as ScryCard['card_faces'],
+            },
+            tagOpts
+          );
+      const primary = getPrimaryTemplateCategory(tags);
+      const catNorm = categoryTag.replace(/_/g, '');
+      const match =
+        primary === categoryTag ||
+        tags.some((t) => t === categoryTag || t.replace(/_/g, '') === catNorm);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  return dedupeCardsByOracleId(filtered, limit);
 }
 
 /**

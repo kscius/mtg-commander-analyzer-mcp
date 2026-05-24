@@ -8,6 +8,17 @@ Actúas como orquestador **end-to-end** para este repositorio (`mtg-commander-an
 
 **Alcance:** solo este proyecto. No inventes nombres de cartas ni legalidad; toda carta debe resolverse contra el MCP / `data/cards.db`.
 
+### Ruta mínima (6 pasos)
+
+1. `get_synergies` → usuario elige slug  
+2. `get_strategy_guide` (`preferredStrategy`)  
+3. `build_deck_from_commander` (`useTemplateGenerator: true`, `refineUntilStable: true`)  
+4. `analyze_deck` → leer `qualityGate.readyToShip`, `converged`, `remainingGaps`  
+5. Si no converged: **`optimize_deck`** (max 4) antes de ediciones manuales  
+6. Entregar `decklistText` + checklist (`.cursor/rules/deck-quality-checklist.mdc`)
+
+Canonical reference: **`AGENTS.md`** en la raíz.
+
 ---
 
 ## 0) Interpretar la petición del usuario
@@ -58,14 +69,18 @@ Usa **siempre** las herramientas del servidor MCP de este proyecto (nombres exac
 
 | Herramienta | Cuándo | Parámetros base |
 |-------------|--------|------------------|
-| `analyze_deck` | Modo B siempre al inicio y después de cada versión de lista; Modo A al final para validar el mazo generado | `deckText`, `templateId: "bracket3"`, `bracketId: "bracket3"`. Si falta comandante en texto: `options.inferCommander: true` cuando aplique. |
-| `build_deck_from_commander` | Modo A sin depender solo del LLM, o como alternativa | `commanderName`, `templateId: "bracket3"`, `bracketId: "bracket3"`, `useEdhrec: true`, `useEdhrecAutofill: true`, `useTemplateGenerator: true` (generación completa tipo Bracket 3 con plantilla), `refineUntilStable: true`, `maxRefinementIterations` entre 5 y 8 si el usuario quiere más refinamiento. Añade `preferredStrategy` y `seedCards` según sinergia. |
-| `build_deck_with_llm` | Modo A si el usuario pide mazo completo por IA **y** hay `OPENAI_API_KEY` (el MCP fallará sin clave) | Mismos defaults de template/bracket; `useEdhrec: true`, `useEdhrecAutofill: true` salvo que el usuario pida lo contrario. |
+| `get_synergies` | Siempre antes de construir u optimizar con tema fijo | `commanderName` |
+| `get_strategy_guide` | Tras elegir sinergia — ratios, paquetes, anti-patrones | `commanderName`, `preferredStrategy` (slug). `summaryOnly: true` para contexto compacto |
+| `get_category_candidates` | Categoría `below` — candidatos temáticos desde EDHREC/DB | `commanderName`, `preferredStrategy`, `category` |
+| `analyze_deck` | Modo B al inicio y tras cada cambio; Modo A al final | `deckText`, `templateId: "bracket3"`, `commanderName` o línea `Commander:` o `inferCommander` (default true), `preferredStrategy`, `responseMode: "brief"` |
+| `optimize_deck` | Varios déficits — cortes/añadidos automáticos + autofill | `deckText`, `commanderName`, `preferredStrategy`, `maxIterations: 4` |
+| `apply_deck_changes` | Aplicar cortes/añadidos ya validados en lote | `deckText`, `commanderName`, `cuts[]`, `adds[]` |
+| `evaluate_card_swap` | Antes de cada cambio puntual en modo B | `deckText`, `commanderName`, `cardToRemove`, `cardToAdd`, `preferredStrategy` opcional |
+| `search_cards` | Añadir cartas reales por categoría/color | `query`, `category`, `commanderName` (color identity), `limit` |
+| `build_deck_from_commander` | Modo A (única vía de build MCP) | `commanderName`, `preferredStrategy`, `useTemplateGenerator: true`, `refineUntilStable: true`. Revisar `qualityGate`, `buildQualityReport` |
+| `resolve_card` | Comprobar nombre exacto antes de un add manual | `cardName`, `commanderName` opcional |
 
-**Política de elección (modo A):**
-
-1. Preferencia por **`build_deck_from_commander`** con `useTemplateGenerator: true` para alineación fuerte con plantilla y refinamiento EDHREC iterativo ya implementado en código.
-2. Si el usuario pide explícitamente “por IA / GPT / lista completa generada por modelo”, usa **`build_deck_with_llm`** (tras confirmar sinergia).
+**Política (modo A):** usa **`build_deck_from_commander`** con `useTemplateGenerator: true` (plantilla + EDHREC + SQLite). Las elecciones temáticas y el cierre de huecos los hace **tú** (agente) con `search_cards`, `optimize_deck` y `analyze_deck` — no hay herramienta MCP `build_deck_with_llm`.
 
 ---
 
@@ -87,16 +102,16 @@ Usa el JSON del MCP (`analysis`, `bracketWarnings`, categorías, etc.) como fuen
 
 Objetivo: acercar categorías al template Bracket 3 y alinear con la **sinergia elegida**, sin violar reglas.
 
-1. **`analyze_deck`** → registra déficits (`below`), excesos, `bracketWarnings`, bans.
-2. Propón un conjunto **acotado** de cambios: *corta X, añade Y* con nombres verificables (MCP/DB).
-3. Aplica mentalmente al decklist y construye **nuevo `deckText`**.
-4. Vuelve a **`analyze_deck`**.
-5. Repite hasta que:
-   - no haya `analysisHasAutomatableGaps` equivalente (déicits críticos resueltos o sin mejoras razonables), **o**
-   - **máximo 4 iteraciones** de optimización (ajusta si el usuario pide más/menos), **o**
+1. **`analyze_deck`** → registra `qualityGate`, `remainingGaps`, categorías `below`, `bracketWarnings`, bans.
+2. Si hay varios déficits: **`optimize_deck`** (`maxIterations: 4`, `preferredStrategy`) antes de cortes manuales.
+3. Para un solo cambio: **`evaluate_card_swap`** → aplicar solo si `recommendation === "proceed"`.
+4. Gaps restantes: **`search_cards`** con `category` + `suggestedSearch` de `prioritizedActions`.
+5. Vuelve a **`analyze_deck`** hasta:
+   - `qualityGate.readyToShip === true` **o** `converged === true`, **o**
+   - **máximo 4 iteraciones** (ajusta si el usuario pide más/menos), **o**
    - el usuario corta.
 
-Si en una iteración no mejoras métricas clave (categorías / warnings), cambia de estrategia (otros candidatos desde EDHREC/sinergia) antes de seguir a lo loco.
+Si en una iteración no mejoras métricas clave, cambia candidatos (EDHREC / `search_cards`) antes de seguir.
 
 ---
 
@@ -109,20 +124,23 @@ Si en una iteración no mejoras métricas clave (categorías / warnings), cambia
 
 ---
 
-## 7) Formato de respuesta al usuario
+## 7) Checklist de calidad
+
+Antes de entregar el mazo, aplica `.cursor/rules/deck-quality-checklist.mdc` (100 cartas, categorías, Bracket 3, synergyScore ≥ 60 si hay estrategia, cartas en DB).
+
+## 8) Formato de respuesta al usuario
 
 1. **Modo** (crear / optimizar) y **sinergia** elegida.
 2. **Resumen MCP**: formato OK o lista de errores.
 3. **Tabla o lista breve de categorías** (estado vs template).
-4. **Alertas** Bracket 3 y banlist.
+4. **Alertas** Bracket 3 y banlist; `recommendations.prioritizedActions` / `swaps` si optimizaste.
 5. **Decklist final** en texto plano (`1 Carta` por línea) si aplica.
 6. **Iteraciones** realizadas (N) y criterio de parada.
 
 ---
 
-## 8) Fallos y degradación
+## 9) Fallos y degradación
 
-- Sin **OPENAI** y el usuario pidió solo `build_deck_with_llm`: informa y usa `build_deck_from_commander` con `useTemplateGenerator: true`.
 - **EDHREC** falla a veces: el código tiene fallbacks; reporta notas del MCP.
 - **Nombre de comandante** no resuelve en DB: no continúes construyendo; pide corrección o nombre exacto Scryfall.
 

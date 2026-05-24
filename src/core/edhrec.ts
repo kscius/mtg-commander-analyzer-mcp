@@ -6,6 +6,12 @@
  */
 
 import { EdhrecCardSuggestion, EdhrecTheme } from './types';
+import {
+  readEdhrecDiskCache,
+  writeEdhrecDiskCache,
+  getEdhrecDiskCacheStats,
+  clearEdhrecDiskCache,
+} from './edhrecDiskCache';
 
 /**
  * EDHREC JSON API base URL
@@ -17,6 +23,12 @@ const EDHREC_BASE = 'https://json.edhrec.com/pages';
  * Key: full URL, Value: parsed JSON
  */
 const edhrecCache: Map<string, any> = new Map();
+
+const edhrecFetchStats = {
+  memoryHits: 0,
+  diskHits: 0,
+  networkFetches: 0,
+};
 
 /**
  * Color identity to guild/shard/clan name mappings
@@ -147,12 +159,22 @@ async function fetchEdhrecJson(pathOrUrl: string): Promise<any> {
     ? pathOrUrl 
     : `${EDHREC_BASE}/${pathOrUrl}`;
 
-  // Check cache
+  // Memory cache
   if (edhrecCache.has(url)) {
+    edhrecFetchStats.memoryHits++;
     return edhrecCache.get(url);
   }
 
+  // Disk cache (persists across MCP sessions)
+  const diskHit = readEdhrecDiskCache(url);
+  if (diskHit !== null) {
+    edhrecFetchStats.diskHits++;
+    edhrecCache.set(url, diskHit);
+    return diskHit;
+  }
+
   try {
+    edhrecFetchStats.networkFetches++;
     const response = await fetch(url);
     
     if (!response.ok) {
@@ -160,10 +182,10 @@ async function fetchEdhrecJson(pathOrUrl: string): Promise<any> {
     }
 
     const json = await response.json();
-    
-    // Cache the result
+
     edhrecCache.set(url, json);
-    
+    writeEdhrecDiskCache(url, json);
+
     return json;
   } catch (error) {
     if (error instanceof Error) {
@@ -828,9 +850,35 @@ export async function getFullCommanderProfile(
 }
 
 /**
- * Clears the EDHREC cache (useful for testing)
+ * Clears the in-memory EDHREC cache (and optionally disk cache).
  */
-export function clearEdhrecCache(): void {
+export function clearEdhrecCache(clearDisk = false): void {
   edhrecCache.clear();
+  edhrecFetchStats.memoryHits = 0;
+  edhrecFetchStats.diskHits = 0;
+  edhrecFetchStats.networkFetches = 0;
+  if (clearDisk) {
+    clearEdhrecDiskCache();
+  }
+}
+
+/** Memory + disk cache diagnostics for logs and tooling. */
+export function getEdhrecCacheStats(): {
+  memoryEntries: number;
+  diskEntries: number;
+  diskBytes: number;
+  diskDir: string;
+  ttlMs: number;
+  fetchStats: { memoryHits: number; diskHits: number; networkFetches: number };
+} {
+  const disk = getEdhrecDiskCacheStats();
+  return {
+    memoryEntries: edhrecCache.size,
+    diskEntries: disk.entries,
+    diskBytes: disk.bytes,
+    diskDir: disk.dir,
+    ttlMs: disk.ttlMs,
+    fetchStats: { ...edhrecFetchStats },
+  };
 }
 

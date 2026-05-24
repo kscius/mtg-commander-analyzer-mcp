@@ -1,0 +1,55 @@
+---
+description: Recommended MCP workflows for building and optimizing Bracket 3 Commander decks in this project
+alwaysApply: false
+---
+
+# Deck building patterns (MCP)
+
+Use with **`AGENTS.md`**, **`docs/agent-deck-system.md`**, and project skills under `.cursor/skills/mtg-deck-*`.
+
+## Pattern A — Build from commander
+
+1. `get_synergies` → user picks **one** slug.
+2. `get_strategy_guide` with `preferredStrategy`.
+3. `build_deck_from_commander` (`useTemplateGenerator`, `useEdhrecAutofill`, `refineUntilStable` defaults **true**).
+4. `analyze_deck` on returned `decklistText`.
+5. If gaps remain → `optimize_deck` (`maxIterations: 4`) → re-analyze.
+
+## Pattern B — Optimize existing list
+
+1. Confirm slug (`get_synergies` if unknown).
+2. `analyze_deck` with `commanderName` + `preferredStrategy`.
+3. Fix hard `format:*` / banlist / color identity first.
+4. `optimize_deck` for bulk category + synergy fixes.
+5. Manual polish: `evaluate_card_swap` (`proceed` only) + `search_cards` for adds.
+6. Stop when no `below` categories and `synergyScore` ≥ 60 (or user accepts tradeoff).
+
+## Pattern C — Single swap decision
+
+1. `evaluate_card_swap` with full `deckText`, both card names, `preferredStrategy`.
+2. If `proceed`, update list and `analyze_deck` once.
+3. Never invent card names — verify adds with `search_cards`.
+
+## Priority when fixing
+
+1. Deck size (99 mainboard), singleton, color identity, banlist.
+2. Mana base (`lands`, tapped budget).
+3. Interaction (`spot_removal`, wipes, gy hate).
+4. Template `below` categories.
+5. Synergy score and archetype ratios (`strategy-guides.json`).
+
+## Data references
+
+| Need | Path |
+|------|------|
+| Bracket 3 categories | `data/deck-template-bracket3.json`, `docs/bracket3-template-for-agents.md` |
+| Slug metadata | `data/strategy-guides.json` |
+| Scoring | `data/strategy-profiles.json`, `docs/synergy-scoring-explained.md` |
+| Long-form guides | `docs/strategy-guides/{slug}.md` |
+
+## Anti-patterns
+
+- Building before user confirms synergy slug.
+- Using `proliferate` or other free text instead of EDHREC slugs (use `counters` for +1/+1).
+- Skipping `optimize_deck` when many categories are `below`.
+- Applying swaps when `evaluate_card_swap` returns `skip`.

@@ -1,12 +1,15 @@
 /**
  * autoTags.ts
  *
- * Auto-tagging for Bracket 3: regex/heuristics on oracle text and type line
- * to assign tags that map to deck template categories.
+ * Auto-tagging for Bracket 3: regex/heuristics on oracle text and type line.
+ * Primary template category (one per card for counting) + optional secondary tags.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import type { OracleCard } from './scryfall';
+import type { CardRole } from './types';
+import { getOracleText, getPrimaryTypeLine } from './scryfallNormalize';
 
 /** Card-like shape used for tagging (compatible with OracleCard) */
 export interface ScryCard {
@@ -21,6 +24,7 @@ export interface ScryCard {
   legalities?: Record<string, string>;
   keywords?: string[];
   all_parts?: { component?: string; name?: string; id?: string }[];
+  card_faces?: Array<{ oracle_text?: string; type_line?: string; mana_cost?: string }>;
   tags?: string[];
 }
 
@@ -37,11 +41,16 @@ export type AutoTagOptions = {
 const norm = (s: string): string =>
   s.toLowerCase().replace(/\u2014/g, '-').replace(/\s+/g, ' ').trim();
 
+const oracleAndType = (c: ScryCard): { text: string; type: string } => ({
+  text: norm(getOracleText(c)),
+  type: norm(getPrimaryTypeLine(c)),
+});
+
 const hasText = (c: ScryCard, re: RegExp): boolean =>
-  re.test(norm(c.oracle_text ?? ''));
+  re.test(oracleAndType(c).text);
 
 const hasType = (c: ScryCard, re: RegExp): boolean =>
-  re.test(norm(c.type_line ?? ''));
+  re.test(oracleAndType(c).type);
 
 /**
  * Load bracket3 card lists and return as options for autoTags.
@@ -93,8 +102,7 @@ export function getDefaultBracket3Options(bracketId: string = 'bracket3'): AutoT
  */
 export function autoTags(card: ScryCard, opt: AutoTagOptions = {}): string[] {
   const tags = new Set<string>();
-  const text = norm(card.oracle_text ?? '');
-  const type = norm(card.type_line ?? '');
+  const { text, type } = oracleAndType(card);
   const name = card.name.trim().toLowerCase();
 
   // 0) Overrides from bracket lists
@@ -206,7 +214,57 @@ export function autoTags(card: ScryCard, opt: AutoTagOptions = {}): string[] {
     tags.add('win_condition');
   }
 
+  // 14) Lifegain
+  if (/(?:you gain \d+ life|gain life equal)/i.test(text)) {
+    tags.add('lifegain');
+  }
+
+  // 15) Mill
+  if (/(?:mill \d+|put .* cards? from .* library into .* graveyard)/i.test(text)) {
+    tags.add('mill');
+  }
+
+  // 16) Stax / resource denial piece
+  if (
+    /(?:players can't|each opponent can't|can't cast spells|can't activate abilities|skip .*? untap step)/i.test(
+      text
+    )
+  ) {
+    tags.add('stax_piece');
+  }
+
+  // 17) Sacrifice outlet
+  if (
+    /(?:sacrifice (?:a|another) (?:creature|artifact|permanent)|sacrifice .*?:)/i.test(text) &&
+    !/sacrifice all/i.test(text)
+  ) {
+    tags.add('sacrifice_outlet');
+  }
+
+  // 18) Token maker
+  if (/(?:create .* token|populate)/i.test(text)) {
+    tags.add('token_maker');
+  }
+
   return [...tags];
+}
+
+/**
+ * Optional secondary role tags for scoring (primary category unchanged).
+ * Used by deckRecommendations and synergy paths — does not inflate template counts.
+ */
+export function getSecondaryRoleTags(tags: string[], primary: string | null): string[] {
+  const secondaryRoleTags = [
+    'lifegain',
+    'mill',
+    'stax_piece',
+    'sacrifice_outlet',
+    'token_maker',
+    'recursion',
+    'tutor',
+    'spell_copy',
+  ];
+  return tags.filter((t) => secondaryRoleTags.includes(t) && t !== primary);
 }
 
 /** Map tag names to deck template category names (template uses plurals for some) */
@@ -245,4 +303,100 @@ export function tagsToTemplateCategories(tags: string[]): string[] {
     if (cat) categories.add(cat);
   }
   return [...categories];
+}
+
+/** Priority order for primary functional category (first match wins). */
+const PRIMARY_CATEGORY_PRIORITY = [
+  'lands',
+  'ramp',
+  'card_draw',
+  'card_selection',
+  'spot_removal',
+  'artifact_enchantment_hate',
+  'graveyard_hate',
+  'board_wipes',
+  'protection',
+  'value_engines',
+  'win_conditions',
+  'game_changers',
+  'extra_turns',
+] as const;
+
+/**
+ * Single primary template category for counting (avoids multi-tag inflation).
+ */
+export function getPrimaryTemplateCategory(tags: string[]): string | null {
+  const mapped = tagsToTemplateCategories(tags);
+  for (const cat of PRIMARY_CATEGORY_PRIORITY) {
+    if (mapped.includes(cat)) return cat;
+  }
+  return mapped[0] ?? null;
+}
+
+/**
+ * All template categories implied by tags (secondary tags do not inflate primary counts).
+ */
+export function getSecondaryTemplateCategories(tags: string[], primary: string | null): string[] {
+  const mapped = tagsToTemplateCategories(tags);
+  if (!primary) return mapped;
+  return mapped.filter((c) => c !== primary);
+}
+
+/**
+ * Heuristic (+ optional stored) tags for an oracle card.
+ */
+export function getTagsForOracleCard(
+  card: OracleCard,
+  opt: AutoTagOptions = getDefaultBracket3Options('bracket3')
+): string[] {
+  const scry: ScryCard = {
+    name: card.name,
+    oracle_text: getOracleText(card),
+    type_line: getPrimaryTypeLine(card),
+    mana_cost: card.mana_cost,
+    cmc: card.cmc,
+    colors: card.colors,
+    color_identity: card.color_identity,
+    all_parts: card.all_parts,
+    card_faces: card.card_faces,
+    tags: card.tags,
+  };
+  const computed = autoTags(scry, opt);
+  if (card.tags?.length) {
+    const merged = new Set([...card.tags, ...computed]);
+    return [...merged];
+  }
+  return computed;
+}
+
+/**
+ * Classify a card into legacy roles from its primary template category.
+ */
+export function classifyCardRoles(card: OracleCard | null): CardRole[] {
+  if (!card) return ['other'];
+  if ((card.type_line || '').toLowerCase().includes('land')) return ['land'];
+  const tags = getTagsForOracleCard(card);
+  return primaryCategoryToRoles(getPrimaryTemplateCategory(tags));
+}
+
+/** Map primary category to legacy CardRole[] for BuiltCardEntry.roles */
+export function primaryCategoryToRoles(primary: string | null): CardRole[] {
+  if (!primary) return ['other'];
+  const map: Record<string, CardRole> = {
+    lands: 'land',
+    ramp: 'ramp',
+    card_draw: 'card_draw',
+    card_selection: 'card_draw',
+    spot_removal: 'target_removal',
+    artifact_enchantment_hate: 'target_removal',
+    graveyard_hate: 'target_removal',
+    board_wipes: 'board_wipe',
+    protection: 'protection',
+    value_engines: 'other',
+    win_conditions: 'wincon',
+    game_changers: 'other',
+    extra_turns: 'other',
+  };
+  const role = map[primary];
+  return role ? [role] : ['other'];
 }

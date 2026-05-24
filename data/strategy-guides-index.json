@@ -1,0 +1,14 @@
+{
+  "tokens": { "file": "tokens.md", "slug": "tokens", "title": "Tokens" },
+  "voltron": { "file": "voltron.md", "slug": "voltron", "title": "Voltron" },
+  "counters": { "file": "counters.md", "slug": "counters", "title": "+1/+1 Counters" },
+  "aristocrats": { "file": "aristocrats.md", "slug": "aristocrats", "title": "Aristocrats" },
+  "blink": { "file": "blink.md", "slug": "blink", "title": "Blink / Flicker" },
+  "reanimator": { "file": "reanimator.md", "slug": "reanimator", "title": "Reanimator" },
+  "spellslinger": { "file": "spellslinger.md", "slug": "spellslinger", "title": "Spellslinger" },
+  "lands": { "file": "lands.md", "slug": "lands", "title": "Lands Matter" },
+  "group-slug": { "file": "group-slug.md", "slug": "group-slug", "title": "Group Slug" },
+  "tribal": { "file": "tribal.md", "slug": "tribal", "title": "Tribal" },
+  "superfriends": { "file": "superfriends.md", "slug": "superfriends", "title": "Superfriends" },
+  "artifacts": { "file": "artifacts.md", "slug": "artifacts", "title": "Artifacts" }
+}

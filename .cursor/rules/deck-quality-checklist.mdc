@@ -1,0 +1,45 @@
+---
+description: Quality checklist when delivering or validating a Commander deck in this project
+globs:
+alwaysApply: false
+---
+
+# Deck quality checklist (pre-delivery)
+
+Apply when handing off a built or optimized decklist.
+
+## Format
+
+- [ ] **100 cards** total (1 commander + 99 mainboard)
+- [ ] **Singleton** (except basic lands)
+- [ ] **Color identity** — every mainboard card legal for commander
+- [ ] **Banlist** — none from `data/Banlist.txt`
+- [ ] All card names resolve in `cards.db` (no invented names)
+
+## Bracket 3
+
+- [ ] Game Changers ≤ 3
+- [ ] Extra-turn cards ≤ 3
+- [ ] No mass land destruction flagged by analyzer
+- [ ] No banned two-card combo wins before turn 6
+
+## Template (bracket3)
+
+- [ ] Critical categories not `below` min (especially ramp, draw, removal, lands)
+- [ ] No excessive `above` max without reason
+- [ ] `lintReport.ok` or hard issues explained
+
+## Synergy (when strategy chosen)
+
+- [ ] **`synergyScore`** ≥ 60 when `preferredStrategy` set (or user accepts lower with rationale)
+- [ ] No obvious off-theme cards unless user requested hybrid
+- [ ] One synergy only — no mixed archetypes
+
+## Mana / curve (soft)
+
+- [ ] Average CMC reasonable for strategy (often ≤ 3.2 for midrange)
+- [ ] Enough early ramp / rocks for game plan
+
+## MCP verification
+
+Run **`analyze_deck`** with `preferredStrategy` and confirm output matches this checklist before final decklist.

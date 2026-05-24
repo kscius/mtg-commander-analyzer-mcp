@@ -20,21 +20,23 @@ Skill **solo para este proyecto** (mtg-commander-analyzer-mcp). Orienta al agent
 
 - Si el usuario pasa texto: usarlo tal cual (formato `cantidad nombre`, una línea por carta).
 - Si indica un archivo: leer desde `data/` o la ruta indicada.
-- Si falta el comandante: usar `options.inferCommander: true` en la herramienta o inferirlo del decklist cuando sea posible.
+- Si falta el comandante: pasar `commanderName` en la herramienta o incluir línea `Commander: Nombre` en `deckText`.
 
 ### 2. Llamar al MCP
 
-Usar la herramienta **`analyze_deck`** con:
+Usar **`analyze_deck`** con:
 
 ```json
 {
   "deckText": "<decklist en texto plano>",
   "templateId": "bracket3",
-  "bracketId": "bracket3"
+  "bracketId": "bracket3",
+  "commanderName": "<si aplica>",
+  "preferredStrategy": "<slug EDHREC si el usuario eligió sinergia>"
 }
 ```
 
-- No inventar nombres de cartas. Si el decklist viene de fuera del proyecto, el MCP validará contra `data/cards.db` y banlist.
+- No inventar nombres de cartas.
 
 ### 3. Validar resultado del análisis
 
@@ -48,37 +50,42 @@ Comprobar y comunicar al usuario:
 | Banlist | Ninguna carta en `data/Banlist.txt` |
 | Bracket 3 | Máx. 3 Game Changers, máx. 3 turnos extra, sin MLD, sin combos 2-carta antes T6 |
 
-Si el resultado del MCP incluye `categories`, `bracketWarnings` o `bannedCards`, resumirlos en la respuesta.
+### 4. Campos útiles del JSON
 
-### 4. Sinergia (si aplica)
+| Campo | Uso |
+|-------|-----|
+| `analysis.categories[].status` | `below` / `within` / `above` vs plantilla |
+| `analysis.synergyScore` | 0–100 con `preferredStrategy` |
+| `analysis.recommendations.cuts` / `.adds` | Cambios sugeridos |
+| `analysis.recommendations.swaps` | Pares cortar → añadir con impacto |
+| `analysis.recommendations.synergyPackages` | Paquetes temáticos faltantes |
+| `analysis.prioritizedActions` | Orden de mejoras (top 3–5) |
+| `analysis.lintReport` | Curva, mana, formato (`format:*`) |
+| `decklistText` | Lista lista para copiar |
 
-Si el usuario quiere evaluar **sinergia** o **coherencia temática**:
+### 5. Sinergia (si aplica)
 
-1. **Detectar** sinergias posibles a partir del comandante y de las cartas del mazo (tokens, voltron, +1/+1, reanimator, spellslinger, tierras, tribal, superfriends, etc.).
-2. **Preguntar** al usuario con qué sinergia quiere que se evalúe el mazo (listar opciones breves).
-3. **Evaluar** el mazo respecto a la sinergia elegida: señalar cartas alineadas y desvíos o cartas que no encajan.
+1. **`get_synergies`** si no hay slug elegido.
+2. **`get_strategy_guide`** para contexto de construcción.
+3. Re-analizar con `preferredStrategy` y evaluar `synergyScore` + desvíos.
 
-No asumir una sinergia sin que el usuario la elija.
+### 6. Optimización automática (opcional)
+
+Si hay varias categorías `below`, usar **`optimize_deck`** con el mismo `preferredStrategy` antes de ediciones manuales.
+
+### 7. Evaluar cambios antes de aplicarlos
+
+Usar **`evaluate_card_swap`** para probar un reemplazo (`proceed`/`skip`, `categoryDeltas`, `synergyScoreDelta`).
 
 ## Fuentes de datos (solo este proyecto)
 
-- Cartas y legalidad: MCP y/o `data/cards.db`. No inventar nombres.
-- Banlist: `data/Banlist.txt`.
-- Plantilla y políticas: `data/deck-template-bracket3.json`, `data/bracket-rules.json`.
-- Rulings: `data/rulings.json`, `data/MagicCompRules.txt` para dudas de reglas.
-
-## Formato de respuesta sugerido
-
-Al devolver el análisis al usuario:
-
-1. **Resumen**: comandante, total de cartas, ¿cumple formato? (sí/no).
-2. **Categorías**: estado vs template Bracket 3 (dentro/rango, por encima, por debajo).
-3. **Alertas**: violaciones banlist, advertencias Bracket 3, duplicados, color identity.
-4. **Sinergia** (si se pidió): sinergia elegida y valoración breve (coherente / con desvíos).
+- Cartas: MCP / `data/cards.db`
+- Banlist: `data/Banlist.txt`
+- Plantilla: `data/deck-template-bracket3.json`
+- Guías: `docs/strategy-guides/`, índice `data/strategy-guides.json`
 
 ## Qué no hacer
 
-- No usar este skill ni el MCP de este proyecto en otros repositorios.
-- No inventar cartas ni legalidad; apoyarse en MCP y datos en `data/`.
-- No omitir la validación de formato Commander al analizar.
-- No asumir una sinergia sin listar opciones y preguntar al usuario.
+- No inventar cartas ni legalidad.
+- No asumir sinergia sin confirmación del usuario.
+- No omitir validación Commander + Bracket 3.
