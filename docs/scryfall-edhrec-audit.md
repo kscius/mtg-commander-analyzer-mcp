@@ -52,6 +52,8 @@ Explore locally: `npx ts-node src/scripts/exploreEdhrecApi.ts`
 
 ## OpenAI / LLM status
 
-- **Removed** from this repo: `build_deck_with_llm`, `requestCardNamesForCategory`, `useLLMFallbackForCategories`, and `OPENAI_*` configuration.
+- **Enhancement layer** (v0.7.1+): when `OPENAI_API_KEY` is set, `build_deck_from_commander` runs OpenAI **after** EDHREC + SQLite fill to pick card names **only from `cards.db` candidates** (`useOpenAIEnhancement` defaults to true).
+- **Not restored:** full `build_deck_with_llm` (99-card JSON from GPT alone). Primary path remains template + EDHREC + DB.
+- Configure models via `.env`: `OPENAI_MODEL`, `OPENAI_MODEL_FAST`, etc. See `.env.example`.
 - Template fill uses **EDHREC + local SQLite** (`searchCardsFiltered` in `templateDeckGenerator.ts`, same data as MCP `search_cards`).
 - Recommended flow: **`build_deck_from_commander`** + host-agent reasoning + **`analyze_deck`** / **`optimize_deck`** / **`search_cards`** for gaps.

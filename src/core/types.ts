@@ -463,6 +463,11 @@ export interface BuildDeckInput {
   /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC) instead of skeleton + autofill */
   useTemplateGenerator?: boolean;
   /**
+   * When true (default), apply OpenAI enhancement on category gaps after EDHREC + DB fill when OPENAI_API_KEY is set.
+   * Set false to skip in-process OpenAI calls.
+   */
+  useOpenAIEnhancement?: boolean;
+  /**
    * When true (default), run EDHREC category autofill in multiple passes until deficits clear or progress stops.
    * Set false for a single autofill pass only (faster, may leave template gaps).
    */

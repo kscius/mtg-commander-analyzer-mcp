@@ -55,7 +55,7 @@ export function buildMcpTools(): Tool[] {
     {
       name: 'build_deck_from_commander',
       description:
-        'Build a Commander deck from a commander name (template + EDHREC). Returns converged, remainingGaps, nextSuggestedAction.',
+        'Build a Commander deck from a commander name (template + EDHREC + optional OpenAI category enhancement from DB candidates). Returns converged, remainingGaps, nextSuggestedAction.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -67,6 +67,12 @@ export function buildMcpTools(): Tool[] {
           useEdhrec: { type: 'boolean', default: true },
           useEdhrecAutofill: { type: 'boolean', default: true },
           useTemplateGenerator: { type: 'boolean', default: true },
+          useOpenAIEnhancement: {
+            type: 'boolean',
+            default: true,
+            description:
+              'When true and OPENAI_API_KEY is set, use OpenAI to improve category fill from DB candidates (after EDHREC).',
+          },
           refineUntilStable: { type: 'boolean', default: true },
           maxRefinementIterations: { type: 'number', default: 5 },
           responseMode: { type: 'string', enum: ['brief', 'full'], default: 'brief' },

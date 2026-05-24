@@ -3,7 +3,7 @@
  *
  * Template-driven deck generator for Bracket 3.
  * Fills 99 cards using template (mana_base, categories, curve, combo_rules, generator_hints).
- * EDHREC is primary source; local DB search fills underfilled categories (no LLM).
+ * EDHREC is primary source; local DB search fills gaps; optional OpenAI picks from DB candidates.
  */
 
 import { getCardByName, OracleCard } from './scryfall';
@@ -61,6 +61,8 @@ import {
   Bracket3Policies,
   CardWithTags,
 } from './bracket3Validation';
+import { fillUnderfilledCategoriesWithOpenAI } from './llmCategoryEnhancer';
+import { shouldUseOpenAIEnhancement } from './llmPostBuildEnhancer';
 import type { BuiltCardEntry, BuiltDeck, CardRole } from './types';
 
 const COMMANDER_DECK_SIZE = COMMANDER_MAINBOARD_SIZE;
@@ -70,6 +72,8 @@ export interface TemplateGeneratorInput {
   seedCards?: string[];
   /** EDHREC theme/archetype slug (e.g. "tokens", "voltron") */
   preferredTheme?: string;
+  /** When true (default), use OpenAI to pick from DB candidates for remaining category gaps if API key is set */
+  useOpenAIEnhancement?: boolean;
   metaOverride?: Partial<{
     graveyard_meta_share: number;
     fast_combo_density: 'low' | 'mid' | 'high';
@@ -622,6 +626,29 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
   gameChangerCount = bracketCounters.gameChangerCount;
   extraTurnCount = bracketCounters.extraTurnCount;
 
+  if (shouldUseOpenAIEnhancement(input.useOpenAIEnhancement)) {
+    bracketCounters.gameChangerCount = gameChangerCount;
+    bracketCounters.extraTurnCount = extraTurnCount;
+    await fillUnderfilledCategoriesWithOpenAI({
+      builtCards,
+      cardsInDeck,
+      nonLandCategories,
+      categoryTargets,
+      categoryCounts,
+      colorIdentity,
+      commanderName: commanderCard.name,
+      preferredTheme: input.preferredTheme,
+      tagOpts,
+      addCard,
+      notes,
+      counters: bracketCounters,
+      maxGameChangers,
+      maxExtraTurns,
+    });
+    gameChangerCount = bracketCounters.gameChangerCount;
+    extraTurnCount = bracketCounters.extraTurnCount;
+  }
+
   const total = builtCards.reduce((s, c) => s + c.quantity, 0);
   if (total < COMMANDER_DECK_SIZE) {
     notes.push(`Deck has ${total}/${COMMANDER_DECK_SIZE} cards; ${COMMANDER_DECK_SIZE - total} short.`);
@@ -701,6 +728,27 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
         );
         gameChangerCount = bracketCounters.gameChangerCount;
         extraTurnCount = bracketCounters.extraTurnCount;
+
+        if (shouldUseOpenAIEnhancement(input.useOpenAIEnhancement)) {
+          await fillUnderfilledCategoriesWithOpenAI({
+            builtCards,
+            cardsInDeck,
+            nonLandCategories,
+            categoryTargets,
+            categoryCounts,
+            colorIdentity,
+            commanderName: commanderCard.name,
+            preferredTheme: input.preferredTheme,
+            tagOpts,
+            addCard,
+            notes,
+            counters: bracketCounters,
+            maxGameChangers,
+            maxExtraTurns,
+          });
+          gameChangerCount = bracketCounters.gameChangerCount;
+          extraTurnCount = bracketCounters.extraTurnCount;
+        }
 
         deckForValidation.length = 0;
         for (const c of builtCards) {

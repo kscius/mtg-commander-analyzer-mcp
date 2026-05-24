@@ -59,6 +59,7 @@ import { runGetCategoryCandidates } from './getCategoryCandidatesTool';
 
 import { isDatabaseReady } from '../core/cardDatabase';
 import { getEdhrecCacheStats } from '../core/edhrec';
+import { getOpenAIConfigForLogging, isOpenAIAvailable } from '../core/llmConfig';
 
 
 
@@ -398,6 +399,10 @@ async function main() {
   const dbReady = isDatabaseReady();
   const edhrecCache = getEdhrecCacheStats();
   console.error('MTG Commander Analyzer MCP Server starting...');
+  const openaiLog = getOpenAIConfigForLogging();
+  console.error(
+    `OpenAI build enhancement: ${isOpenAIAvailable() ? 'enabled' : 'disabled'} (model=${openaiLog.model}, fast=${openaiLog.modelFast})`
+  );
   console.error(`Card database: ${dbReady ? 'ready' : 'NOT READY — run npm run db:create && npm run db:import'}`);
   console.error(
     `EDHREC disk cache: ${edhrecCache.diskEntries} entries (${edhrecCache.diskBytes} bytes), TTL ${Math.round(edhrecCache.ttlMs / 3600000)}h → ${edhrecCache.diskDir}`

@@ -20,6 +20,7 @@ import { runIterativeEdhrecAutofill } from '../core/edhrecAutofill';
 import { formatDecklistText } from '../core/deckTextFormat';
 import { buildBuildQualityReport, buildSuggestedUpgrades } from '../core/buildQualityReport';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
+import { enhanceBuiltDeckCategoriesWithOpenAI, shouldUseOpenAIEnhancement } from '../core/llmPostBuildEnhancer';
 import { attachBuildConvergence } from './mcpOutputHelpers';
 
 /**
@@ -57,6 +58,7 @@ export async function runBuildDeckFromCommander(
       seedCards: input.seedCards,
       preferredTheme: input.preferredStrategy,
       metaOverride: input.metaOverride,
+      useOpenAIEnhancement: input.useOpenAIEnhancement,
     });
 
     const inputMerged: BuildDeckInput = {
@@ -172,6 +174,44 @@ export async function runBuildDeckFromCommander(
           parsedFromGen
         )
       ).analysis;
+    }
+
+    if (shouldUseOpenAIEnhancement(inputMerged.useOpenAIEnhancement)) {
+      const colorIdentity = commanderCard.color_identity ?? [];
+      const beforeCount = deck.cards.length;
+      const enhancedCards = await enhanceBuiltDeckCategoriesWithOpenAI({
+        commanderName: inputMerged.commanderName,
+        preferredStrategy: inputMerged.preferredStrategy,
+        colorIdentity,
+        builtCards: deck.cards,
+        analysis,
+        templateId,
+        useOpenAIEnhancement: inputMerged.useOpenAIEnhancement,
+        notes: builderNotes,
+      });
+      if (enhancedCards.length > beforeCount) {
+        deck = { commanderName: deck.commanderName, cards: enhancedCards };
+        const deckTextEnhanced = formatDecklistText(deck.cards);
+        const parsedEnhanced = parseDeckText(deckTextEnhanced);
+        analysis = (
+          await analyzeDeckBasic(
+            {
+              deckText: deckTextEnhanced,
+              commanderName: inputMerged.commanderName,
+              preferredStrategy: inputMerged.preferredStrategy,
+              templateId,
+              banlistId: inputMerged.banlistId,
+              options: {},
+            },
+            parsedEnhanced
+          )
+        ).analysis;
+        builderNotes.push(
+          `✓ OpenAI post-build enhancement: +${enhancedCards.length - beforeCount} card(s); re-analyzed.`
+        );
+      } else if (builderNotes.some((n) => n.includes('OpenAI enhancement'))) {
+        builderNotes.push('✓ OpenAI category enhancement ran during template fill.');
+      }
     }
 
     let bracketLabel: string | undefined;

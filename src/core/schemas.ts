@@ -118,6 +118,9 @@ export const BuildDeckInputSchema = z.object({
   /** When true and templateId is bracket3, use template-driven generator (mana_base, categories, EDHREC) for a full 99-card deck */
   useTemplateGenerator: z.boolean().optional().default(true).describe("When true with templateId bracket3, build deck using template-driven generator (mana_base, curve, categories, EDHREC). Defaults to true for bracket3."),
 
+  /** OpenAI enhancement on remaining category gaps (requires OPENAI_API_KEY). Defaults to true. */
+  useOpenAIEnhancement: z.boolean().optional().default(true).describe("When true and OPENAI_API_KEY is set, use OpenAI to pick cards from DB candidates for underfilled categories after EDHREC/DB fill. Defaults to true."),
+
   /** When true (default), repeat EDHREC autofill until category deficits clear or no progress (see maxRefinementIterations). */
   refineUntilStable: z.boolean().optional().default(true).describe("Repeat EDHREC category autofill until template gaps are filled or iteration cap is reached. Defaults to true."),
 
