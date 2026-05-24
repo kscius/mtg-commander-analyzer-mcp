@@ -395,34 +395,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 
 
+/** Stdio MCP servers must log to stderr (stdout is JSON-RPC). Single write avoids Cursor logging `undefined` per console.error return value. */
+function logStartup(lines: string[]): void {
+  process.stderr.write(`${lines.join('\n')}\n`);
+}
+
 async function main() {
   const dbReady = isDatabaseReady();
   const edhrecCache = getEdhrecCacheStats();
-  console.error('MTG Commander Analyzer MCP Server starting...');
   const openaiLog = getOpenAIConfigForLogging();
-  console.error(
-    `OpenAI build enhancement: ${isOpenAIAvailable() ? 'enabled' : 'disabled'} (model=${openaiLog.model}, fast=${openaiLog.modelFast})`
-  );
-  console.error(`Card database: ${dbReady ? 'ready' : 'NOT READY — run npm run db:create && npm run db:import'}`);
-  console.error(
-    `EDHREC disk cache: ${edhrecCache.diskEntries} entries (${edhrecCache.diskBytes} bytes), TTL ${Math.round(edhrecCache.ttlMs / 3600000)}h → ${edhrecCache.diskDir}`
-  );
-  console.error(`MCP resources: ${listMcpResources().length} (template, banlist, strategy guides, AGENTS.md)`);
-  console.error(`MCP prompts: ${listMcpPrompts().length} (build-commander-deck, optimize-decklist)`);
-  console.error(
-    'Tools: 10 — analyze_deck, build_deck_from_commander, get_category_candidates, search_cards, optimize_deck, apply_deck_changes, resolve_card, get_synergies, evaluate_card_swap, get_strategy_guide'
-  );
-  console.error('Listening for MCP messages on stdio');
-
-
-
   const transport = new StdioServerTransport();
-
   await server.connect(transport);
 
-
-
-  console.error('MCP Server ready. Waiting for client connections...');
+  logStartup([
+    'MTG Commander Analyzer MCP Server starting...',
+    `OpenAI build enhancement: ${isOpenAIAvailable() ? 'enabled' : 'disabled'} (model=${openaiLog.model}, fast=${openaiLog.modelFast})`,
+    `Card database: ${dbReady ? 'ready' : 'NOT READY — run npm run db:create && npm run db:import'}`,
+    `EDHREC disk cache: ${edhrecCache.diskEntries} entries (${edhrecCache.diskBytes} bytes), TTL ${Math.round(edhrecCache.ttlMs / 3600000)}h → ${edhrecCache.diskDir}`,
+    `MCP resources: ${listMcpResources().length} (template, banlist, strategy guides, AGENTS.md)`,
+    `MCP prompts: ${listMcpPrompts().length} (build-commander-deck, optimize-decklist)`,
+    'Tools: 10 — analyze_deck, build_deck_from_commander, get_category_candidates, search_cards, optimize_deck, apply_deck_changes, resolve_card, get_synergies, evaluate_card_swap, get_strategy_guide',
+    'Listening for MCP messages on stdio',
+    'MCP Server ready. Waiting for client connections...',
+  ]);
 
 }
 
