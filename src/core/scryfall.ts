@@ -14,6 +14,7 @@ import {
   DatabaseCard,
   isLand as dbIsLand,
 } from './cardDatabase';
+import { logMcpDiag } from './mcpStderrLog';
 
 /**
  * OracleCard interface - compatible with both DB and JSON sources
@@ -67,10 +68,8 @@ let usingDatabase: boolean | null = null;
 function shouldUseDatabase(): boolean {
   if (usingDatabase === null) {
     usingDatabase = isDatabaseReady();
-    if (usingDatabase) {
-      console.log('[Scryfall] Using SQLite database for card lookups');
-    } else {
-      console.log('[Scryfall] Database not available, falling back to JSON file');
+    if (!usingDatabase) {
+      logMcpDiag('[Scryfall] Database not available, falling back to JSON file');
     }
   }
   return usingDatabase;
@@ -113,7 +112,7 @@ function dbCardToOracleCard(dbCard: DatabaseCard): OracleCard {
  */
 export function loadOracleCards(): OracleCard[] {
   if (shouldUseDatabase()) {
-    console.warn('[Scryfall] loadOracleCards() called but database is available. ' +
+    logMcpDiag('[Scryfall] loadOracleCards() called but database is available. ' +
       'This function loads all cards into memory which is not recommended. ' +
       'Use getCardByName() for individual lookups instead.');
   }
@@ -164,7 +163,7 @@ export function getCardByName(name: string): OracleCard | null {
       const dbCard = dbFindCardByName(name);
       return dbCard ? dbCardToOracleCard(dbCard) : null;
     } catch (error) {
-      console.warn(`[Scryfall] Database query failed, falling back to JSON: ${error}`);
+      logMcpDiag(`[Scryfall] Database query failed, falling back to JSON: ${error}`);
       usingDatabase = false;
     }
   }

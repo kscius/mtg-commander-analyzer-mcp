@@ -12,7 +12,7 @@ const PLACEHOLDER_KEYS = new Set(['sk-your-api-key-here', '']);
 
 const envPath = path.join(__dirname, '..', '..', '.env');
 if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
+  dotenv.config({ path: envPath, quiet: true });
 }
 
 export type OpenAIModelRole = 'default' | 'fast' | 'premium' | 'agent';
@@ -98,4 +98,23 @@ export function resolveModelForRole(
   config: OpenAIConfig = getOpenAIConfig()
 ): string {
   return readModel(role, config);
+}
+
+/** GPT-5 / reasoning models reject `max_tokens`; use `max_completion_tokens` instead. */
+export function modelRequiresMaxCompletionTokens(model: string): boolean {
+  const m = model.toLowerCase();
+  return m.startsWith('gpt-5') || /^o\d/.test(m);
+}
+
+/**
+ * Token limit field for chat.completions.create — model-dependent per OpenAI API.
+ */
+export function buildChatCompletionTokenLimit(
+  model: string,
+  maxTokens: number
+): { max_tokens: number } | { max_completion_tokens: number } {
+  if (modelRequiresMaxCompletionTokens(model)) {
+    return { max_completion_tokens: maxTokens };
+  }
+  return { max_tokens: maxTokens };
 }

@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  buildChatCompletionTokenLimit,
   getOpenAIConfig,
   getOpenAIConfigForLogging,
   isOpenAIAvailable,
+  modelRequiresMaxCompletionTokens,
   resolveModelForRole,
 } from './llmConfig';
 
@@ -42,5 +44,15 @@ describe('llmConfig', () => {
     const logged = getOpenAIConfigForLogging();
     expect(logged.apiKey).toMatch(/^sk-\.\.\./);
     expect(logged.apiKey).not.toContain('1234567890');
+  });
+
+  it('uses max_completion_tokens for GPT-5 and o-series models', () => {
+    expect(modelRequiresMaxCompletionTokens('gpt-5.4-nano')).toBe(true);
+    expect(modelRequiresMaxCompletionTokens('o3-mini')).toBe(true);
+    expect(modelRequiresMaxCompletionTokens('gpt-4o')).toBe(false);
+    expect(buildChatCompletionTokenLimit('gpt-5.4-nano', 400)).toEqual({
+      max_completion_tokens: 400,
+    });
+    expect(buildChatCompletionTokenLimit('gpt-4o', 400)).toEqual({ max_tokens: 400 });
   });
 });

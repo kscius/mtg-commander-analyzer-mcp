@@ -5,6 +5,7 @@
 
 import { getCardByName } from './scryfall';
 import { isOpenAIAvailable } from './llmConfig';
+import { logOpenAI } from './mcpStderrLog';
 import { fillUnderfilledCategoriesWithOpenAI, type CategoryFillContext } from './llmCategoryEnhancer';
 import {
   autoTags,
@@ -39,13 +40,23 @@ export async function enhanceBuiltDeckCategoriesWithOpenAI(options: {
   notes: string[];
 }): Promise<BuiltCardEntry[]> {
   if (!shouldUseOpenAIEnhancement(options.useOpenAIEnhancement)) {
+    if (options.useOpenAIEnhancement === false) {
+      logOpenAI('Post-build enhancement skipped: useOpenAIEnhancement=false');
+    } else {
+      logOpenAI('Post-build enhancement skipped: OPENAI_API_KEY not configured');
+    }
     return options.builtCards;
   }
 
   const below = options.analysis.categories?.filter((c) => c.status === 'below') ?? [];
   if (below.length === 0) {
+    logOpenAI('Post-build enhancement skipped: no categories below minimum');
     return options.builtCards;
   }
+
+  logOpenAI(
+    `Post-build enhancement started (${below.map((c) => c.name).join(', ')}) commander=${options.commanderName}`
+  );
 
   const template = loadDeckTemplate(options.templateId ?? 'bracket3') as DeckTemplateValidated;
   const nonLandCategories = template.categories.filter((c) => c.name !== 'lands');

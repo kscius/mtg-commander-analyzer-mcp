@@ -21,6 +21,8 @@ import { formatDecklistText } from '../core/deckTextFormat';
 import { buildBuildQualityReport, buildSuggestedUpgrades } from '../core/buildQualityReport';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
 import { enhanceBuiltDeckCategoriesWithOpenAI, shouldUseOpenAIEnhancement } from '../core/llmPostBuildEnhancer';
+import { isOpenAIAvailable } from '../core/llmConfig';
+import { logOpenAI } from '../core/mcpStderrLog';
 import { attachBuildConvergence } from './mcpOutputHelpers';
 
 /**
@@ -52,6 +54,10 @@ export async function runBuildDeckFromCommander(
     input.useTemplateGenerator !== false && templateId === 'bracket3';
 
   if (useTemplateGenerator) {
+    const openaiRequested = input.useOpenAIEnhancement !== false;
+    logOpenAI(
+      `build_deck_from_commander: requested=${openaiRequested}, apiKeyConfigured=${isOpenAIAvailable()} (analyze_deck does not call OpenAI)`
+    );
     const gen = await generateDeckFromTemplate({
       commanderName: input.commanderName,
       templateId,

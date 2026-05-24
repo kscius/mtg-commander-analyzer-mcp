@@ -3,7 +3,14 @@
  * when EDHREC + heuristic DB fill still leave category deficits.
  */
 
-import { createOpenAIClient, getOpenAIConfig, isOpenAIAvailable, resolveModelForRole } from './llmConfig';
+import {
+  buildChatCompletionTokenLimit,
+  createOpenAIClient,
+  getOpenAIConfig,
+  isOpenAIAvailable,
+  resolveModelForRole,
+} from './llmConfig';
+import { logOpenAI } from './mcpStderrLog';
 import { getCardByName, OracleCard } from './scryfall';
 import { isDatabaseReady, searchCardsFiltered } from './cardDatabase';
 import {
@@ -67,16 +74,22 @@ Rules:
 - Pick cards that best fit the category and theme`;
 
   try {
+    logOpenAI(
+      `API call → model=${model}, category=${options.categoryName}, pick=${pickCount}, candidates=${cappedCandidates.length}`
+    );
     const completion = await openai.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
       temperature: FAST_TEMPERATURE,
-      max_tokens: Math.min(400, config.maxTokens),
+      ...buildChatCompletionTokenLimit(model, Math.min(400, config.maxTokens)),
       response_format: { type: 'json_object' },
     });
 
     const content = completion.choices[0]?.message?.content?.trim();
-    if (!content) return [];
+    if (!content) {
+      logOpenAI(`API response empty for category=${options.categoryName}`);
+      return [];
+    }
 
     const parsed = JSON.parse(content) as unknown;
     const namesRaw = Array.isArray(parsed)
@@ -99,8 +112,13 @@ Rules:
       picked.push(trimmed);
       if (picked.length >= pickCount) break;
     }
+    logOpenAI(
+      `API ok ← category=${options.categoryName}, picked=${picked.length}/${pickCount}`
+    );
     return picked;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logOpenAI(`API failed for category=${options.categoryName}: ${msg}`);
     return [];
   }
 }
@@ -126,12 +144,26 @@ export interface CategoryFillContext {
  * After EDHREC + DB fill, use OpenAI to pick remaining cards from SQLite candidates per category.
  */
 export async function fillUnderfilledCategoriesWithOpenAI(ctx: CategoryFillContext): Promise<void> {
-  if (!isOpenAIAvailable() || !isDatabaseReady()) return;
+  if (!isOpenAIAvailable()) {
+    logOpenAI('Skipped category fill: OPENAI_API_KEY not set or placeholder');
+    return;
+  }
+  if (!isDatabaseReady()) {
+    logOpenAI('Skipped category fill: card database not ready');
+    return;
+  }
 
   const underfilled = ctx.nonLandCategories.filter(
     (cat) => (ctx.categoryCounts[cat.name] ?? 0) < (ctx.categoryTargets.get(cat.name) ?? 0)
   );
-  if (underfilled.length === 0) return;
+  if (underfilled.length === 0) {
+    logOpenAI('Skipped category fill: all template categories at target');
+    return;
+  }
+
+  logOpenAI(
+    `Category fill started (${underfilled.map((c) => c.name).join(', ')}) commander=${ctx.commanderName}`
+  );
 
   for (const cat of underfilled) {
     const need =

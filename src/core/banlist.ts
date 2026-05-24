@@ -10,6 +10,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { logMcpDiag } from './mcpStderrLog';
 
 const BANLIST_PATH = path.join(__dirname, '..', '..', 'data', 'Banlist.txt');
 
@@ -27,7 +28,7 @@ function loadBanlist(): void {
 
   try {
     if (!fs.existsSync(BANLIST_PATH)) {
-      console.warn(`[Banlist] Warning: Banlist file not found at ${BANLIST_PATH}`);
+      logMcpDiag(`[Banlist] Warning: Banlist file not found at ${BANLIST_PATH}`);
       bannedCardsCache = new Set();
       bannedCardsListCache = [];
       return;
@@ -67,9 +68,9 @@ function loadBanlist(): void {
     bannedCardsCache = uniqueCards;
     bannedCardsListCache = cardList;
 
-    console.log(`[Banlist] Loaded ${cardList.length} banned cards`);
+    logMcpDiag(`[Banlist] Loaded ${cardList.length} banned cards`);
   } catch (error) {
-    console.error(`[Banlist] Error loading banlist: ${error}`);
+    logMcpDiag(`[Banlist] Error loading banlist: ${error}`);
     bannedCardsCache = new Set();
     bannedCardsListCache = [];
   }

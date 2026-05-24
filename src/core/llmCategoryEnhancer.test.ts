@@ -3,9 +3,12 @@ import { pickCardNamesFromCandidates } from './llmCategoryEnhancer';
 
 const mockCreate = vi.fn();
 
-vi.mock('./llmConfig', () => ({
-  isOpenAIAvailable: () => true,
-  getOpenAIConfig: () => ({
+vi.mock('./llmConfig', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./llmConfig')>();
+  return {
+    ...actual,
+    isOpenAIAvailable: () => true,
+    getOpenAIConfig: () => ({
     apiKey: 'sk-test',
     baseURL: null,
     model: 'gpt-5.4',
@@ -23,8 +26,9 @@ vi.mock('./llmConfig', () => ({
       },
     },
   }),
-  resolveModelForRole: () => 'gpt-5.4-nano',
-}));
+    resolveModelForRole: () => 'gpt-5.4-nano',
+  };
+});
 
 describe('pickCardNamesFromCandidates', () => {
   afterEach(() => {
@@ -47,6 +51,11 @@ describe('pickCardNamesFromCandidates', () => {
 
     expect(picked).toEqual(['Sol Ring']);
     expect(mockCreate).toHaveBeenCalledOnce();
+    expect(mockCreate.mock.calls[0][0]).toMatchObject({
+      model: 'gpt-5.4-nano',
+      max_completion_tokens: 400,
+    });
+    expect(mockCreate.mock.calls[0][0]).not.toHaveProperty('max_tokens');
   });
 
   it('returns empty when OpenAI returns invalid JSON shape', async () => {

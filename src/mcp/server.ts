@@ -409,7 +409,8 @@ async function main() {
 
   logStartup([
     'MTG Commander Analyzer MCP Server starting...',
-    `OpenAI build enhancement: ${isOpenAIAvailable() ? 'enabled' : 'disabled'} (model=${openaiLog.model}, fast=${openaiLog.modelFast})`,
+    `OpenAI: ${isOpenAIAvailable() ? 'CONFIGURED' : 'NOT CONFIGURED'} (key=${openaiLog.apiKey}, model=${openaiLog.model}, fast=${openaiLog.modelFast})`,
+    'OpenAI usage: only build_deck_from_commander (useOpenAIEnhancement≠false). MCP log lines tagged [OpenAI] on each API call or skip.',
     `Card database: ${dbReady ? 'ready' : 'NOT READY — run npm run db:create && npm run db:import'}`,
     `EDHREC disk cache: ${edhrecCache.diskEntries} entries (${edhrecCache.diskBytes} bytes), TTL ${Math.round(edhrecCache.ttlMs / 3600000)}h → ${edhrecCache.diskDir}`,
     `MCP resources: ${listMcpResources().length} (template, banlist, strategy guides, AGENTS.md)`,
