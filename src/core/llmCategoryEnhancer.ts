@@ -68,7 +68,7 @@ Choose exactly ${pickCount} card names from this list ONLY (use exact spelling):
 ${JSON.stringify(cappedCandidates)}
 
 Rules:
-- Return ONLY a JSON array of strings, e.g. ["Card A","Card B"]
+- Return ONLY JSON: {"cards":["Card A","Card B"]} (exact spelling from the list)
 - Every name MUST appear in the candidate list above
 - No basic lands
 - Pick cards that best fit the category and theme`;

@@ -370,6 +370,43 @@ export function findCommanderLegalCards(limit: number = 1000): DatabaseCard[] {
 }
 
 /**
+ * Commander-legal cards whose stored tags JSON includes a template category tag.
+ * Used when searchCardsFiltered has category but no FTS query — avoids scanning only top edhrec_rank staples.
+ */
+export function findCommanderLegalCardsByCategoryTag(
+  category: string,
+  colors: string[],
+  limit: number = 200
+): DatabaseCard[] {
+  const database = getDatabase();
+  const tagPattern = `%"${category.trim().toLowerCase()}"%`;
+  const fetchLimit = Math.min(Math.max(limit * 4, 200), 2000);
+  const stmt = database.prepare(`
+    SELECT * FROM cards
+    WHERE json_extract(legalities, '$.commander') = 'legal'
+      AND lang = 'en'
+      AND tags IS NOT NULL
+      AND tags LIKE ?
+    ORDER BY edhrec_rank ASC NULLS LAST
+    LIMIT ?
+  `);
+  const rows = stmt.all(tagPattern, fetchLimit) as RawCardRow[];
+  const colorSet = colors.map((c) => c.toUpperCase());
+  if (!colorSet.length) {
+    return dedupeCardsByOracleId(rows.map(parseRow), limit);
+  }
+  return dedupeCardsByOracleId(
+    rows
+      .map(parseRow)
+      .filter((card) => {
+        const ci = card.color_identity ?? [];
+        return ci.every((c) => colorSet.includes(c.toUpperCase()));
+      }),
+    limit
+  );
+}
+
+/**
  * Find cards by type (e.g., "Creature", "Instant", "Land")
  */
 export function findCardsByType(type: string, limit: number = 100): DatabaseCard[] {
@@ -514,6 +551,9 @@ export function searchCardsFiltered(filters: SearchCardsFilters): DatabaseCard[]
   const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100);
   const commanderLegal = filters.commanderLegal !== false;
 
+  const colorSet = filters.colorIdentity?.map((c) => c.toUpperCase());
+  const categoryTag = filters.category?.trim().toLowerCase();
+
   let candidates: DatabaseCard[];
   if (filters.query?.trim()) {
     const q = filters.query.trim().split(/\s+/).map((t) => `"${t}"*`).join(' ');
@@ -522,14 +562,28 @@ export function searchCardsFiltered(filters: SearchCardsFilters): DatabaseCard[]
     } catch {
       candidates = searchCardsByName(filters.query.trim(), limit * 5);
     }
+  } else if (categoryTag && commanderLegal) {
+    candidates = findCommanderLegalCardsByCategoryTag(
+      categoryTag,
+      colorSet ?? [],
+      limit * 5
+    );
+    if (candidates.length < limit) {
+      const staplePool = findCommanderLegalCards(Math.max(limit * 5, 400));
+      const seen = new Set(candidates.map((c) => (c.oracle_id ?? c.name).toLowerCase()));
+      for (const card of staplePool) {
+        const key = (card.oracle_id ?? card.name).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        candidates.push(card);
+        if (candidates.length >= limit * 5) break;
+      }
+    }
   } else {
     candidates = commanderLegal
       ? findCommanderLegalCards(limit * 5)
       : findCardsByType('Creature', limit * 5);
   }
-
-  const colorSet = filters.colorIdentity?.map((c) => c.toUpperCase());
-  const categoryTag = filters.category?.trim().toLowerCase();
 
   const filtered = candidates.filter((card) => {
     if (commanderLegal && card.legalities?.commander !== 'legal') return false;
