@@ -1,4 +1,11 @@
 {
+  "meta": {
+    "schemaVersion": "2026-06-06",
+    "policyReference": "data/bracket3-policy-reference.json",
+    "officialSources": "data/bracket-official-sources.json",
+    "maintenanceCommand": "npm run brackets:check-official",
+    "moxfieldBracketsUrl": "https://moxfield.com/commanderbrackets"
+  },
   "brackets": {
     "bracket3": {
       "id": "bracket3",
@@ -6,8 +13,13 @@
       "maxGameChangers": 3,
       "allowMassLandDestruction": false,
       "allowInfiniteTwoCardCombosBeforeTurnSix": false,
-      "maxExtraTurnCards": 3
+      "maxExtraTurnCards": 3,
+      "fastManaProhibited": false,
+      "notes": [
+        "Fast mana is allowed. Some fast-mana cards are Game Changers and count toward maxGameChangers.",
+        "Sol Ring is not a Game Changer per Wizards guidance.",
+        "Project banlist (data/Banlist.txt) is separate from bracket rules."
+      ]
     }
   }
 }
-

@@ -61,6 +61,39 @@ describe('autoTags table-driven', () => {
       expectTags: ['card_draw'],
       primary: 'card_draw',
     },
+    {
+      label: 'alt win counts as win_conditions over value_engine',
+      input: card({
+        name: 'Test Helix',
+        oracle_text:
+          'At the beginning of your upkeep, you may put a +1/+1 counter on Helix Pinnacle. When Helix Pinnacle has twenty or more +1/+1 counters on it, you win the game.',
+        type_line: 'Enchantment',
+      }),
+      expectTags: ['value_engine', 'win_condition'],
+      primary: 'win_conditions',
+    },
+    {
+      label: 'mass trample pump finisher',
+      input: card({
+        name: 'Test Hoof',
+        oracle_text:
+          "Changeling (This card is every creature type.)\nHaste\nAll creatures you control get +X/+X and trample until end of turn, where X is the number of creature types among creatures you control.",
+        type_line: 'Legendary Creature — Shapeshifter',
+      }),
+      expectTags: ['win_condition'],
+      primary: 'win_conditions',
+    },
+    {
+      label: 'counter ping finisher',
+      input: card({
+        name: 'Test Ballista',
+        oracle_text:
+          'Walking Ballista enters with X +1/+1 counters on it.\nRemove a +1/+1 counter from Walking Ballista: It deals 1 damage to any target.',
+        type_line: 'Artifact Creature — Construct',
+      }),
+      expectTags: ['win_condition'],
+      primary: 'win_conditions',
+    },
   ];
 
   const opts = getDefaultBracket3Options('bracket3');

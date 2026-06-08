@@ -15,13 +15,14 @@ This document adds **implementation detail** (mana base, tagging, data files). D
 | Bracket 3 | Template `bracket3`, max 3 Game Changers, max 3 extra turns, no MLD, no 2-card wins before T6 |
 | Sinergia | **One synergy per deck** — ask the user which theme before optimizing |
 
-## MCP tools (10)
+## MCP tools (11)
 
 | Tool | When to use |
 |------|-------------|
 | `get_synergies` | Before building — list theme slugs; ask user to pick one |
+| `get_user_deck_style` | Optional — aggregated stats from `data/my_decks` (your imports); land count, mix, staples. `useOpenAI: true` for narrative (needs `OPENAI_API_KEY`) |
 | `get_strategy_guide` | After slug chosen — ratios, packages, anti-patterns (`summaryOnly` or `responseMode: brief` for tokens) |
-| `build_deck_from_commander` | Generate 99 cards (default path) |
+| `build_deck_from_commander` | Generate 99 cards (default path); `useUserStyleReference: true` biases mana base toward your imports |
 | `get_category_candidates` | Ranked DB picks for one `below` category |
 | `analyze_deck` | Validate, `qualityGate`, `prioritizedActions`, `decklistText` |
 | `optimize_deck` | Automated cut/add + EDHREC autofill (up to 4 passes) |
@@ -78,12 +79,26 @@ Returns `synergies[]` with `slug`, `name`, `description`, `exampleCards`, and op
   "useTemplateGenerator": true,
   "preferredStrategy": "blink",
   "useEdhrecAutofill": true,
+  "useUserStyleReference": true,
   "refineUntilStable": true
 }
 ```
 
 - **`useTemplateGenerator`** defaults to **true** for `bracket3` (full 99-card pipeline).
+- **`useUserStyleReference`** defaults to **true** — blends land count and prioritizes staple lands from read-only imports in `data/my_decks`. Set **false** for template-only mana. Never write generated decks to `data/my_decks`.
 - Legacy skeleton (`useTemplateGenerator: false`) only fills basics — avoid for production decks.
+
+### `get_user_deck_style`
+
+```json
+{
+  "commanderName": "Prosper, Tome-Bound",
+  "useOpenAI": false,
+  "responseMode": "brief"
+}
+```
+
+Returns aggregated profile: `landCount`, `landMixAverages`, `categoryAverages`, `topLandStaples`, optional `commanderHints`. See `docs/user-deck-style-reference.md`.
 
 ### `optimize_deck`
 
@@ -130,7 +145,18 @@ Returns `synergies[]` with `slug`, `name`, `description`, `exampleCards`, and op
 ## Agent vs MCP
 
 - **Cursor (or any MCP host)** is the LLM: thematic picks, explanations, manual swaps.
-- **MCP** supplies Scryfall/EDHREC data, template build, validation, and optimization (ten tools; no OpenAI deck builder in-repo).
+- **MCP** supplies Scryfall/EDHREC data, template build, validation, and optimization. **OpenAI is optional** for `get_user_deck_style` narrative only; build bias from `data/my_decks` is deterministic.
+
+## User deck style reference
+
+Imported Moxfield decks live in **`data/my_decks`** (read-only for generated output). The build pipeline reads aggregated stats to bias mana base — not full list cloning.
+
+| Action | Command / tool |
+|--------|----------------|
+| Re-download from Moxfield | `npm run decks:download-moxfield` |
+| Print profile JSON | `npm run decks:user-style-profile` |
+| MCP profile | `get_user_deck_style` or resource `mtg-commander:///user-decks/style-profile` |
+| Agent guide | `docs/user-deck-style-reference.md` |
 
 ## Mana base: four systems
 

@@ -59,11 +59,12 @@ ${strategyBlock}
 ## MCP workflow (strict order)
 
 1. \`get_synergies\` → user picks **one** synergy slug (skip if preferredStrategy provided).
-2. \`get_strategy_guide\` with commanderName + preferredStrategy (optional but recommended).
-3. \`build_deck_from_commander\` with defaults (useTemplateGenerator, useEdhrec, useEdhrecAutofill all true).
-4. \`analyze_deck\` on returned decklistText — read summary, qualityGate, remainingGaps.
-5. If not converged: \`optimize_deck\` (maxIterations 4), then re-analyze.
-6. Fix gaps with \`search_cards\` / \`evaluate_card_swap\`; never invent card names.
+2. *(Optional)* \`get_user_deck_style\` with commanderName — land count / staple hints from read-only imports in data/my_decks.
+3. \`get_strategy_guide\` with commanderName + preferredStrategy (optional but recommended).
+4. \`build_deck_from_commander\` with defaults (useTemplateGenerator, useEdhrec, useEdhrecAutofill, **useUserStyleReference: true**). Never save generated decks to data/my_decks.
+5. \`analyze_deck\` on returned decklistText — read summary, qualityGate, remainingGaps.
+6. If not converged: \`optimize_deck\` (maxIterations 4), then re-analyze.
+7. Fix gaps with \`search_cards\` / \`evaluate_card_swap\`; never invent card names.
 
 ## Bracket 3 category targets
 
@@ -78,10 +79,12 @@ ${QUALITY_CHECKLIST}
 - \`mtg-commander:///template/bracket3\` — full template JSON
 - \`mtg-commander:///strategy-guide/{slug}\` — archetype guide markdown
 - \`mtg-commander:///agents\` — full agent reference
+- \`mtg-commander:///user-decks/style-profile\` — your aggregated mana base stats
+- \`mtg-commander:///docs/user-deck-style-reference\` — user deck library guide
 
 ## Rules
 
-- Bracket 3: ≤3 Game Changers, ≤3 extra turns, no MLD, no 2-card wins before turn 6.
+- Bracket 3: ≤3 Game Changers, ≤3 extra turns, no MLD, no 2-card wins before turn 6. Fast mana is **allowed** (some fast mana is on the Game Changers list — see mtg-commander:///docs/bracket3-official-rules).
 - Banlist: data/Banlist.txt (automatic in tools).
 - Deliver **decklistText** from analyze/build output only.`;
 

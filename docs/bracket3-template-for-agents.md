@@ -13,6 +13,9 @@ Canonical source: **`data/deck-template-bracket3.json`**. Use this page for quic
 | Mass land denial | **Banned** |
 | 2-card wins before turn 6 | **Banned** |
 | Extra turn chains | **Banned** |
+| **Fast mana** | **Allowed** — not banned in Bracket 3. Some fast-mana cards are **Game Changers** (count toward the 3 cap). **Sol Ring** and **Mox Opal** are not on the official GC list. See [bracket3-official-rules.md](./bracket3-official-rules.md). |
+
+**Official sources:** https://moxfield.com/commanderbrackets — run `npm run brackets:check-official` monthly to verify policy text.
 
 ## Category mins and maxes
 

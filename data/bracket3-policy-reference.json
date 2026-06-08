@@ -1,0 +1,53 @@
+{
+  "id": "bracket3-policy-reference",
+  "version": "2026-06-06",
+  "bracketId": "bracket3",
+  "label": "Bracket 3 (Upgraded)",
+  "officialSummary": "Decks stronger than modern precons; up to 3 Game Changers; no mass land denial; no intentional early two-card infinite combos; extra turns in low quantity without chaining.",
+  "hardLimits": {
+    "maxGameChangers": 3,
+    "maxExtraTurnCards": 3,
+    "allowMassLandDestruction": false,
+    "allowInfiniteTwoCardCombosBeforeTurnSix": false
+  },
+  "fastMana": {
+    "prohibitedInBracket3": false,
+    "summary": "Fast mana is allowed in Bracket 3. Bracket 3 does NOT ban Sol Ring, Mana Vault, Ancient Tomb, Mox Opal, or other ramp rocks by default.",
+    "solRing": {
+      "isGameChanger": false,
+      "note": "Wizards explicitly excluded Sol Ring from the Game Changers list; it does not count toward the 3 GC cap."
+    },
+    "countsAsGameChanger": {
+      "note": "Several fast-mana pieces ARE on the official Game Changers list and each consumes one of your three GC slots in Bracket 3.",
+      "examples": [
+        "Ancient Tomb",
+        "Chrome Mox",
+        "Grim Monolith",
+        "Lion's Eye Diamond",
+        "Mana Vault",
+        "Mox Diamond",
+        "Mishra's Workshop"
+      ],
+      "listFile": "data/bracket3-game-changers.json"
+    },
+    "notOnGameChangersList": {
+      "note": "Strong ramp that is NOT on the Game Changers list is legal without using a GC slot (subject to project banlist).",
+      "examples": [
+        "Sol Ring",
+        "Arcane Signet",
+        "Mox Opal",
+        "Mind Stone",
+        "Fellwar Stone",
+        "Talisman of Curiosity"
+      ]
+    },
+    "agentGuidance": "Never tell users fast mana is banned in Bracket 3. When recommending cuts, cite deck strategy or GC budget — not a nonexistent fast-mana ban."
+  },
+  "projectBanlistSeparate": {
+    "file": "data/Banlist.txt",
+    "note": "Project banlist (e.g. Mana Crypt) is independent of Commander Brackets. A card can be legal in Bracket 3 but banned in this repo."
+  },
+  "intentOverChecklist": "Bracket labels depend on deck intent and power, not checklist alone. MCP validates enforceable rules; agents should not over-reject legal cards.",
+  "sourcesFile": "data/bracket-official-sources.json",
+  "docsFile": "docs/bracket3-official-rules.md"
+}

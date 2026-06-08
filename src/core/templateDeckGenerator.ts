@@ -63,6 +63,7 @@ import {
 } from './bracket3Validation';
 import { fillUnderfilledCategoriesWithOpenAI } from './llmCategoryEnhancer';
 import { shouldUseOpenAIEnhancement } from './llmPostBuildEnhancer';
+import { getCommanderStyleHints } from './userDeckLibrary';
 import type { BuiltCardEntry, BuiltDeck, CardRole } from './types';
 
 const COMMANDER_DECK_SIZE = COMMANDER_MAINBOARD_SIZE;
@@ -74,6 +75,8 @@ export interface TemplateGeneratorInput {
   preferredTheme?: string;
   /** When true (default), use OpenAI to pick from DB candidates for remaining category gaps if API key is set */
   useOpenAIEnhancement?: boolean;
+  /** Bias land count and mana base toward data/my_decks (read-only user imports). Never writes there. */
+  useUserStyleReference?: boolean;
   metaOverride?: Partial<{
     graveyard_meta_share: number;
     fast_combo_density: 'low' | 'mid' | 'high';
@@ -313,11 +316,33 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
     const t = (c.oracle_text ?? '').toLowerCase();
     return t.includes('add {') || (t.includes('search your library') && t.includes('land'));
   }).length;
-  const targetLandCount = computeLandCountFromCurve(seedNonlandOracle, template.mana_base, defaultLandCount, {
+  const targetLandCountRaw = computeLandCountFromCurve(seedNonlandOracle, template.mana_base, defaultLandCount, {
     rampCount: rampInSeeds,
     colorModel: template.color_model,
     colorCount: colorIdentity.length,
   });
+
+  let targetLandCount = targetLandCountRaw;
+  let userPreferredLandNames: string[] | undefined;
+  const useUserStyle = input.useUserStyleReference !== false;
+  if (useUserStyle) {
+    const styleHints = getCommanderStyleHints(commanderCard.name, colorIdentity);
+    if (styleHints.targetLandCount > 0) {
+      const blended = Math.round((targetLandCountRaw + styleHints.targetLandCount) / 2);
+      targetLandCount = Math.min(landCountMax, Math.max(landCountMin, blended));
+      notes.push(...styleHints.notes);
+      notes.push(
+        `User style reference: land target ${targetLandCount} (template ${targetLandCountRaw}, your avg ${styleHints.targetLandCount}).`
+      );
+    }
+    if (styleHints.preferredLandNames.length > 0) {
+      userPreferredLandNames = styleHints.preferredLandNames;
+      notes.push(
+        `User style reference: ${userPreferredLandNames.length} preferred lands from data/my_decks.`
+      );
+    }
+  }
+
   const targetNonLandCount = COMMANDER_DECK_SIZE - targetLandCount;
   notes.push(`Target: ${targetLandCount} lands, ${targetNonLandCount} nonlands (systems: ${MANA_BASE_SYSTEMS.join(', ')}).`);
 
@@ -427,6 +452,7 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
       cardsInDeck,
       addCard,
       notes,
+      userPreferredLandNames,
     });
     notes.push(`Lands: ${targetLandCount} (seeds ${seedLandCount} + filled ${landsToAdd}).`);
   }

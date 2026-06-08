@@ -7,7 +7,9 @@ Entry point for LLM agents building or analyzing **Bracket 3** Commander decks i
 ```mermaid
 flowchart LR
   A[get_synergies] --> B[User picks synergy slug]
-  B --> C[build_deck_from_commander]
+  B --> S[get_user_deck_style optional]
+  S --> C[build_deck_from_commander]
+  B --> C
   C --> D[analyze_deck]
   D --> E{Gaps?}
   E -->|yes| F[optimize_deck or search_cards]
@@ -16,18 +18,21 @@ flowchart LR
 ```
 
 1. **`get_synergies`** — list themes for the commander; **ask the user** which slug to use.
-2. **`get_strategy_guide`** (optional) — read construction principles for the chosen slug.
-3. **`build_deck_from_commander`** — full 99-card list (`useTemplateGenerator: true` default); use returned **`decklistText`**.
-4. **`analyze_deck`** — categories, Bracket 3, banlist, `recommendations`, `synergyScore`, `decklistText`.
-5. **`optimize_deck`** — automated cut/add + EDHREC autofill loop when gaps remain.
-6. Fix remaining gaps with **`search_cards`** (real names only); re-analyze until legal and on-theme.
+2. **`get_user_deck_style`** (optional) — read-only profile from **`data/my_decks`** (your imported Moxfield decks): land counts, mana mix, staple lands. Use when the user wants builds aligned with **their** mana base habits. Set `useOpenAI: true` only for narrative analysis (requires `OPENAI_API_KEY`).
+3. **`get_strategy_guide`** (optional) — read construction principles for the chosen slug.
+4. **`build_deck_from_commander`** — full 99-card list (`useTemplateGenerator: true` default); **`useUserStyleReference: true`** by default biases land count and mana base toward `data/my_decks`. **Never** save generated decks to `data/my_decks`. Use returned **`decklistText`**.
+5. **`analyze_deck`** — categories, Bracket 3, banlist, `recommendations`, `synergyScore`, `decklistText`.
+6. **`optimize_deck`** — automated cut/add + EDHREC autofill loop when gaps remain.
+7. Fix remaining gaps with **`search_cards`** (real names only); re-analyze until legal and on-theme.
 
 ## Decision tree
 
 | Situation | Tool / action |
 |-----------|----------------|
 | User names a commander, no strategy yet | `get_synergies` → ask user to pick slug |
-| User picked slug, wants a new list | `build_deck_from_commander` with `preferredStrategy` |
+| User picked slug, wants a new list | `build_deck_from_commander` with `preferredStrategy`, `useUserStyleReference: true` (default) |
+| User asks how they build / mana base taste | `get_user_deck_style` (`commanderName` optional); `useOpenAI: true` if narrative needed |
+| User wants generic template mana only | `build_deck_from_commander` with `useUserStyleReference: false` |
 | User pasted a decklist | `analyze_deck` with `commanderName` + `preferredStrategy` |
 | Categories `below` or weak synergy | `optimize_deck` (max 4 passes) or manual `search_cards` + re-analyze |
 | Unsure about one swap | `evaluate_card_swap` |
@@ -41,7 +46,8 @@ flowchart LR
 |------|---------|------------|----------|
 | `get_synergies` | Discover synergy slugs | `commanderName` | — |
 | `get_strategy_guide` | Archetype construction guide | `commanderName`, `preferredStrategy` | — |
-| `build_deck_from_commander` | Build 99-card mainboard | `commanderName`, `preferredStrategy`, `useTemplateGenerator` | `useEdhrec` **true**, `useEdhrecAutofill` **true**, `useTemplateGenerator` **true**, `refineUntilStable` **true** |
+| `get_user_deck_style` | Your imported decks: land stats, staples, category averages | `commanderName`, `useOpenAI`, `question` | `useOpenAI` **false**; needs `OPENAI_API_KEY` for narrative |
+| `build_deck_from_commander` | Build 99-card mainboard | `commanderName`, `preferredStrategy`, `useUserStyleReference` | `useEdhrec` **true**, `useEdhrecAutofill` **true**, `useTemplateGenerator` **true**, `useUserStyleReference` **true**, `refineUntilStable` **true** |
 | `analyze_deck` | Validate + recommend | `deckText`, `commanderName`, `preferredStrategy` | `templateId` **bracket3** |
 | `optimize_deck` | Auto improve deck | `deckText`, `commanderName`, `preferredStrategy`, `maxIterations` | `maxIterations` **4** |
 | `evaluate_card_swap` | Preview one swap | `deckText`, `cardToRemove`, `cardToAdd` | — |
@@ -65,13 +71,29 @@ The server exposes static project files via MCP `resources/list` and `resources/
 | `mtg-commander:///template/bracket3` | `data/deck-template-bracket3.json` |
 | `mtg-commander:///banlist` | `data/Banlist.txt` |
 | `mtg-commander:///bracket-rules` | `data/bracket-rules.json` |
+| `mtg-commander:///bracket3/policy-reference` | Fast mana + Bracket 3 policy JSON |
+| `mtg-commander:///docs/bracket3-official-rules` | Official rules (Moxfield + Wizards) |
 | `mtg-commander:///agents` | This file (`AGENTS.md`) |
 | `mtg-commander:///strategy-guides/index` | Slug → file map |
 | `mtg-commander:///strategy-guides/meta` | Ratios, packages, anti-patterns |
 | `mtg-commander:///strategy-guide/{slug}` | e.g. `.../strategy-guide/tokens` → `docs/strategy-guides/tokens.md` |
 | `mtg-commander:///docs/bracket3-template-for-agents` | Bracket 3 agent reference |
+| `mtg-commander:///user-decks/index` | Imported deck manifest (`data/my_decks/index.json`) |
+| `mtg-commander:///user-decks/style-profile` | Aggregated mana base / category stats from your decks |
+| `mtg-commander:///docs/user-deck-style-reference` | How style reference works (read-only library) |
+| `mtg-commander:///docs/commander-guides/aloy-discover` | Aloy Discover / artifact-creature triggers, scoring caveats |
+| `mtg-commander:///deck-knowledge/discover-artifact-heuristics` | JSON heuristics for Discover + `artifacts` slug builds |
+| `mtg-commander:///reference-decks/aloy-discover-bracket3` | Validated reference list (99 cards, Bracket 3) |
 
-Prefer resources for template ratios and strategy guides; use tools for commander-specific EDHREC data and deck validation.
+Prefer resources for template ratios and strategy guides; use **`get_user_deck_style`** or **`user-decks/style-profile`** for personal mana-base bias; use tools for commander-specific EDHREC data and deck validation.
+
+## User deck style reference (`data/my_decks`)
+
+- **Purpose:** Learn from **your real imported decks** (Moxfield → `npm run decks:download-moxfield`), mainly **land count** and **mana base staples**.
+- **Build integration:** `useUserStyleReference` (default **true**) on `build_deck_from_commander` — does **not** require OpenAI.
+- **Import-only:** Generated decklists must **never** be written to `data/my_decks`.
+- **OpenAI (optional):** `get_user_deck_style` + `useOpenAI: true` for narrative “how I build” analysis when `OPENAI_API_KEY` is set.
+- **Full guide:** `docs/user-deck-style-reference.md`
 
 ## MCP prompts (workflow templates)
 
@@ -269,7 +291,7 @@ Always confirm slugs with **`get_synergies`** for the actual commander.
 - **100 cards**: 1 commander + 99 mainboard (singleton except basics).
 - **Color identity**: every mainboard card ⊆ commander colors.
 - **Banlist**: `data/Banlist.txt` (automatic in tools).
-- **Bracket 3**: no MLD, no extra-turn chains, no 2-card wins before T6, ≤3 Game Changers / extra turns.
+- **Bracket 3**: no MLD, no extra-turn chains, no 2-card wins before T6, ≤3 Game Changers / extra turns. **Fast mana is allowed** (some pieces are Game Changers — see `docs/bracket3-official-rules.md`). Project banlist is separate (`Mana Crypt`, etc.).
 - **One synergy per deck** — do not mix themes without explicit user request.
 - **Never invent card names** — use `search_cards` or EDHREC/build output.
 
@@ -285,10 +307,17 @@ Always confirm slugs with **`get_synergies`** for the actual commander.
 | Banlist | `data/Banlist.txt` |
 | Strategy guides | `docs/strategy-guides/*.md`, metadata `data/strategy-guides.json` |
 | Bracket 3 template (agents) | `docs/bracket3-template-for-agents.md` |
+| Bracket 3 official rules | `docs/bracket3-official-rules.md`, `npm run brackets:check-official` |
+| Bracket policy JSON | `data/bracket3-policy-reference.json`, `data/bracket-official-sources.json` |
 | Synergy scoring | `docs/synergy-scoring-explained.md` |
 | Mana base | `docs/mana-base-guide.md` |
 | Card evaluation | `docs/card-evaluation-criteria.md` |
 | Optimization loop | `docs/optimization-playbook.md` |
+| User deck imports | `data/my_decks/` — `npm run decks:download-moxfield`, `npm run decks:user-style-profile` |
+| User style reference (agents) | `docs/user-deck-style-reference.md` |
+| Commander-specific guides | `docs/commander-guides/*.md` (e.g. Aloy Discover) |
+| Structured deck knowledge | `data/deck-knowledge/*.json` |
+| Reference decklists | `data/reference-decks/*.txt` |
 | Pipeline | `docs/deck-pipeline.md`, `docs/agent-deck-system.md` |
 | Agent chat (Cursor / SDK) | `docs/agent-chat-setup.md` |
 | MCP / DB troubleshooting | `docs/agent-mcp-troubleshooting.md` |

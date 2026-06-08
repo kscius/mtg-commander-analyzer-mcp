@@ -45,8 +45,19 @@ Artifact-heavy strategies can shift ramp toward rocks; creature-heavy toward dor
 - Fixing only in green when commander is 4+ colors.
 - Counting every rock as untapped colored source (template weights rocks < 1.0 for color pips).
 
+## User style reference (`data/my_decks`)
+
+When **building** new lists, `build_deck_from_commander` defaults to **`useUserStyleReference: true`**, blending template land targets with averages from your imported Moxfield decks and prioritizing lands you use often.
+
+- Profile tool: `get_user_deck_style` (optional `commanderName`, optional `useOpenAI` for narrative).
+- Resource: `mtg-commander:///user-decks/style-profile`
+- Guide: `docs/user-deck-style-reference.md`
+
+Set `useUserStyleReference: false` to ignore personal imports.
+
 ## Agent workflow
 
-1. Run `analyze_deck` and read `analysis.manaBaseQuality` and `lintReport` issues keyed `mana_base:*`.
-2. Use `search_cards` with `category=lands` and `colorIdentity` matching commander.
-3. Re-analyze after changes; stop when `manaBaseQuality.score` ≥ 75 and no hard mana lint issues.
+1. *(Build)* Keep `useUserStyleReference: true` unless the user wants generic mana.
+2. Run `analyze_deck` and read `analysis.manaBaseQuality` and `lintReport` issues keyed `mana_base:*`.
+3. Use `search_cards` with `category=lands` and `colorIdentity` matching commander.
+4. Re-analyze after changes; stop when `manaBaseQuality.score` ≥ 75 and no hard mana lint issues.

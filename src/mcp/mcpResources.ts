@@ -4,6 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { USER_DECK_INDEX_FILE, USER_DECK_LIBRARY_DIR } from '../core/userDeckPaths';
+import { getUserDeckStyleProfile } from '../core/userDeckLibrary';
 
 /** URI prefix for all resources (path after prefix is the resource key). */
 export const MTG_COMMANDER_RESOURCE_PREFIX = 'mtg-commander:///';
@@ -82,6 +84,54 @@ export function listMcpResources(): McpResourceDescriptor[] {
       description: 'Human-readable Bracket 3 construction reference',
       mimeType: 'text/markdown',
     },
+    {
+      uri: buildUri('user-decks/index'),
+      name: 'User deck library index',
+      description: 'Read-only Moxfield imports (data/my_decks/index.json)',
+      mimeType: 'application/json',
+    },
+    {
+      uri: buildUri('user-decks/style-profile'),
+      name: 'User deck style profile',
+      description: 'Aggregated mana base and category stats from data/my_decks',
+      mimeType: 'application/json',
+    },
+    {
+      uri: buildUri('docs/user-deck-style-reference'),
+      name: 'User deck style reference (agents)',
+      description: 'How data/my_decks biases build mana base; get_user_deck_style',
+      mimeType: 'text/markdown',
+    },
+    {
+      uri: buildUri('docs/bracket3-official-rules'),
+      name: 'Bracket 3 official rules',
+      description: 'Fast mana allowed, Game Changers, Moxfield/Wizards sources',
+      mimeType: 'text/markdown',
+    },
+    {
+      uri: buildUri('bracket3/policy-reference'),
+      name: 'Bracket 3 policy reference (JSON)',
+      description: 'Machine-readable Bracket 3 policy including fast mana',
+      mimeType: 'application/json',
+    },
+    {
+      uri: buildUri('docs/commander-guides/aloy-discover'),
+      name: 'Commander guide: Aloy Discover',
+      description: 'Discover artifact-creature triggers, scoring caveats, validated swaps',
+      mimeType: 'text/markdown',
+    },
+    {
+      uri: buildUri('deck-knowledge/discover-artifact-heuristics'),
+      name: 'Discover artifact heuristics (JSON)',
+      description: 'Structured rules for Aloy / artifact Discover builds',
+      mimeType: 'application/json',
+    },
+    {
+      uri: buildUri('reference-decks/aloy-discover-bracket3'),
+      name: 'Reference deck: Aloy Discover Bracket 3',
+      description: 'Validated 99-card mainboard (Discover artifacts)',
+      mimeType: 'text/plain',
+    },
   ];
 
   try {
@@ -136,6 +186,30 @@ export function readMcpResource(uri: string): McpResourceContent {
       file: 'docs/bracket3-template-for-agents.md',
       mimeType: 'text/markdown',
     },
+    'docs/bracket3-official-rules': {
+      file: 'docs/bracket3-official-rules.md',
+      mimeType: 'text/markdown',
+    },
+    'bracket3/policy-reference': {
+      file: 'data/bracket3-policy-reference.json',
+      mimeType: 'application/json',
+    },
+    'docs/user-deck-style-reference': {
+      file: 'docs/user-deck-style-reference.md',
+      mimeType: 'text/markdown',
+    },
+    'docs/commander-guides/aloy-discover': {
+      file: 'docs/commander-guides/aloy-discover.md',
+      mimeType: 'text/markdown',
+    },
+    'deck-knowledge/discover-artifact-heuristics': {
+      file: 'data/deck-knowledge/discover-artifact-heuristics.json',
+      mimeType: 'application/json',
+    },
+    'reference-decks/aloy-discover-bracket3': {
+      file: 'data/reference-decks/aloy-discover-bracket3.txt',
+      mimeType: 'text/plain',
+    },
   };
 
   const staticEntry = staticFiles[key];
@@ -144,6 +218,27 @@ export function readMcpResource(uri: string): McpResourceContent {
       uri,
       mimeType: staticEntry.mimeType,
       text: readProjectFile(staticEntry.file),
+    };
+  }
+
+  if (key === 'user-decks/index') {
+    const indexPath = path.join(USER_DECK_LIBRARY_DIR, USER_DECK_INDEX_FILE);
+    if (!fs.existsSync(indexPath)) {
+      throw new Error('User deck index not found. Import decks to data/my_decks first.');
+    }
+    return {
+      uri,
+      mimeType: 'application/json',
+      text: fs.readFileSync(indexPath, 'utf8'),
+    };
+  }
+
+  if (key === 'user-decks/style-profile') {
+    const profile = getUserDeckStyleProfile();
+    return {
+      uri,
+      mimeType: 'application/json',
+      text: JSON.stringify(profile, null, 2),
     };
   }
 

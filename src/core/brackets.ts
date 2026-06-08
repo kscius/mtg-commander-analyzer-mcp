@@ -24,6 +24,10 @@ export interface BracketRules {
   allowInfiniteTwoCardCombosBeforeTurnSix: boolean;
   /** Maximum number of extra turn cards allowed */
   maxExtraTurnCards?: number;
+  /** Fast mana is not banned in Bracket 3; some pieces count as Game Changers */
+  fastManaProhibited?: boolean;
+  /** Optional agent notes from bracket-rules.json */
+  notes?: string[];
 }
 
 /**

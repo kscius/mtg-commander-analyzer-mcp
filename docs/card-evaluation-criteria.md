@@ -56,7 +56,14 @@ When `analyze_deck` runs with `preferredStrategy`:
 
 - **`synergyScore`** (0–100): thematic fit vs the EDHREC slug.
 - **`deckScore`**: composite of synergy, category coverage, and lint/format health.
-- **`recommendations.adds` / `.cuts`**: starting point — verify each swap with `search_cards` and this checklist.
+- **`offThemeCards`**: cards with per-card score &lt; 0.42 — verify before cutting; engine pieces may appear off-theme on the wrong slug (e.g. Roaming Throne on `artifacts` for Aloy Discover).
+
+### Commander ability check
+
+Before adding a card “for synergy”, confirm it interacts with the **commander’s actual trigger or payoff**:
+
+- **Aloy:** only **artifact creatures that attack** trigger Discover — see `docs/commander-guides/aloy-discover.md`.
+- **Herald's Horn:** reduces cost for one **creature subtype**, not all artifacts — poor fit for mixed crossover lists with global reducers already present.
 
 ## Quick pass/fail
 

@@ -65,6 +65,7 @@ export async function runBuildDeckFromCommander(
       preferredTheme: input.preferredStrategy,
       metaOverride: input.metaOverride,
       useOpenAIEnhancement: input.useOpenAIEnhancement,
+      useUserStyleReference: input.useUserStyleReference,
     });
 
     const inputMerged: BuildDeckInput = {

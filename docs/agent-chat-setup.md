@@ -14,7 +14,9 @@ flowchart LR
   Host --> Deliver[decklistText + qualityGate]
 ```
 
-Do **not** embed a second LLM inside the MCP stdio process. Use the host agent loop: `get_synergies` → user picks slug → `build_deck_from_commander` → `analyze_deck` → `optimize_deck` as needed.
+Do **not** embed a second LLM inside the MCP stdio process for normal builds. Use the host agent loop: `get_synergies` → user picks slug → (optional `get_user_deck_style`) → `build_deck_from_commander` (`useUserStyleReference: true` by default) → `analyze_deck` → `optimize_deck` as needed.
+
+**User deck library:** import real lists to `data/my_decks` (`npm run decks:download-moxfield`). The build biases mana base from that folder; generated decks must **not** be saved there. See `docs/user-deck-style-reference.md`.
 
 ## Option A — Cursor IDE (default)
 
@@ -43,8 +45,8 @@ See also `.cursor/plans/scout-2026-05-23-cursor-sdk-agent-in-mcp.md` for tradeof
 
 | Surface | Use |
 |---------|-----|
-| **Tools** | Mutations and validation (`build_deck_from_commander`, `analyze_deck`, …) |
-| **Resources** | Static template, banlist, strategy guides (`mtg-commander:///…`) |
+| **Tools** | Mutations and validation (`build_deck_from_commander`, `get_user_deck_style`, `analyze_deck`, …) |
+| **Resources** | Template, banlist, strategy guides, user style profile (`mtg-commander:///user-decks/…`) |
 | **Prompts** | `build-commander-deck`, `optimize-decklist` workflow templates |
 
 ## Response fields (read first)

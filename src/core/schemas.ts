@@ -121,6 +121,8 @@ export const BuildDeckInputSchema = z.object({
   /** OpenAI enhancement on remaining category gaps (requires OPENAI_API_KEY). Defaults to true. */
   useOpenAIEnhancement: z.boolean().optional().default(true).describe("When true and OPENAI_API_KEY is set, use OpenAI to pick cards from DB candidates for underfilled categories after EDHREC/DB fill. Defaults to true."),
 
+  useUserStyleReference: z.boolean().optional().default(true).describe("When true, use data/my_decks as read-only style reference for land count and mana base staples. Never writes generated decks there."),
+
   /** When true (default), repeat EDHREC autofill until category deficits clear or no progress (see maxRefinementIterations). */
   refineUntilStable: z.boolean().optional().default(true).describe("Repeat EDHREC category autofill until template gaps are filled or iteration cap is reached. Defaults to true."),
 
@@ -153,6 +155,24 @@ export const GetCategoryCandidatesInputSchema = z.object({
 });
 
 export type GetCategoryCandidatesInput = z.infer<typeof GetCategoryCandidatesInputSchema>;
+
+/** get_user_deck_style — read-only user import library + optional OpenAI narrative */
+export const GetUserDeckStyleInputSchema = z.object({
+  responseMode: McpResponseModeSchema,
+  commanderName: z.string().optional().describe("Optional commander to tailor land-count and staple hints"),
+  preferredStrategy: z.string().optional().describe("EDHREC theme slug for OpenAI context"),
+  useOpenAI: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("When true and OPENAI_API_KEY is set, include narrative style analysis"),
+  question: z
+    .string()
+    .optional()
+    .describe("Custom question for OpenAI style analysis (requires useOpenAI: true)"),
+});
+
+export type GetUserDeckStyleInput = z.infer<typeof GetUserDeckStyleInputSchema>;
 
 /**
  * Schema for build_deck_from_commander tool output

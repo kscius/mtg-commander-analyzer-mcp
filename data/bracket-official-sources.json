@@ -1,0 +1,74 @@
+{
+  "version": "2026-06-06",
+  "maintenance": {
+    "recommendedCadenceDays": 30,
+    "command": "npm run brackets:check-official",
+    "notes": "Run after Wizards bracket announcements or when Moxfield updates their brackets page. Updates lastCheckedAt in this file."
+  },
+  "sources": [
+    {
+      "id": "moxfield-brackets",
+      "label": "Moxfield Commander Brackets",
+      "url": "https://moxfield.com/commanderbrackets",
+      "role": "primary-ui",
+      "fetchMethod": "playwright",
+      "validationMode": "soft",
+      "expectedPhrases": [
+        "Commander",
+        "Bracket"
+      ],
+      "blockedIndicators": [
+        "you have been blocked",
+        "unable to access moxfield"
+      ],
+      "notes": "SPA + Cloudflare may block headless fetch. Agents and humans should open this URL in a browser; Wizards articles are the hard validation source."
+    },
+    {
+      "id": "wizards-intro",
+      "label": "Wizards — Introducing Commander Brackets Beta",
+      "url": "https://magic.wizards.com/en/news/announcements/introducing-commander-brackets-beta",
+      "role": "canonical-policy",
+      "fetchMethod": "https",
+      "validationMode": "hard",
+      "expectedPhrases": [
+        "Bracket 3: Upgraded",
+        "Up to three cards from the Game Changers list",
+        "No mass land denial",
+        "Sol Ring",
+        "Mana Vault",
+        "Ancient Tomb"
+      ]
+    },
+    {
+      "id": "wizards-april-2025",
+      "label": "Wizards — Brackets Beta Update (April 2025)",
+      "url": "https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-april-22-2025",
+      "role": "game-changers-updates",
+      "fetchMethod": "https",
+      "validationMode": "hard",
+      "expectedPhrases": [
+        "Game Changers",
+        "Moxfield"
+      ]
+    }
+  ],
+  "lastCheckedAt": "2026-06-08T00:10:36.545Z",
+  "lastCheckResults": [
+    {
+      "sourceId": "moxfield-brackets",
+      "ok": true,
+      "checkedAt": "2026-06-08T00:10:30.448Z",
+      "error": "Cloudflare/bot block — open URL in browser for manual review (soft source)"
+    },
+    {
+      "sourceId": "wizards-intro",
+      "ok": true,
+      "checkedAt": "2026-06-08T00:10:36.086Z"
+    },
+    {
+      "sourceId": "wizards-april-2025",
+      "ok": true,
+      "checkedAt": "2026-06-08T00:10:36.453Z"
+    }
+  ]
+}

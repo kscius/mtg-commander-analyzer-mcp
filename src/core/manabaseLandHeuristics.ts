@@ -215,7 +215,8 @@ export function mergeAndSortLandCandidates(
   commanderLands: EdhrecCardSuggestion[],
   colorLands: EdhrecCardSuggestion[],
   commanderLandNamesLower: Set<string>,
-  preferredTheme?: string
+  preferredTheme?: string,
+  userPreferredLandNamesLower?: Set<string>
 ): EdhrecCardSuggestion[] {
   const seen = new Set<string>();
   const merged: EdhrecCardSuggestion[] = [];
@@ -244,6 +245,12 @@ export function mergeAndSortLandCandidates(
     const aCmd = commanderLandNamesLower.has(a.name.toLowerCase()) ? 0 : 1;
     const bCmd = commanderLandNamesLower.has(b.name.toLowerCase()) ? 0 : 1;
     if (aCmd !== bCmd) return aCmd - bCmd;
+
+    if (userPreferredLandNamesLower?.size) {
+      const aUser = userPreferredLandNamesLower.has(a.name.toLowerCase()) ? 0 : 1;
+      const bUser = userPreferredLandNamesLower.has(b.name.toLowerCase()) ? 0 : 1;
+      if (aUser !== bUser) return aUser - bUser;
+    }
 
     const ta = tapRank(a.name);
     const tb = tapRank(b.name);

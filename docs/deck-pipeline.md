@@ -31,8 +31,17 @@ Quien antes dependiera del template “default” implícito debe fijar `templat
 
 Consulta `data/cards.db` con FTS y filtros (`colorIdentity`, `category`, `type`, `maxMV`). Los agentes deben usarla para **adds** concretos — no inventar nombres.
 
+## Perfil de estilo del usuario (`get_user_deck_style`)
+
+- **Fuente:** mazos importados en `data/my_decks/` (Moxfield → `npm run decks:download-moxfield`).
+- **Solo lectura:** el sistema **no** guarda mazos generados en esa carpeta.
+- **Salida:** promedios de tierras, mix de mana, categorías, tierras frecuentes; con `commanderName`, hints por identidad de color.
+- **OpenAI opcional:** `useOpenAI: true` + `OPENAI_API_KEY` para análisis narrativo.
+- Ver `docs/user-deck-style-reference.md`.
+
 ## Construir desde comandante (`build_deck_from_commander`)
 
+- **`useUserStyleReference: true` (por defecto):** mezcla objetivos de tierras de plantilla con promedios de tus mazos importados y prioriza tierras no básicas que usas a menudo (`userDeckLibrary` → `templateDeckGenerator` → `manabaseLandHeuristics`).
 - **`useTemplateGenerator: true` (por defecto con `templateId: bracket3`):** generación guiada por plantilla (`templateDeckGenerator`), mana base de cuatro sistemas, EDHREC (perfil reutilizado en el wrapper MCP, sin doble fetch), scoring por `preferredStrategy`, relleno con crédito multi-categoría ponderado y curva; déficits restantes con **SQLite** (`searchCardsFiltered`, misma DB que `search_cards`).
 - **`useTemplateGenerator: false`:** esqueleto legacy; con plantilla `bracket3` aún usa mana base multi-sistema en tierras, pero no completa 99 cartas no-tierra. Ver `src/core/deckBuilder.ts`.
 
@@ -46,7 +55,7 @@ Dado `commanderName`, devuelve temas EDHREC + heurísticas y un `recommendedStra
 
 ## Agente LLM (Cursor u otro cliente MCP)
 
-El **modelo del cliente** elige cartas temáticas y cierra huecos; el MCP no llama a OpenAI. Flujo recomendado: `build_deck_from_commander` → `analyze_deck` → `optimize_deck` / `search_cards` hasta `qualityGate.readyToShip` o convergencia.
+El **modelo del cliente** elige cartas temáticas y cierra huecos. OpenAI solo si se pide análisis narrativo con `get_user_deck_style`. Flujo recomendado: `get_synergies` → (opcional `get_user_deck_style`) → `build_deck_from_commander` → `analyze_deck` → `optimize_deck` / `search_cards` hasta `qualityGate.readyToShip` o convergencia.
 
 ## Validación local
 

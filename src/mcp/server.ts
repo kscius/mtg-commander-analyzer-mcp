@@ -56,6 +56,7 @@ import { formatZodValidationError } from './mcpOutputHelpers';
 import { formatAuxiliaryMcpJson, formatMcpToolJson, type McpResponseMode } from './mcpResponseFormat';
 import { runApplyDeckChanges } from './applyDeckChangesTool';
 import { runGetCategoryCandidates } from './getCategoryCandidatesTool';
+import { runGetUserDeckStyle } from './getUserDeckStyleTool';
 
 import { isDatabaseReady } from '../core/cardDatabase';
 import { getEdhrecCacheStats } from '../core/edhrec';
@@ -70,6 +71,8 @@ import {
   ApplyDeckChangesInputSchema,
 
   GetCategoryCandidatesInputSchema,
+
+  GetUserDeckStyleInputSchema,
 
   BuildDeckInputSchema,
 
@@ -303,6 +306,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return toolTextResponse(result, responseMode);
 
+    }
+
+    if (name === 'get_user_deck_style') {
+      const validatedInput = GetUserDeckStyleInputSchema.parse(args);
+      const result = await runGetUserDeckStyle(validatedInput);
+      return toolTextResponse(result, validatedInput.responseMode);
     }
 
 

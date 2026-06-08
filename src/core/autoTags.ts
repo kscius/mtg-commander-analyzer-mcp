@@ -209,8 +209,13 @@ export function autoTags(card: ScryCard, opt: AutoTagOptions = {}): string[] {
     tags.add('spell_copy');
   }
 
-  // 13) Win condition
-  if (/(?:you win the game|opponents lose the game)/i.test(text)) {
+  // 13) Win condition (alt-win text + common combat/counter finishers)
+  if (
+    /(?:you win the game|opponents lose the game)/i.test(text) ||
+    /creatures you control get \+\w+\/\+\w+ and trample until end of turn/i.test(text) ||
+    /creatures you control gain trample and get \+\w+\/\+\w+ until end of turn/i.test(text) ||
+    /remove a \+1\/\+1 counter from [^:]+: .* deals 1 damage to any target/i.test(text)
+  ) {
     tags.add('win_condition');
   }
 
@@ -316,8 +321,8 @@ const PRIMARY_CATEGORY_PRIORITY = [
   'graveyard_hate',
   'board_wipes',
   'protection',
-  'value_engines',
   'win_conditions',
+  'value_engines',
   'game_changers',
   'extra_turns',
 ] as const;

@@ -36,6 +36,20 @@ synergyScore = round(100 * sum(cardScore * quantity) / totalNonlandCards)
 
 If `preferredStrategy` is omitted, the tool returns **50** (neutral) and does not flag off-theme cards.
 
+## `deckScore` (composite)
+
+When computed (see `src/core/deckQualityReport.ts`):
+
+```text
+deckScore ≈ synergyScore×0.4 + categoryCoverage×0.4 + lintHealth×0.2
+```
+
+- **Category coverage** rewards all Bracket 3 categories within min–max (primary tag only per card).
+- **Lint health** penalizes hard format/bracket/banlist issues.
+- A deck can be **`readyToShip`** with **deck score ~86–88** if synergy is capped by slug mismatch — e.g. **Aloy Discover** staples score low on `artifacts` but are required for the strategy. See `docs/commander-guides/aloy-discover.md`.
+
+Chasing **deck score 95** by cutting engine cards usually breaks the deck; fix categories and legality first, then accept realistic synergy ceilings.
+
 ## `evaluate_card_swap` usage
 
 Swap evaluation runs `analyze_deck` before and after a simulated cut/add:

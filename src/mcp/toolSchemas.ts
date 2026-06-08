@@ -67,11 +67,17 @@ export function buildMcpTools(): Tool[] {
           useEdhrec: { type: 'boolean', default: true },
           useEdhrecAutofill: { type: 'boolean', default: true },
           useTemplateGenerator: { type: 'boolean', default: true },
-          useOpenAIEnhancement: {
+      useOpenAIEnhancement: {
             type: 'boolean',
             default: true,
             description:
               'When true and OPENAI_API_KEY is set, use OpenAI to improve category fill from DB candidates (after EDHREC).',
+          },
+          useUserStyleReference: {
+            type: 'boolean',
+            default: true,
+            description:
+              'When true, bias land count and mana base toward read-only imports in data/my_decks (never writes generated decks there).',
           },
           refineUntilStable: { type: 'boolean', default: true },
           maxRefinementIterations: { type: 'number', default: 5 },
@@ -245,6 +251,31 @@ export function buildMcpTools(): Tool[] {
           },
         },
         required: ['commanderName', 'preferredStrategy'],
+      },
+    },
+    {
+      name: 'get_user_deck_style',
+      description:
+        'Read-only profile of the user\'s imported Moxfield decks (data/my_decks): land counts, mana base staples, category averages. Optional OpenAI narrative when useOpenAI is true.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          responseMode: RESPONSE_MODE_PROP,
+          commanderName: {
+            type: 'string',
+            description: 'Optional commander to tailor land target and staple hints',
+          },
+          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          useOpenAI: {
+            type: 'boolean',
+            default: false,
+            description: 'Include OpenAI narrative analysis (requires OPENAI_API_KEY)',
+          },
+          question: {
+            type: 'string',
+            description: 'Custom question for OpenAI (only when useOpenAI is true)',
+          },
+        },
       },
     },
   ];

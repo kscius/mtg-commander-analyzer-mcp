@@ -35,7 +35,7 @@
 ### 4. Verify it works
 - Open a new chat in Cursor
 - Ask: "What MCP tools do you have available?"
-- You should see `analyze_deck` and `build_deck_from_commander`
+- You should see `analyze_deck`, `build_deck_from_commander`, and `get_user_deck_style`
 
 ---
 

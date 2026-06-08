@@ -25,6 +25,8 @@ describe('mcpPrompts', () => {
     expect(text).toContain('group-slug');
     expect(text).toContain('get_synergies');
     expect(text).toContain('qualityGate.readyToShip');
+    expect(text).toContain('get_user_deck_style');
+    expect(text).toContain('useUserStyleReference');
   });
 
   it('optimize-decklist requires preferredStrategy', () => {

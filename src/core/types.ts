@@ -467,6 +467,8 @@ export interface BuildDeckInput {
    * Set false to skip in-process OpenAI calls.
    */
   useOpenAIEnhancement?: boolean;
+  /** When true (default), bias land count / mana base using read-only data/my_decks imports. */
+  useUserStyleReference?: boolean;
   /**
    * When true (default), run EDHREC category autofill in multiple passes until deficits clear or progress stops.
    * Set false for a single autofill pass only (faster, may leave template gaps).

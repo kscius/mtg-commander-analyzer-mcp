@@ -194,13 +194,14 @@ Pull requests and pushes to `main` / `master` run `npm ci`, `npm run build`, and
 
 ### MCP Server (Recommended)
 
-The MCP server exposes **ten tools** for compatible clients (Cursor, Claude Desktop, etc.):
+The MCP server exposes **eleven tools** for compatible clients (Cursor, Claude Desktop, etc.):
 
 | Tool | Purpose |
 |------|---------|
 | `get_synergies` | List EDHREC themes for a commander |
+| `get_user_deck_style` | Aggregated mana base / category stats from your imported decks (`data/my_decks`) |
 | `get_strategy_guide` | Markdown construction guide for a synergy slug |
-| `build_deck_from_commander` | Build 99-card mainboard (template + EDHREC; **preferred**) |
+| `build_deck_from_commander` | Build 99-card mainboard (template + EDHREC; **preferred**; biases mana toward `data/my_decks` by default) |
 | `get_category_candidates` | Ranked DB candidates for a template category (gap-fill without guessing names) |
 | `analyze_deck` | Validate decklist, categories, Bracket 3, `qualityGate`, `agentBrief` |
 | `optimize_deck` | Iterative analyze → cut/add → EDHREC autofill |
@@ -219,6 +220,11 @@ See **[AGENTS.md](./AGENTS.md)** for the recommended agent workflow.
 | `mtg-commander:///banlist` | Project banlist |
 | `mtg-commander:///agents` | AGENTS.md |
 | `mtg-commander:///strategy-guide/{slug}` | Archetype markdown guides |
+| `mtg-commander:///user-decks/index` | Imported deck manifest |
+| `mtg-commander:///user-decks/style-profile` | Aggregated user mana-base profile |
+| `mtg-commander:///docs/user-deck-style-reference` | Agent guide for personal deck library |
+
+**User deck library:** import your Moxfield lists to `data/my_decks` (`npm run decks:download-moxfield`). Builds use `useUserStyleReference: true` (default) to bias land count and staples — generated decks are **never** saved there. See [docs/user-deck-style-reference.md](./docs/user-deck-style-reference.md).
 
 EDHREC responses are cached on disk at `data/cache/edhrec/` (24h TTL) to speed up repeated builds.
 
@@ -441,7 +447,8 @@ In `claude_desktop_config.json`:
 **MCP Server:**
 - ✅ Complete MCP server with @modelcontextprotocol/sdk
 - ✅ Stdio transport for universal compatibility
-- ✅ Ten MCP tools: `get_synergies`, `get_strategy_guide`, `get_category_candidates`, `search_cards`, `resolve_card`, `build_deck_from_commander`, `analyze_deck`, `optimize_deck`, `apply_deck_changes`, `evaluate_card_swap`. Agent entry: **AGENTS.md**
+- ✅ Eleven MCP tools: `get_synergies`, `get_user_deck_style`, `get_strategy_guide`, `get_category_candidates`, `search_cards`, `resolve_card`, `build_deck_from_commander`, `analyze_deck`, `optimize_deck`, `apply_deck_changes`, `evaluate_card_swap`. Agent entry: **AGENTS.md**
+- ✅ User deck style reference (`data/my_decks`, `useUserStyleReference`, optional OpenAI narrative)
 - ✅ Input validation with zod schemas
 - ✅ Graceful error handling
 

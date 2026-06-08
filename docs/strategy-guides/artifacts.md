@@ -48,3 +48,17 @@
 - Colorless staples increase; colored slots for interaction only.
 
 **EDHREC slug:** `artifacts`
+
+## Commander-specific: Aloy, Savior of Meridian (Discover)
+
+When the plan is **Discover on artifact creature attacks** (not generic artifacts):
+
+- Read **`docs/commander-guides/aloy-discover.md`** or MCP `mtg-commander:///docs/commander-guides/aloy-discover`.
+- Only **artifact creature** attackers trigger Discover — not Dinosaurs, not Dino DNA tokens.
+- **Roaming Throne** → choose **Human**; stack with **Panharmonicon** for multiple Discover triggers.
+- **Cyberdrive Awakener** animates artifacts for mass attack / high Discover X.
+- Skip **Herald's Horn** when **Etherium Sculptor** + **Foundry Inspector** already reduce costs; Horn picks one **creature subtype**, not “Artifact”.
+- Expect **~86–88 deck score** ceiling on `artifacts` slug while keeping the Discover engine (see synergy doc).
+- Do not trust blind **`optimize_deck`** to preserve crossover / Discover package.
+
+Reference list: `data/reference-decks/aloy-discover-bracket3.txt`.

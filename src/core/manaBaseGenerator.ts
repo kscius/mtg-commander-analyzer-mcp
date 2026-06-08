@@ -58,6 +58,8 @@ export interface ManaBaseFillContext {
   cardsInDeck: Set<string>;
   addCard: (name: string) => boolean;
   notes: string[];
+  /** Lands the user runs often in data/my_decks — boost sort priority (read-only reference). */
+  userPreferredLandNames?: string[];
 }
 
 /**
@@ -180,11 +182,15 @@ export async function fillManaBaseFromTemplate(ctx: ManaBaseFillContext): Promis
     Math.max(landsToAdd - landsAddedFill + 40, 60)
   );
   const commanderLandSet = new Set(profileLands.map((s) => s.name.toLowerCase()));
+  const userLandSet = ctx.userPreferredLandNames?.length
+    ? new Set(ctx.userPreferredLandNames.map((n) => n.toLowerCase()))
+    : undefined;
   const mergedLands = mergeAndSortLandCandidates(
     profileLands,
     supplementLands,
     commanderLandSet,
-    ctx.preferredTheme
+    ctx.preferredTheme,
+    userLandSet
   );
 
   const landNamesInDeck = (): string[] =>
