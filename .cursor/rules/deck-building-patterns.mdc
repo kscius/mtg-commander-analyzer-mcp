@@ -10,10 +10,11 @@ Use with **`AGENTS.md`**, **`docs/agent-deck-system.md`**, and project skills un
 ## Pattern A — Build from commander
 
 1. `get_synergies` → user picks **one** slug.
-2. `get_strategy_guide` with `preferredStrategy`.
-3. `build_deck_from_commander` (`useTemplateGenerator`, `useEdhrecAutofill`, `refineUntilStable` defaults **true**).
-4. `analyze_deck` on returned `decklistText`.
-5. If gaps remain → `optimize_deck` (`maxIterations: 4`) → re-analyze.
+2. *(Optional)* `get_user_deck_style` with `commanderName` — skim land targets / staple lands from `data/my_decks`.
+3. `get_strategy_guide` with `preferredStrategy`.
+4. `build_deck_from_commander` (`useTemplateGenerator`, `useEdhrecAutofill`, `useUserStyleReference`, `refineUntilStable` defaults **true**).
+5. `analyze_deck` on returned `decklistText`.
+6. If gaps remain → `optimize_deck` (`maxIterations: 4`) → re-analyze.
 
 ## Pattern B — Optimize existing list
 
@@ -42,10 +43,31 @@ Use with **`AGENTS.md`**, **`docs/agent-deck-system.md`**, and project skills un
 
 | Need | Path |
 |------|------|
+| Data references | Path |
+|------|------|
 | Bracket 3 categories | `data/deck-template-bracket3.json`, `docs/bracket3-template-for-agents.md` |
+| Bracket 3 official policy | `docs/bracket3-official-rules.md`, `data/bracket3-policy-reference.json` |
+| Bracket maintenance | `npm run brackets:check-official`, https://moxfield.com/commanderbrackets |
+| Bracket 3 official policy | `docs/bracket3-official-rules.md`, `data/bracket3-policy-reference.json` |
+| Bracket source check | `npm run brackets:check-official` → https://moxfield.com/commanderbrackets |
 | Slug metadata | `data/strategy-guides.json` |
 | Scoring | `data/strategy-profiles.json`, `docs/synergy-scoring-explained.md` |
 | Long-form guides | `docs/strategy-guides/{slug}.md` |
+| User mana-base style | `data/my_decks`, `get_user_deck_style`, `docs/user-deck-style-reference.md` |
+| Commander-specific guides | `docs/commander-guides/*.md`, MCP `mtg-commander:///docs/commander-guides/{name}` |
+| Structured deck knowledge | `data/deck-knowledge/*.json`, MCP `mtg-commander:///deck-knowledge/{id}` |
+| Reference decklists | `data/reference-decks/*.txt`, MCP `mtg-commander:///reference-decks/{name}` |
+
+## Pattern D — Commander-specific knowledge (e.g. Aloy Discover)
+
+When a validated guide exists under `docs/commander-guides/`:
+
+1. Read MCP resource or file **before** building (trigger rules, scoring ceiling, anti-patterns).
+2. Use **`preferredStrategy`** from the guide (Aloy Discover → `artifacts`).
+3. Prefer manual targeted fixes over blind **`optimize_deck`** when the guide warns about false off-theme cuts.
+4. Compare against **`data/reference-decks/`** when validating swaps.
+
+Example: Aloy Discover → `.cursor/rules/aloy-discover-deck.mdc`, `docs/commander-guides/aloy-discover.md`.
 
 ## Anti-patterns
 
@@ -53,3 +75,5 @@ Use with **`AGENTS.md`**, **`docs/agent-deck-system.md`**, and project skills un
 - Using `proliferate` or other free text instead of EDHREC slugs (use `counters` for +1/+1).
 - Skipping `optimize_deck` when many categories are `below`.
 - Applying swaps when `evaluate_card_swap` returns `skip`.
+- Blind **`optimize_deck`** on commander-specific lists when a guide warns it cuts engine pieces (see Aloy Discover).
+- Rejecting **fast mana** as “illegal for Bracket 3” — fast mana is allowed; some pieces are Game Changers (`docs/bracket3-official-rules.md`).

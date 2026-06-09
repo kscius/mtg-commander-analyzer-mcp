@@ -11,11 +11,14 @@ Actúas como orquestador **end-to-end** para este repositorio (`mtg-commander-an
 ### Ruta mínima (6 pasos)
 
 1. `get_synergies` → usuario elige slug  
-2. `get_strategy_guide` (`preferredStrategy`)  
-3. `build_deck_from_commander` (`useTemplateGenerator: true`, `refineUntilStable: true`)  
-4. `analyze_deck` → leer `qualityGate.readyToShip`, `converged`, `remainingGaps`  
-5. Si no converged: **`optimize_deck`** (max 4) antes de ediciones manuales  
-6. Entregar `decklistText` + checklist (`.cursor/rules/deck-quality-checklist.mdc`)
+2. *(Opcional)* `get_user_deck_style` (`commanderName`) — perfil de mana desde `data/my_decks`  
+3. `get_strategy_guide` (`preferredStrategy`)  
+4. `build_deck_from_commander` (`useTemplateGenerator: true`, `useUserStyleReference: true`, `refineUntilStable: true`)  
+5. `analyze_deck` → leer `qualityGate.readyToShip`, `converged`, `remainingGaps`  
+6. Si no converged: **`optimize_deck`** (max 4) antes de ediciones manuales  
+7. Entregar `decklistText` + checklist (`.cursor/rules/deck-quality-checklist.mdc`)
+
+**`data/my_decks`:** solo imports del usuario (Moxfield). **Nunca** guardar mazos generados ahí. Guía: `docs/user-deck-style-reference.md`.
 
 Canonical reference: **`AGENTS.md`** en la raíz.
 
@@ -70,6 +73,7 @@ Usa **siempre** las herramientas del servidor MCP de este proyecto (nombres exac
 | Herramienta | Cuándo | Parámetros base |
 |-------------|--------|------------------|
 | `get_synergies` | Siempre antes de construir u optimizar con tema fijo | `commanderName` |
+| `get_user_deck_style` | Opcional — cómo armás mana base (imports en `data/my_decks`) | `commanderName`, `useOpenAI` (default false) |
 | `get_strategy_guide` | Tras elegir sinergia — ratios, paquetes, anti-patrones | `commanderName`, `preferredStrategy` (slug). `summaryOnly: true` para contexto compacto |
 | `get_category_candidates` | Categoría `below` — candidatos temáticos desde EDHREC/DB | `commanderName`, `preferredStrategy`, `category` |
 | `analyze_deck` | Modo B al inicio y tras cada cambio; Modo A al final | `deckText`, `templateId: "bracket3"`, `commanderName` o línea `Commander:` o `inferCommander` (default true), `preferredStrategy`, `responseMode: "brief"` |
@@ -77,7 +81,7 @@ Usa **siempre** las herramientas del servidor MCP de este proyecto (nombres exac
 | `apply_deck_changes` | Aplicar cortes/añadidos ya validados en lote | `deckText`, `commanderName`, `cuts[]`, `adds[]` |
 | `evaluate_card_swap` | Antes de cada cambio puntual en modo B | `deckText`, `commanderName`, `cardToRemove`, `cardToAdd`, `preferredStrategy` opcional |
 | `search_cards` | Añadir cartas reales por categoría/color | `query`, `category`, `commanderName` (color identity), `limit` |
-| `build_deck_from_commander` | Modo A (única vía de build MCP) | `commanderName`, `preferredStrategy`, `useTemplateGenerator: true`, `refineUntilStable: true`. Revisar `qualityGate`, `buildQualityReport` |
+| `build_deck_from_commander` | Modo A (única vía de build MCP) | `commanderName`, `preferredStrategy`, `useTemplateGenerator: true`, `useUserStyleReference: true` (default), `refineUntilStable: true`. Revisar `qualityGate`, `buildQualityReport` |
 | `resolve_card` | Comprobar nombre exacto antes de un add manual | `cardName`, `commanderName` opcional |
 
 **Política (modo A):** usa **`build_deck_from_commander`** con `useTemplateGenerator: true` (plantilla + EDHREC + SQLite). Las elecciones temáticas y el cierre de huecos los hace **tú** (agente) con `search_cards`, `optimize_deck` y `analyze_deck` — no hay herramienta MCP `build_deck_with_llm`.

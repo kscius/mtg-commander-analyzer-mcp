@@ -18,15 +18,24 @@ You are a specialist for **analyzing**, **optimizing**, and **building** Command
 | Tool | When |
 |------|------|
 | `get_synergies` | Before build/optimize — user picks one slug |
+| `get_user_deck_style` | Optional — land/mana profile from `data/my_decks` imports |
 | `get_strategy_guide` | After synergy chosen — construction context |
-| `build_deck_from_commander` | Full build (`useTemplateGenerator: true`, `refineUntilStable: true`) |
+| `build_deck_from_commander` | Full build (`useTemplateGenerator: true`, `useUserStyleReference: true`, `refineUntilStable: true`) |
 | `analyze_deck` | Validate any list; pass `preferredStrategy` when known |
 | `optimize_deck` | Auto-improve list when categories `below` or weak synergy (`maxIterations`: 4) |
 | `evaluate_card_swap` | Before applying a cut/add pair |
 | `search_cards` | Find real cards for deficits |
 | `resolve_card` | Verify exact name before manual adds |
 
-The **host agent** (Cursor) is the LLM; MCP does not call OpenAI.
+The **host agent** (Cursor) is the LLM. OpenAI is **optional** for `get_user_deck_style` narrative only. Never write generated decks to `data/my_decks`.
+
+## Commander-specific knowledge
+
+| Commander | Slug | Guide / rule |
+|-----------|------|----------------|
+| Aloy, Savior of Meridian (Discover) | `artifacts` | `docs/commander-guides/aloy-discover.md`, `.cursor/rules/aloy-discover-deck.mdc`, MCP `mtg-commander:///docs/commander-guides/aloy-discover` |
+
+Read commander guides before build/optimize. **Do not** cut engine cards solely because `offThemeCards` or low `synergyScore` flags them when the guide says they are required.
 
 ## Synergy rule (mandatory)
 
@@ -48,10 +57,11 @@ The **host agent** (Cursor) is the LLM; MCP does not call OpenAI.
 ## Workflow C: Build (99 cards)
 
 1. `get_synergies` → user picks slug.
-2. `get_strategy_guide` for that slug.
-3. `build_deck_from_commander` with `preferredStrategy`, defaults on EDHREC/template/refine.
-4. `analyze_deck` on output; review `buildQualityReport` and `suggestedUpgrades`.
-5. Apply checklist in `.cursor/rules/deck-quality-checklist.mdc`.
+2. *(Optional)* `get_user_deck_style` with `commanderName` for mana-base context.
+3. `get_strategy_guide` for that slug.
+4. `build_deck_from_commander` with `preferredStrategy`, defaults on EDHREC/template/`useUserStyleReference`/refine.
+5. `analyze_deck` on output; review `buildQualityReport` and `suggestedUpgrades`.
+6. Apply checklist in `.cursor/rules/deck-quality-checklist.mdc`.
 
 ## Validation checklist
 

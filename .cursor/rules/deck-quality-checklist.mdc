@@ -22,6 +22,7 @@ Apply when handing off a built or optimized decklist.
 - [ ] Extra-turn cards ≤ 3
 - [ ] No mass land destruction flagged by analyzer
 - [ ] No banned two-card combo wins before turn 6
+- [ ] Do **not** reject fast mana (Sol Ring, Vault, Tomb, Mox Opal) as “illegal for Bracket 3” — see `docs/bracket3-official-rules.md`
 
 ## Template (bracket3)
 

@@ -1,9 +1,12 @@
 {
   "mcpServers": {
     "mtg-commander-analyzer": {
-      "command": "npm",
-      "args": ["run", "mcp"],
-      "cwd": "${workspaceFolder}"
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/run-mcp.cjs"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PATH": "C:\\nvm4w\\nodejs;${env:PATH}"
+      }
     }
   }
 }

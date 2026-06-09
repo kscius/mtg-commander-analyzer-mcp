@@ -9,7 +9,8 @@ Estas reglas aplican **únicamente a este proyecto**. No extenderlas a otros rep
 
 ## Alcance del proyecto
 
-- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y generación por plantilla. El **agente Cursor** es el LLM; el MCP aporta datos y validación (sin API key OpenAI).
+- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y generación por plantilla. El **agente Cursor** es el LLM; el MCP aporta datos y validación. **OpenAI es opcional** solo para análisis narrativo de `get_user_deck_style`; el build no requiere API key.
+- **Biblioteca personal**: `data/my_decks` — mazos reales importados (Moxfield), **solo lectura** para el sistema. El build usa `useUserStyleReference: true` (default) para sesgar mana base; **nunca** guardar mazos generados ahí.
 - **Stack**: TypeScript (strict), Node.js, MCP (Model Context Protocol), SQLite (`data/cards.db`), Zod para validación.
 - **Estructura**: `src/core/` (lógica), `src/mcp/` (servidor y herramientas MCP), `src/scripts/` (DB, import), `data/` (plantillas, banlist, reglas).
 - **Tagging**: una **categoría primaria** por carta vía `autoTags.ts` (`getPrimaryTemplateCategory`); `roles.ts` solo re-exporta compatibilidad.
@@ -21,8 +22,9 @@ Usar siempre las herramientas del MCP cuando el usuario pida analizar o construi
 | Herramienta | Uso |
 |-------------|-----|
 | `get_synergies` | Listar sinergias/slugs EDHREC antes de construir (preguntar al usuario). |
+| `get_user_deck_style` | Perfil de tus mazos importados en `data/my_decks` (tierras, mana base). `useOpenAI: true` opcional con `OPENAI_API_KEY`. |
 | `get_strategy_guide` | Guía de construcción para el slug elegido (ratios, paquetes, anti-patrones). |
-| `build_deck_from_commander` | Construir 99 cartas (template + EDHREC; **preferido**). Defaults: `useEdhrec`/`useTemplateGenerator`/`useEdhrecAutofill` **true**. |
+| `build_deck_from_commander` | Construir 99 cartas (template + EDHREC; **preferido**). Defaults: `useEdhrec`/`useTemplateGenerator`/`useEdhrecAutofill`/`useUserStyleReference` **true**. |
 | `analyze_deck` | Validar mazo: categorías, singleton, legalidad, Bracket 3, `prioritizedActions`, `synergyScore`, `decklistText`. |
 | `optimize_deck` | Mejora automática (cortes/añadidos + autofill EDHREC; `maxIterations` default 4). |
 | `evaluate_card_swap` | Previsualizar un reemplazo (`proceed` / `skip`, deltas de categoría y sinergia). |
@@ -40,6 +42,8 @@ Ver **`AGENTS.md`** en la raíz del repo para el flujo completo.
 - **Banlist**: `data/Banlist.txt` (una carta por línea). Las herramientas MCP ya la respetan.
 - **Reglas / rulings**: `data/MagicCompRules.txt`, `data/rulings.json` para interacciones complejas.
 - **Plantilla y bracket**: `data/deck-template-bracket3.json`, `data/bracket-rules.json`.
+- **Mazos del usuario (import)**: `data/my_decks/` — ver `docs/user-deck-style-reference.md`. Reimportar: `npm run decks:download-moxfield`.
+- **Guías por comandante**: `docs/commander-guides/` (ej. Aloy Discover), JSON en `data/deck-knowledge/`, listas de referencia en `data/reference-decks/`. Recursos MCP: `mtg-commander:///docs/commander-guides/{name}`, `.../deck-knowledge/{id}`, `.../reference-decks/{name}`.
 
 ## Validación de mazos Commander
 
@@ -49,7 +53,7 @@ Todo mazo construido o analizado debe cumplir:
 2. **Color identity**: todas las cartas dentro de la identidad de color del comandante.
 3. **Singleton**: máximo 1 copia por carta (salvo tierras básicas).
 4. **Banlist**: ninguna carta de `data/Banlist.txt`.
-5. **Bracket 3** (si aplica): máx. 3 Game Changers, máx. 3 cartas de turnos extra, sin destrucción masiva de tierras, sin combos de 2 cartas que terminen la partida antes del turno 6.
+5. **Bracket 3** (si aplica): máx. 3 Game Changers, máx. 3 cartas de turnos extra, sin destrucción masiva de tierras, sin combos de 2 cartas que terminen la partida antes del turno 6. **El fast mana está permitido** en Bracket 3; algunas piezas cuentan como Game Changers (ver `docs/bracket3-official-rules.md`). Fuentes oficiales: https://moxfield.com/commanderbrackets — mantener con `npm run brackets:check-official`.
 
 ## Convenciones de código (este repo)
 
@@ -63,3 +67,4 @@ Todo mazo construido o analizado debe cumplir:
 - No usar estas reglas ni este MCP en otros proyectos.
 - No inventar nombres de cartas ni legalidad; usar siempre datos del proyecto o MCP.
 - No omitir la validación de formato Commander (100 cartas, color identity, singleton, banlist, Bracket 3) al construir o revisar mazos.
+- No escribir mazos generados en `data/my_decks` (solo imports del usuario).

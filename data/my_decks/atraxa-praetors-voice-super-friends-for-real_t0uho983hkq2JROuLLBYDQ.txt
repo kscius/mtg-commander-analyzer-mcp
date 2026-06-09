@@ -1,0 +1,93 @@
+Commander: Atraxa, Praetors' Voice
+1 Arcane Signet
+1 Breeding Pool
+1 Chromatic Lantern
+1 Command Tower
+1 Dakkon, Shadow Slayer
+1 Deepglow Skate
+1 Djeru, With Eyes Open
+1 Dovin Baan
+1 Dreamtide Whale
+1 Drown in Ichor
+1 Elspeth Tirel
+1 Elspeth, Storm Slayer
+1 Elspeth, Sun's Champion
+1 Elspeth, Sun's Nemesis
+1 Enlightened Tutor
+1 Evolution Sage
+1 Exotic Orchard
+1 Experimental Augury
+1 Ezuri, Stalker of Spheres
+1 Flooded Strand
+1 Flux Channeler
+3 Forest
+1 Garruk, Apex Predator
+1 Garruk, Cursed Huntsman
+1 Garruk, Unleashed
+1 Godless Shrine
+1 Grateful Apparition
+1 Great Hall of the Citadel
+1 Hallowed Fountain
+1 Ichormoon Gauntlet
+1 Indatha Triome
+1 Inexorable Tide
+1 Interplanar Beacon
+3 Island
+1 Jace, the Mind Sculptor
+1 Karn's Bastion
+1 Liliana, Dreadhorde General
+1 Marsh Flats
+1 Maze of Ith
+1 Mistrise Village
+1 Misty Rainforest
+1 Mox Amber
+1 Mutational Advantage
+1 Narset Transcendent
+1 Nesting Grounds
+1 Nissa, Ascended Animist
+1 Oath of Gideon
+1 Oath of Jace
+1 Oath of Kaya
+1 Oath of Nissa
+1 Oath of Teferi
+1 Ob Nixilis of the Black Oath
+1 Overgrown Tomb
+1 Pentad Prism
+1 Phyrexian Arena
+3 Plains
+1 Raffine's Tower
+1 Reflecting Pool
+1 Reject Imperfection
+1 Ripples of Potential
+1 Smell Fear
+2 Snow-Covered Swamp
+1 Sol Ring
+1 Sorin, Lord of Innistrad
+1 Spara's Headquarters
+1 Steady Progress
+1 Sword of Truth and Justice
+1 Talisman of Curiosity
+1 Talisman of Dominance
+1 Talisman of Progress
+1 Talisman of Unity
+1 Teferi, Hero of Dominaria
+1 Teferi, Master of Time
+1 Teferi's Protection
+1 Tekuthal, Inquiry Dominus
+1 Temple Garden
+1 Tezzeret's Gambit
+1 The Aetherspark
+1 The Chain Veil
+1 The Eternal Wanderer
+1 The Wandering Emperor
+1 Thirsting Roots
+1 Thrummingbird
+1 Triumphant Reckoning
+1 Unnatural Restoration
+1 Vraska the Unseen
+1 Watery Grave
+1 Windswept Heath
+1 Wrenn and Realmbreaker
+1 Yavimaya, Cradle of Growth
+1 Yawgmoth's Vile Offering
+1 Zagoth Triome

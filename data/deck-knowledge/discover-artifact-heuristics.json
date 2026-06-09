@@ -1,0 +1,58 @@
+{
+  "id": "aloy-discover-artifacts",
+  "version": "2026-06-06",
+  "commander": "Aloy, Savior of Meridian",
+  "preferredStrategy": "artifacts",
+  "trigger": {
+    "condition": "artifact creatures you control attack",
+    "effect": "discover X where X is greatest power among attacking artifact creatures"
+  },
+  "mustTriggerArtifactCreature": true,
+  "corePackage": [
+    "Roaming Throne",
+    "Cyberdrive Awakener",
+    "Garruk's Uprising",
+    "Panharmonicon",
+    "Etherium Sculptor",
+    "Foundry Inspector"
+  ],
+  "roamingThroneChoice": "Human",
+  "avoidCards": [
+    {
+      "name": "Herald's Horn",
+      "reason": "Creature subtype only (not all artifact creatures); redundant with Sculptor/Inspector; ~5-6 cards per type in mixed lists"
+    },
+    {
+      "name": "Scion of Calamity",
+      "reason": "Dinosaur — does not trigger Discover"
+    },
+    {
+      "name": "Dino DNA",
+      "reason": "Token is Dinosaur, not artifact creature"
+    }
+  ],
+  "preferredReplacements": {
+    "Herald's Horn": ["Sensei's Divining Top", "Panharmonicon"],
+    "Scion of Calamity": ["Panharmonicon", "Cankerbloom", "Haywire Mite"],
+    "Dino DNA": ["Pongify", "Reality Shift", "Ornithopter of Paradise"]
+  },
+  "scoringCeiling": {
+    "typicalDeckScore": "86-88",
+    "target95RequiresSynergyApprox": 88,
+    "note": "Discover engine cards score low on artifacts slug; do not cut them for analyzer offTheme warnings alone"
+  },
+  "categoryPitfalls": {
+    "ramp": "Nature's Lore, Three Visits, Farseek, Birds of Paradise, Arcane Signet often null or non-ramp primary — use Sol Ring, Mind Stone, Cultivate, Kodama's Reach, artifact rocks",
+    "win_conditionsGU": ["Biovisionary", "Luck Bobblehead", "Maze's End"],
+    "primaryCategoryOnly": true
+  },
+  "fastManaBracket3": {
+    "allowed": true,
+    "doNotRejectAsIllegal": true,
+    "originalDeckIncluded": ["Sol Ring", "Mox Opal", "Ancient Tomb", "Mana Vault"],
+    "gameChangerFastMana": ["Ancient Tomb", "Mana Vault"],
+    "nonGameChangerExamples": ["Sol Ring", "Mox Opal", "Arcane Signet"],
+    "policyDoc": "docs/bracket3-official-rules.md"
+  },
+  "referenceDecklist": "data/reference-decks/aloy-discover-bracket3.txt"
+}

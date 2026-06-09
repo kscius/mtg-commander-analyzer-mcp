@@ -1,0 +1,52 @@
+---
+description: Aloy Discover artifact-creature builds — triggers, scoring caveats, validated swaps
+globs:
+  - data/my_decks/aloy*
+  - data/reference-decks/aloy*
+  - docs/commander-guides/aloy-discover.md
+  - data/deck-knowledge/discover-artifact-heuristics.json
+alwaysApply: false
+---
+
+# Aloy, Savior of Meridian — Discover / Artifacts
+
+Apply when building, analyzing, or optimizing **Aloy** with a **Discover** engine. EDHREC slug: **`artifacts`** only.
+
+## Trigger rule (non-negotiable)
+
+Aloy: whenever one or more **artifact creatures you control attack** → **Discover X** (X = greatest power among them).
+
+- **Counts:** artifact **creature** attackers (Roaming Throne as Human doubles Aloy triggers).
+- **Does not count:** Dinosaurs (Scion of Calamity), Dino DNA tokens, non-artifact creatures, animated non-artifacts without the artifact creature type.
+
+## Core package (do not cut for synergy score alone)
+
+Roaming Throne (Human), Cyberdrive Awakener, Garruk's Uprising, Panharmonicon, Etherium Sculptor, Foundry Inspector, Blightsteel Colossus, Sensei's Divining Top.
+
+## Avoid / replace
+
+| Card | Why | Prefer |
+|------|-----|--------|
+| Herald's Horn | Subtype only (~5–6 cards per choice); redundant with Sculptor/Inspector | Sensei's Divining Top, Panharmonicon |
+| Scion of Calamity | Dinosaur — no Discover | Panharmonicon |
+| Dino DNA | Dinosaur token — no Discover | Pongify, Reality Shift |
+
+## Scoring expectations
+
+- `deckScore ≈ synergy×0.4 + categoryCoverage×0.4 + lintHealth×0.2`
+- Realistic ceiling **~86–88** while keeping Discover; **95** needs ~88+ synergy (unlikely with Roaming Throne, Garruk, required GU wincons).
+- Low `synergyScore` on Discover staples is **expected** — read `offThemeCards` with context.
+
+## MCP / docs
+
+- Guide: `docs/commander-guides/aloy-discover.md`
+- JSON: `data/deck-knowledge/discover-artifact-heuristics.json`
+- Reference list: `data/reference-decks/aloy-discover-bracket3.txt`
+- Resources: `mtg-commander:///docs/commander-guides/aloy-discover`, `.../deck-knowledge/discover-artifact-heuristics`, `.../reference-decks/aloy-discover-bracket3`
+
+## Workflow cautions
+
+- Do **not** blind `optimize_deck` — may cut Cyclonic Rift, crossover pieces, or add illegal colors.
+- Nature's Lore / Three Visits / Farseek / Birds often **do not** count as template `ramp` (primary tag).
+- GU `win_conditions` primary: Biovisionary, Luck Bobblehead, Maze's End — template min 2 forces low-synergy slots.
+- **Fast mana is allowed in Bracket 3** — Sol Ring / Mox Opal do not use GC slots; Tomb/Vault do. See `docs/bracket3-official-rules.md`.
