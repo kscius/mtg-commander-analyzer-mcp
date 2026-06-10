@@ -3,6 +3,9 @@ import {
   formatZodValidationError,
   buildAnalyzeSummary,
   buildQualityGate,
+  buildNextSuggestedAction,
+  computeRemainingGaps,
+  isDeckConverged,
   attachAnalyzeConvergence,
   attachBuildConvergence,
   attachOptimizeConvergence,
@@ -185,5 +188,196 @@ describe('attachOptimizeConvergence', () => {
     } as OptimizeDeckResult;
     const out = attachOptimizeConvergence(base, 60);
     expect(out.qualityGate?.readyToShip).toBe(true);
+  });
+
+  it('stays not converged when automatable gaps remain outside focusCategories', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'ramp', count: 10, min: 9, max: 12, status: 'within' as const },
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 70,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+    const base = {
+      input: {
+        commanderName: 'Test',
+        templateId: 'bracket3',
+        bracketId: 'bracket3',
+        focusCategories: ['ramp'],
+      },
+      deckText: '1 Sol Ring',
+      decklistText: '1 Sol Ring',
+      changes: [],
+      metricsBefore: { categoriesBelow: 1, lintHardIssues: 0 },
+      metricsAfter: { categoriesBelow: 1, lintHardIssues: 0, synergyScore: 70 },
+      analysis,
+      iterationNotes: [],
+    } as OptimizeDeckResult;
+
+    const out = attachOptimizeConvergence(base, 60);
+
+    expect(out.qualityGate?.blocking).toHaveLength(0);
+    expect(out.qualityGate?.converged).toBe(false);
+    expect(out.qualityGate?.readyToShip).toBe(false);
+    expect(out.nextSuggestedAction).toContain('card_draw');
+  });
+});
+
+describe('computeRemainingGaps', () => {
+  it('includes synergy gap when score is below target', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 52,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const gaps = computeRemainingGaps(analysis, { synergyTarget: 60 });
+
+    expect(gaps.some((g) => g.kind === 'synergy')).toBe(true);
+    expect(gaps.find((g) => g.kind === 'synergy')?.detail).toContain('52/100');
+  });
+
+  it('filters category gaps by focusCategories when provided', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'ramp', count: 6, min: 9, max: 12, status: 'below' as const },
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const gaps = computeRemainingGaps(analysis, { focusCategories: ['ramp'] });
+
+    expect(gaps.filter((g) => g.kind === 'category')).toHaveLength(1);
+    expect(gaps[0].category).toBe('ramp');
+  });
+});
+
+describe('buildQualityGate blocking paths', () => {
+  it('blocks shipment on hard lint issues', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 70,
+      lintReport: {
+        ok: false,
+        issues: [
+          {
+            key: 'format:color_identity',
+            message: 'Card outside commander colors',
+            severity: 'hard' as const,
+          },
+        ],
+        metrics: {},
+      },
+    };
+
+    const gate = buildQualityGate(analysis, { synergyTarget: 60 });
+
+    expect(gate.blocking.some((g) => g.kind === 'lint')).toBe(true);
+    expect(gate.readyToShip).toBe(false);
+    expect(gate.converged).toBe(false);
+  });
+
+  it('blocks shipment on banlist and format violations', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 98,
+      uniqueCards: 98,
+      categories: [],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [{ name: 'Mana Crypt', reason: 'project banlist' }],
+      banlistValid: false,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const gate = buildQualityGate(analysis);
+
+    expect(gate.blocking.some((g) => g.kind === 'banlist')).toBe(true);
+    expect(gate.blocking.some((g) => g.kind === 'format')).toBe(true);
+    expect(gate.readyToShip).toBe(false);
+  });
+});
+
+describe('buildNextSuggestedAction', () => {
+  it('prioritizes hard lint fixes in the suggested action', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      lintReport: {
+        ok: false,
+        issues: [
+          {
+            key: 'format:color_identity',
+            message: 'Card outside commander colors',
+            severity: 'hard' as const,
+          },
+        ],
+        metrics: {},
+      },
+    };
+
+    const action = buildNextSuggestedAction(analysis, 'optimize_deck');
+
+    expect(action).toContain('format:color_identity');
+    expect(action).toContain('optimize_deck');
+  });
+});
+
+describe('isDeckConverged', () => {
+  it('returns false when automatable category deficits remain', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 70,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    expect(isDeckConverged(analysis, { synergyTarget: 60 })).toBe(false);
   });
 });
