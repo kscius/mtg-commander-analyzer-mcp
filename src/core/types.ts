@@ -220,7 +220,10 @@ export interface AgentBrief {
   readyToShip?: boolean;
   synergyScore?: number;
   categoriesBelow?: string[];
+  /** Count of blocking gaps (excludes soft lint polish). */
   remainingGapCount?: number;
+  /** Count of optional polish gaps (soft lint in qualityGate.polish). */
+  polishGapCount?: number;
   nextSuggestedAction?: string;
   buildQualityOverall?: 'strong' | 'acceptable' | 'needs_work';
 }
@@ -323,7 +326,7 @@ export interface AnalyzeDeckResult {
   nextSuggestedAction?: string;
   /** Same convergence flag as build/optimize when synergy target is met */
   converged?: boolean;
-  /** Structured gaps blocking or polishing the deck */
+  /** Blocking gaps only (soft lint lives in qualityGate.polish) */
   remainingGaps?: RemainingGap[];
   /** Pass/fail gate for LLM delivery decisions */
   qualityGate?: QualityGate;

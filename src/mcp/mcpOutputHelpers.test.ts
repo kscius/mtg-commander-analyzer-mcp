@@ -51,6 +51,43 @@ describe('buildAnalyzeSummary', () => {
 });
 
 describe('buildQualityGate', () => {
+  it('keeps soft lint in polish only, not blocking or remainingGaps', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [{ name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const }],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 65,
+      lintReport: {
+        ok: false,
+        issues: [
+          { key: 'curve:high', message: 'Curve skews high', severity: 'soft' as const },
+          { key: 'curve:low', message: 'Too many 1-drops', severity: 'soft' as const },
+        ],
+        metrics: {},
+      },
+    };
+    const gate = buildQualityGate(analysis, { synergyTarget: 60 });
+    expect(gate.blocking).toHaveLength(0);
+    expect(gate.polish).toHaveLength(2);
+    expect(gate.readyToShip).toBe(true);
+
+    const out = attachAnalyzeConvergence({
+      input: {},
+      analysis,
+      parsedDeck: { cards: [] },
+    } as AnalyzeDeckResult);
+    expect(out.remainingGaps).toHaveLength(0);
+    expect(out.agentBrief?.readyToShip).toBe(true);
+    expect(out.agentBrief?.remainingGapCount).toBeUndefined();
+    expect(out.agentBrief?.polishGapCount).toBe(2);
+    expect(out.qualityGate?.polish).toHaveLength(2);
+  });
+
   it('marks readyToShip when converged with no blocking gaps', () => {
     const analysis = {
       commanderName: 'Test',
