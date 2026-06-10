@@ -43,6 +43,11 @@ export function buildAnalyzeSummary(result: AnalyzeDeckResult): string {
   if (hardLint) parts.push(`${hardLint} hard lint issue(s)`);
   if (!a.banlistValid) parts.push('banlist violation');
   if (a.bracketWarnings.length) parts.push(`${a.bracketWarnings.length} bracket warning(s)`);
+  if (a.unresolvedCardNames?.length) {
+    parts.push(
+      `${a.unresolvedCardNames.length} unresolved card name(s) (${a.unresolvedCardNames.slice(0, 3).join(', ')}${a.unresolvedCardNames.length > 3 ? ', …' : ''})`
+    );
+  }
   return parts.join('; ') + '.';
 }
 
@@ -89,6 +94,13 @@ export function computeRemainingGaps(
     });
   }
 
+  if (analysis.unresolvedCardNames?.length) {
+    gaps.push({
+      kind: 'unresolved',
+      detail: `Unresolved card names (not in cards.db): ${analysis.unresolvedCardNames.join(', ')}`,
+    });
+  }
+
   const target = options?.synergyTarget;
   if (
     target != null &&
@@ -130,6 +142,14 @@ export function buildNextSuggestedAction(
   if (hardLint.length) {
     const first = hardLint[0];
     return `Fix hard lint (${first.key}): ${first.message}. Re-run ${toolHint}.`;
+  }
+  if (analysis.unresolvedCardNames?.length) {
+    const names = analysis.unresolvedCardNames.slice(0, 3).join(', ');
+    const suffix =
+      analysis.unresolvedCardNames.length > 3
+        ? ` (+${analysis.unresolvedCardNames.length - 3} more)`
+        : '';
+    return `Resolve unresolved card names via resolve_card or search_cards: ${names}${suffix}. Then re-run ${toolHint}.`;
   }
   if (!analysis.banlistValid) {
     return 'Remove banned cards, then re-run analyze_deck.';

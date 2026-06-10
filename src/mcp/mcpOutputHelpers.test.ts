@@ -30,6 +30,27 @@ describe('formatZodValidationError', () => {
 });
 
 describe('buildAnalyzeSummary', () => {
+  it('mentions unresolved card names in summary', () => {
+    const result = {
+      input: {},
+      analysis: {
+        commanderName: 'Test',
+        totalCards: 99,
+        uniqueCards: 99,
+        categories: [],
+        notes: [],
+        bracketWarnings: [],
+        bannedCards: [],
+        banlistValid: true,
+        unresolvedCardNames: ['Mystery Card'],
+      },
+      parsedDeck: { cards: [] },
+    } as AnalyzeDeckResult;
+    const summary = buildAnalyzeSummary(result);
+    expect(summary).toContain('unresolved');
+    expect(summary).toContain('Mystery Card');
+  });
+
   it('includes card count and synergy when present', () => {
     const result = {
       input: {},
@@ -276,6 +297,40 @@ describe('computeRemainingGaps', () => {
 });
 
 describe('buildQualityGate blocking paths', () => {
+  it('blocks shipment when unresolved card names are present', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 70,
+      unresolvedCardNames: ['Fake Card XYZ', 'Another Unknown'],
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const gate = buildQualityGate(analysis, { synergyTarget: 60 });
+
+    expect(gate.blocking.some((g) => g.kind === 'unresolved')).toBe(true);
+    expect(gate.readyToShip).toBe(false);
+    expect(gate.converged).toBe(false);
+
+    const action = buildNextSuggestedAction(analysis, 'analyze_deck');
+    expect(action).toContain('resolve_card');
+    expect(action).toContain('Fake Card XYZ');
+
+    const out = attachAnalyzeConvergence({
+      input: {},
+      analysis,
+      parsedDeck: { cards: [] },
+    } as AnalyzeDeckResult);
+    expect(out.agentBrief?.readyToShip).toBe(false);
+    expect(out.nextSuggestedAction).toContain('unresolved');
+  });
+
   it('blocks shipment on hard lint issues', () => {
     const analysis = {
       commanderName: 'Test',
