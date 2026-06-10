@@ -159,11 +159,14 @@ export function buildAgentBriefFromAnalysis(
     converged?: boolean;
     readyToShip?: boolean;
     remainingGaps?: RemainingGap[];
+    polishGapCount?: number;
     nextSuggestedAction?: string;
     buildQualityOverall?: AgentBrief['buildQualityOverall'];
   }
 ): AgentBrief {
   const below = analysis.categories.filter((c) => c.status === 'below').map((c) => c.name);
+  const blockingCount = options.remainingGaps?.length ?? 0;
+  const polishCount = options.polishGapCount ?? 0;
   return {
     summary: options.summary,
     commanderName: analysis.commanderName,
@@ -172,7 +175,8 @@ export function buildAgentBriefFromAnalysis(
     readyToShip: options.readyToShip,
     synergyScore: analysis.synergyScore,
     categoriesBelow: below.length ? below : undefined,
-    remainingGapCount: options.remainingGaps?.length,
+    remainingGapCount: blockingCount > 0 ? blockingCount : undefined,
+    polishGapCount: polishCount > 0 ? polishCount : undefined,
     nextSuggestedAction: options.nextSuggestedAction,
     buildQualityOverall: options.buildQualityOverall,
   };
@@ -194,9 +198,9 @@ export function attachAnalyzeConvergence(
   result: AnalyzeDeckResult,
   synergyTarget = 60
 ): AnalyzeDeckResult {
-  const remainingGaps = computeRemainingGaps(result.analysis, { synergyTarget });
-  const converged = isDeckConverged(result.analysis, { synergyTarget });
   const qualityGate = buildQualityGate(result.analysis, { synergyTarget });
+  const remainingGaps = qualityGate.blocking;
+  const converged = qualityGate.converged;
   const summary = result.summary ?? buildAnalyzeSummary(result);
   const nextSuggestedAction = converged
     ? 'Deck converged — run deck-quality checklist, then deliver decklistText.'
@@ -207,6 +211,7 @@ export function attachAnalyzeConvergence(
     converged,
     readyToShip: qualityGate.readyToShip,
     remainingGaps,
+    polishGapCount: qualityGate.polish.length,
     nextSuggestedAction,
   });
   return {
@@ -224,9 +229,9 @@ export function attachBuildConvergence(
   result: BuildDeckResult,
   synergyTarget = 60
 ): BuildDeckResult {
-  const remainingGaps = computeRemainingGaps(result.analysis, { synergyTarget });
-  const converged = isDeckConverged(result.analysis, { synergyTarget });
   const qualityGate = buildQualityGate(result.analysis, { synergyTarget });
+  const remainingGaps = qualityGate.blocking;
+  const converged = qualityGate.converged;
   const analysisSummary = buildAnalyzeSummary({
     analysis: result.analysis,
     input: { templateId: result.templateId, bracketId: result.bracketId },
@@ -244,6 +249,7 @@ export function attachBuildConvergence(
     converged,
     readyToShip: qualityGate.readyToShip,
     remainingGaps,
+    polishGapCount: qualityGate.polish.length,
     nextSuggestedAction,
     buildQualityOverall: result.buildQualityReport?.overall,
   });
@@ -262,18 +268,13 @@ export function attachOptimizeConvergence(
   result: OptimizeDeckResult,
   synergyTarget?: number
 ): OptimizeDeckResult {
-  const remainingGaps = computeRemainingGaps(result.analysis, {
+  const gateOptions = {
     focusCategories: result.input.focusCategories,
     synergyTarget,
-  });
-  const converged = isDeckConverged(result.analysis, {
-    focusCategories: result.input.focusCategories,
-    synergyTarget,
-  });
-  const qualityGate = buildQualityGate(result.analysis, {
-    focusCategories: result.input.focusCategories,
-    synergyTarget,
-  });
+  };
+  const qualityGate = buildQualityGate(result.analysis, gateOptions);
+  const remainingGaps = qualityGate.blocking;
+  const converged = qualityGate.converged;
   const summary =
     result.summary ??
     `Optimized deck (${result.changes.length} change(s)); ${buildAnalyzeSummary({
@@ -290,6 +291,7 @@ export function attachOptimizeConvergence(
     converged,
     readyToShip: qualityGate.readyToShip,
     remainingGaps,
+    polishGapCount: qualityGate.polish.length,
     nextSuggestedAction,
   });
   return {
