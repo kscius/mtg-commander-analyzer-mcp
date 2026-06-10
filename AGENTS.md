@@ -332,3 +332,40 @@ Always confirm slugs with **`get_synergies`** for the actual commander.
 - Mixing multiple EDHREC themes in one list.
 - Ignoring `below` categories or singleton/color errors in `notes`.
 - Expecting MCP to invent card names — use `build_deck_from_commander`, `search_cards`, or EDHREC output only.
+
+## Cursor Cloud specific instructions
+
+This repo is a **stdio MCP server** (no HTTP port). The “application” is `npm run mcp`, normally launched by Cursor via `.cursor/mcp.json` → `scripts/run-mcp.cjs`.
+
+### One-time card database (required for `search_cards`, build, analyze E2E)
+
+`data/oracle-cards.json` and `data/cards.db` are **gitignored**. On a fresh VM without a snapshot that already has them:
+
+```bash
+./setup.sh              # downloads oracle-cards.json (~168 MB) + npm install
+npm run db:create
+npm run db:import       # ~12s for oracle-cards; creates data/cards.db
+```
+
+Verify: `npm run db:stats` should show ~38k cards. If `search_cards` returns `databaseReady: false`, run `npm rebuild better-sqlite3` then recreate/import.
+
+### Lint / test / run
+
+| Goal | Command |
+|------|---------|
+| Typecheck (no ESLint in repo) | `npm run build` |
+| Unit tests (no DB needed for most) | `npm test` |
+| E2E analyze + build demo | `npm run test:e2e` (needs `cards.db`; uses EDHREC network) |
+| MCP stdio server | `npm run mcp` |
+| Local analyze demo | `npm run test:local` |
+
+**Test caveat:** 8 tests fail if golden fixtures are absent (`test/fixtures/shadrix-group-slug-golden.txt`, `data/golden/*.json`, `docs/commander-guides/aloy-discover.md`). Core functionality still works; see `npm run test:e2e`.
+
+### Optional env
+
+- `OPENAI_API_KEY` — optional narrative `get_user_deck_style` and category enhancement; build/analyze work without it.
+- EDHREC — on by default; cached under `data/cache/edhrec/` (gitignored).
+
+### MCP in Cloud Agent sessions
+
+Cloud Agents invoke MCP tools through the configured MCP server (not by manually piping JSON-RPC). For manual smoke tests: pipe `initialize` + `notifications/initialized` + `tools/list` to `npm run mcp` — expect 11 tools in the response.
