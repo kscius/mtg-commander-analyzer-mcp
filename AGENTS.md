@@ -359,7 +359,7 @@ Verify: `npm run db:stats` should show ~38k cards. If `search_cards` returns `da
 | MCP stdio server | `npm run mcp` |
 | Local analyze demo | `npm run test:local` |
 
-**Test caveat:** 8 tests fail if golden fixtures are absent (`test/fixtures/shadrix-group-slug-golden.txt`, `data/golden/*.json`, `docs/commander-guides/aloy-discover.md`). Core functionality still works; see `npm run test:e2e`.
+**CI:** GitHub Actions downloads `oracle-cards.json` from Scryfall and runs `db:create` + `db:import` before `npm test`. Golden fixtures live in `test/fixtures/` and `data/golden/`.
 
 ### Optional env
 

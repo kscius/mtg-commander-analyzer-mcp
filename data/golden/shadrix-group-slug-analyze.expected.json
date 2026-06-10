@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "caseId": "shadrix-group-slug",
+  "description": "Analyze regression for Shadrix Silverquill group-slug golden list",
+  "commanderName": "Shadrix Silverquill",
+  "preferredStrategy": "group-slug",
+  "fixture": "test/fixtures/shadrix-group-slug-golden.txt",
+  "assertions": {
+    "mainboardCount": 99,
+    "banlistValid": true,
+    "maxCategoriesBelow": 7,
+    "maxLintHardIssues": 0,
+    "maxBracketWarnings": 0,
+    "minSynergyScore": 37,
+    "qualityGateReady": false
+  },
+  "categorySnapshots": [
+    {
+      "name": "lands",
+      "count": 38,
+      "status": "within",
+      "min": 35,
+      "max": 38
+    },
+    {
+      "name": "ramp",
+      "count": 8,
+      "status": "below",
+      "min": 9,
+      "max": 12
+    },
+    {
+      "name": "card_draw",
+      "count": 13,
+      "status": "above",
+      "min": 8,
+      "max": 11
+    },
+    {
+      "name": "card_selection",
+      "count": 1,
+      "status": "below",
+      "min": 3,
+      "max": 6
+    },
+    {
+      "name": "spot_removal",
+      "count": 1,
+      "status": "below",
+      "min": 4,
+      "max": 7
+    },
+    {
+      "name": "artifact_enchantment_hate",
+      "count": 0,
+      "status": "below",
+      "min": 2,
+      "max": 5
+    },
+    {
+      "name": "graveyard_hate",
+      "count": 0,
+      "status": "below",
+      "min": 1,
+      "max": 3
+    },
+    {
+      "name": "board_wipes",
+      "count": 0,
+      "status": "below",
+      "min": 2,
+      "max": 4
+    },
+    {
+      "name": "protection",
+      "count": 3,
+      "status": "within",
+      "min": 3,
+      "max": 6
+    },
+    {
+      "name": "value_engines",
+      "count": 5,
+      "status": "within",
+      "min": 3,
+      "max": 7
+    },
+    {
+      "name": "win_conditions",
+      "count": 0,
+      "status": "below",
+      "min": 2,
+      "max": 4
+    },
+    {
+      "name": "game_changers",
+      "count": 0,
+      "status": "within",
+      "min": 0,
+      "max": 3
+    },
+    {
+      "name": "extra_turns",
+      "count": 0,
+      "status": "within",
+      "min": 0,
+      "max": 3
+    }
+  ]
+}
