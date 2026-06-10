@@ -276,7 +276,7 @@ export interface DeckRecommendations {
  */
 /** Actionable gap after build/optimize convergence check */
 export interface RemainingGap {
-  kind: 'category' | 'lint' | 'bracket' | 'banlist' | 'format' | 'synergy';
+  kind: 'category' | 'lint' | 'bracket' | 'banlist' | 'format' | 'synergy' | 'unresolved';
   detail: string;
   category?: string;
   severity?: 'hard' | 'soft';
