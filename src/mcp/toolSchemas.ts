@@ -42,11 +42,21 @@ export function buildMcpTools(): Tool[] {
           bracketId: { type: 'string', default: 'bracket3' },
           commanderName: { type: 'string' },
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          options: {
+            type: 'object',
+            description: 'Analysis options (reserved for future flags)',
+          },
           responseMode: {
             type: 'string',
             enum: ['brief', 'full'],
             default: 'brief',
             description: 'brief omits heavy analysis fields; full returns complete JSON',
+          },
+          inferCommander: {
+            type: 'boolean',
+            default: true,
+            description:
+              'If true and commanderName is omitted, use first commander-eligible legendary card in deckText',
           },
         },
         required: ['deckText'],
@@ -150,6 +160,11 @@ export function buildMcpTools(): Tool[] {
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
           templateId: { type: 'string', default: 'bracket3' },
           bracketId: { type: 'string', default: 'bracket3' },
+          banlistId: {
+            type: 'string',
+            default: 'commander',
+            description: 'Internal banlist key (default commander)',
+          },
           maxIterations: { type: 'number', default: 4 },
           focusCategories: { type: 'array', items: { type: 'string' } },
           stopWhenScore: {
