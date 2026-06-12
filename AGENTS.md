@@ -47,16 +47,16 @@ flowchart LR
 | `get_synergies` | Discover synergy slugs | `commanderName` | — |
 | `get_strategy_guide` | Archetype construction guide | `commanderName`, `preferredStrategy` | — |
 | `get_user_deck_style` | Your imported decks: land stats, staples, category averages | `commanderName`, `useOpenAI`, `question` | `useOpenAI` **false**; needs `OPENAI_API_KEY` for narrative |
-| `build_deck_from_commander` | Build 99-card mainboard | `commanderName`, `preferredStrategy`, `useUserStyleReference` | `useEdhrec` **true**, `useEdhrecAutofill` **true**, `useTemplateGenerator` **true**, `useUserStyleReference` **true**, `refineUntilStable` **true** |
-| `analyze_deck` | Validate + recommend | `deckText`, `commanderName`, `preferredStrategy` | `templateId` **bracket3** |
+| `build_deck_from_commander` | Build 99-card mainboard | `commanderName`, `preferredStrategy`, `useUserStyleReference`, `useOpenAIEnhancement` | `useEdhrec` **true**, `useEdhrecAutofill` **true**, `useTemplateGenerator` **true**, `useUserStyleReference` **true**, `useOpenAIEnhancement` **true** (when `OPENAI_API_KEY` set), `refineUntilStable` **true**, `maxRefinementIterations` **5** |
+| `analyze_deck` | Validate + recommend | `deckText`, `commanderName`, `preferredStrategy`, `inferCommander` | `templateId` **bracket3**, `inferCommander` **true** |
 | `optimize_deck` | Auto improve deck | `deckText`, `commanderName`, `preferredStrategy`, `maxIterations` | `maxIterations` **4** |
-| `evaluate_card_swap` | Preview one swap | `deckText`, `cardToRemove`, `cardToAdd` | — |
-| `apply_deck_changes` | Apply cut/add swaps safely | `deckText`, `swaps[]`, optional `commanderName` | Returns updated `decklistText` |
+| `evaluate_card_swap` | Preview one swap | `deckText`, `commanderName`, `cardToRemove`, `cardToAdd` | — |
+| `apply_deck_changes` | Apply cut/add swaps safely | `deckText`, `swaps[]` (`remove`/`add` per swap), optional `commanderName` | Returns updated `decklistText`; no `responseMode` param |
 | `get_category_candidates` | Ranked adds for one category gap | `commanderName`, `category`, `preferredStrategy`, `excludeNames` | `limit` **15**; use after `prioritizedActions` |
 | `search_cards` | Query `data/cards.db` | `query`, `colorIdentity`, `category`, `commanderName`, `preferredStrategy` | `commanderLegal` **true**, `limit` **20** |
 | `resolve_card` | Resolve one name + legality/color fit | `cardName`, optional `commanderName` | Use before manual adds when unsure of exact name |
 
-**Response size:** All MCP tools default to `responseMode: brief`. On build/analyze/optimize, read `agentBrief` and `qualityGate` first. On `search_cards`, `get_synergies`, and `get_strategy_guide`, brief mode omits long oracle text and full guide markdown. Use `responseMode: full` when you need complete payloads.
+**Response size:** Tools with a `responseMode` param default to **brief** (`apply_deck_changes` has no `responseMode`; responses are always compact). On build/analyze/optimize, read `agentBrief` and `qualityGate` first. On `search_cards`, `get_synergies`, and `get_strategy_guide`, brief mode omits long oracle text and full guide markdown. Use `responseMode: full` when you need complete payloads.
 
 **Architecture:** the Cursor agent is the LLM; MCP provides data, validation, and deterministic build/optimize. `build_deck_from_commander` fills gaps with EDHREC + local SQLite (`search_cards` / `searchCardsFiltered` fallback).
 
@@ -92,7 +92,7 @@ Prefer resources for template ratios and strategy guides; use **`get_user_deck_s
 - **Purpose:** Learn from **your real imported decks** (Moxfield → `npm run decks:download-moxfield`), mainly **land count** and **mana base staples**.
 - **Build integration:** `useUserStyleReference` (default **true**) on `build_deck_from_commander` — does **not** require OpenAI.
 - **Import-only:** Generated decklists must **never** be written to `data/my_decks`.
-- **OpenAI (optional):** `get_user_deck_style` + `useOpenAI: true` for narrative “how I build” analysis when `OPENAI_API_KEY` is set.
+- **OpenAI (optional):** `get_user_deck_style` + `useOpenAI: true` for narrative “how I build” analysis; `build_deck_from_commander` + `useOpenAIEnhancement: true` (default) for category gap-fill when `OPENAI_API_KEY` is set. Build/analyze work without a key.
 - **Full guide:** `docs/user-deck-style-reference.md`
 
 ## MCP prompts (workflow templates)
@@ -137,9 +137,9 @@ After every **build**, **analyze**, or **optimize** call, use structured fields 
 | `remainingGaps[]` | build / analyze / optimize | `{ kind, detail }` — category, lint, bracket, banlist, format, synergy |
 | `buildQualityReport.overall` | build | `strong` \| `acceptable` \| `needs_work` |
 | `metricsBefore` / `metricsAfter` | optimize | Track synergy and categoriesBelow |
-| `recommendations.prioritizedActions` | analyze | Ordered fixes; use `suggestedSearch` with `search_cards` |
+| `analysis.prioritizedActions` | analyze | Ordered fixes (prefer over `recommendations.prioritizedActions`); use `suggestedSearch` with `search_cards` |
 | `recommendations.swaps` | analyze | Thematic cut/add pairs |
-| `offThemeCards` | analyze (with strategy) | Cut candidates |
+| Off-theme cut hints | analyze (with strategy) | In `analysis.notes` as `Possible off-theme cards: …` — not a top-level JSON field |
 | `analysis.unresolvedCardNames` | analyze | Names not in `cards.db` — fix before delivery |
 
 **Commander without `commanderName` param:** include `Commander: Exact Name` in `deckText`, or rely on **`inferCommander: true`** (default) to use the first commander-eligible legendary in the list.

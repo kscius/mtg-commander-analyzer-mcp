@@ -424,7 +424,7 @@ async function main() {
     `EDHREC disk cache: ${edhrecCache.diskEntries} entries (${edhrecCache.diskBytes} bytes), TTL ${Math.round(edhrecCache.ttlMs / 3600000)}h → ${edhrecCache.diskDir}`,
     `MCP resources: ${listMcpResources().length} (template, banlist, strategy guides, AGENTS.md)`,
     `MCP prompts: ${listMcpPrompts().length} (build-commander-deck, optimize-decklist)`,
-    'Tools: 10 — analyze_deck, build_deck_from_commander, get_category_candidates, search_cards, optimize_deck, apply_deck_changes, resolve_card, get_synergies, evaluate_card_swap, get_strategy_guide',
+    'Tools: 11 — analyze_deck, build_deck_from_commander, get_category_candidates, search_cards, optimize_deck, apply_deck_changes, resolve_card, get_synergies, evaluate_card_swap, get_strategy_guide, get_user_deck_style',
     'Listening for MCP messages on stdio',
     'MCP Server ready. Waiting for client connections...',
   ]);

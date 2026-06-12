@@ -1,6 +1,6 @@
 # Mana Base Guide (Commander / Bracket 3)
 
-Use with `analyze_deck` (`manaBaseQuality`, `lintReport`) and `docs/deck-template-bracket3.json`.
+Use with `analyze_deck` (`manaBaseQuality`, `lintReport`) and `data/deck-template-bracket3.json`.
 
 ## Land counts by deck speed
 
