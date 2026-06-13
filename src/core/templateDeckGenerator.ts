@@ -37,7 +37,7 @@ import {
 } from './templateGeneratorScoring';
 import { computeLandCountFromCurve, fillManaBaseFromTemplate, MANA_BASE_SYSTEMS } from './manaBaseGenerator';
 import { getOracleText, mvBucket } from './scryfallNormalize';
-import { cardFitsCommanderColorIdentity } from './commanderFormat';
+import { cardFitsCommanderColorIdentity, isBasicLandName } from './commanderFormat';
 import { resolveCardNameSync } from './cardResolution';
 import { COMMANDER_MAINBOARD_SIZE } from './commanderFormat';
 import { isDatabaseReady, searchCardsFiltered } from './cardDatabase';
@@ -67,6 +67,51 @@ import { getCommanderStyleHints } from './userDeckLibrary';
 import type { BuiltCardEntry, BuiltDeck, CardRole } from './types';
 
 const COMMANDER_DECK_SIZE = COMMANDER_MAINBOARD_SIZE;
+
+/**
+ * Append a card to the in-progress built list. Basic lands stack quantity (Commander allows unlimited copies).
+ */
+export function appendBuiltCardEntry(
+  builtCards: BuiltCardEntry[],
+  cardsInDeck: Set<string>,
+  name: string,
+  colorIdentity: string[],
+  tagOpts: ReturnType<typeof getDefaultBracket3Options>,
+  roles?: CardRole[]
+): boolean {
+  const resolved = resolveCardNameSync(name);
+  const canonical = resolved?.canonicalName ?? name;
+  const key = canonical.toLowerCase();
+  if (isBasicLandName(canonical)) {
+    const existing = builtCards.find((c) => c.name.toLowerCase() === key);
+    if (existing) {
+      existing.quantity += 1;
+      return true;
+    }
+  } else if (cardsInDeck.has(key)) {
+    return false;
+  }
+  const card = resolved?.card ?? getCardByName(canonical);
+  if (card && !cardFitsCommanderColorIdentity(card, colorIdentity)) return false;
+  builtCards.push({
+    name: canonical,
+    quantity: 1,
+    roles:
+      roles ??
+      (card
+        ? primaryCategoryToRoles(
+            getPrimaryTemplateCategory(
+              card.tags?.length
+                ? card.tags
+                : autoTags(card as ScryCard, tagOpts)
+            )
+          )
+        : undefined),
+  });
+  cardsInDeck.add(key);
+  return true;
+}
+
 export interface TemplateGeneratorInput {
   commanderName: string;
   templateId?: string;
@@ -349,30 +394,9 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
   let builtCards: BuiltCardEntry[] = [];
   const cardsInDeck = new Set<string>();
 
-  const addCard = (name: string, roles?: CardRole[]) => {
-    const resolved = resolveCardNameSync(name);
-    const canonical = resolved?.canonicalName ?? name;
-    if (cardsInDeck.has(canonical.toLowerCase())) return false;
-    const card = resolved?.card ?? getCardByName(canonical);
-    if (card && !cardFitsCommanderColorIdentity(card, colorIdentity)) return false;
-    builtCards.push({
-      name: canonical,
-      quantity: 1,
-      roles:
-        roles ??
-        (card
-          ? primaryCategoryToRoles(
-              getPrimaryTemplateCategory(
-                card.tags?.length
-                  ? card.tags
-                  : autoTags(card as ScryCard, getDefaultBracket3Options('bracket3'))
-              )
-            )
-          : undefined),
-    });
-    cardsInDeck.add(canonical.toLowerCase());
-    return true;
-  };
+  const tagOpts = getDefaultBracket3Options('bracket3');
+  const addCard = (name: string, roles?: CardRole[]) =>
+    appendBuiltCardEntry(builtCards, cardsInDeck, name, colorIdentity, tagOpts, roles);
 
   if (input.seedCards?.length) {
     const bannedSeeds: string[] = [];
@@ -503,7 +527,6 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
   }
   notes.push(`EDHREC pool: ${pool.length} candidates (synergy-sorted).`);
 
-  const tagOpts = getDefaultBracket3Options('bracket3');
   const tagCache = new Map<string, string[]>();
 
   const categoryCounts: Record<string, number> = {};
