@@ -267,10 +267,10 @@ Analyzes an existing Commander decklist with Bracket 3 validation.
     "uniqueCards": 99,
     "categories": [
       { "name": "lands", "count": 37, "min": 35, "max": 38, "status": "within" },
-      { "name": "ramp", "count": 9, "min": 8, "max": 10, "status": "within" },
-      { "name": "card_draw", "count": 8, "min": 8, "max": 10, "status": "within" },
+      { "name": "ramp", "count": 9, "min": 9, "max": 12, "status": "within" },
+      { "name": "card_draw", "count": 8, "min": 8, "max": 11, "status": "within" },
       { "name": "spot_removal", "count": 6, "min": 4, "max": 7, "status": "within" },
-      { "name": "board_wipes", "count": 3, "min": 3, "max": 4, "status": "within" }
+      { "name": "board_wipes", "count": 3, "min": 2, "max": 4, "status": "within" }
     ],
     "bracketWarnings": [
       "This deck uses 2 Game Changers (max allowed for Bracket bracket3: 3)."
@@ -365,7 +365,7 @@ Both scripts display detailed results in the console.
 
 ## 🤖 Agent / LLM (no API key in MCP)
 
-Deck construction and card choices are made by the **host agent** (e.g. Cursor). The MCP server exposes **ten tools** for building, validation, gap-fill (`get_category_candidates`), incremental edits (`apply_deck_changes`), and optimization — **no OpenAI dependency** in this repo.
+Deck construction and card choices are made by the **host agent** (e.g. Cursor). The MCP server exposes **eleven tools** for building, validation, gap-fill (`get_category_candidates`), incremental edits (`apply_deck_changes`), and optimization. **No OpenAI API key required** — optional `OPENAI_API_KEY` enables narrative `get_user_deck_style` and build category enhancement (`useOpenAIEnhancement`, default true).
 
 Template generation fills category gaps with **EDHREC** plus **local SQLite** lookups (`searchCardsFiltered`, same database as `search_cards`). Build/analyze/optimize default to **`responseMode: "brief"`** (`agentBrief`, `qualityGate`); pass `responseMode: "full"` when you need the complete `analysis` object. Use `get_category_candidates`, `search_cards`, `apply_deck_changes`, or `optimize_deck` when gaps remain after a build.
 
