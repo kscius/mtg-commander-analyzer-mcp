@@ -7,6 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { assertSafeResourceId, resolvePathUnderRoot } from './safePath';
 
 /**
  * Card lists for a specific bracket
@@ -49,6 +50,8 @@ function normalizeCardName(name: string): string {
  * - data/bracket3-extra-turns.json
  */
 function loadBracketCardLists(bracketId: string): BracketCardLists {
+  assertSafeResourceId(bracketId, 'bracketId');
+
   // Check cache first
   if (cardListsCache.has(bracketId)) {
     return cardListsCache.get(bracketId)!;
@@ -59,9 +62,9 @@ function loadBracketCardLists(bracketId: string): BracketCardLists {
     const dataDir = path.join(__dirname, '..', '..', 'data');
 
     // Load each list
-    const gameChangersPath = path.join(dataDir, `${bracketId}-game-changers.json`);
-    const massLandDenialPath = path.join(dataDir, `${bracketId}-mass-land-denial.json`);
-    const extraTurnsPath = path.join(dataDir, `${bracketId}-extra-turns.json`);
+    const gameChangersPath = resolvePathUnderRoot(dataDir, `${bracketId}-game-changers.json`);
+    const massLandDenialPath = resolvePathUnderRoot(dataDir, `${bracketId}-mass-land-denial.json`);
+    const extraTurnsPath = resolvePathUnderRoot(dataDir, `${bracketId}-extra-turns.json`);
 
     const gameChangers = JSON.parse(fs.readFileSync(gameChangersPath, 'utf8')) as string[];
     const massLandDenial = JSON.parse(fs.readFileSync(massLandDenialPath, 'utf8')) as string[];

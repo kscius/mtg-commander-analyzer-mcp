@@ -361,41 +361,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
     const errorStack = error instanceof Error ? error.stack : undefined;
-
-
+    if (errorStack) {
+      process.stderr.write(`${errorStack}\n`);
+    }
+    const includeStack =
+      process.env.MCP_DEBUG === '1' || process.env.NODE_ENV === 'development';
 
     return {
-
       content: [
-
         {
-
           type: 'text',
-
           text: JSON.stringify(
-
             {
-
               error: errorMessage,
-
-              stack: errorStack,
-
+              ...(includeStack && errorStack ? { stack: errorStack } : {}),
             },
-
             null,
-
             2
-
           ),
-
         },
-
       ],
-
       isError: true,
-
     };
 
   }

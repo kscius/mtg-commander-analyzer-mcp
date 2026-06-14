@@ -4,6 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveProjectRelativePath } from '../core/safePath';
 import { USER_DECK_INDEX_FILE, USER_DECK_LIBRARY_DIR } from '../core/userDeckPaths';
 import { getUserDeckStyleProfile } from '../core/userDeckLibrary';
 
@@ -32,7 +33,7 @@ function buildUri(relativePath: string): string {
 }
 
 function readProjectFile(relativePath: string): string {
-  const full = path.join(projectRoot(), relativePath);
+  const full = resolveProjectRelativePath(projectRoot(), relativePath);
   if (!fs.existsSync(full)) {
     throw new Error(`Resource file not found: ${relativePath}`);
   }
@@ -252,7 +253,7 @@ export function readMcpResource(uri: string): McpResourceContent {
       const index = JSON.parse(
         readProjectFile('data/strategy-guides-index.json')
       ) as Record<string, { file?: string }>;
-      if (index[slug]?.file) fileName = index[slug].file!;
+      if (index[slug]?.file) fileName = path.basename(index[slug].file!);
     } catch {
       // fall back to slug.md
     }
