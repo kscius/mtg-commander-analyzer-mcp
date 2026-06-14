@@ -8,6 +8,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { assertSafeResourceId } from './safePath';
 import { DeckTemplate } from './types';
 import { parseTemplate, safeParseTemplate, type DeckTemplateValidated } from './templateSchema';
 
@@ -31,6 +32,7 @@ const FULL_SCHEMA_TEMPLATE_IDS = new Set(['bracket3']);
  */
 export function loadDeckTemplate(templateId: string | undefined): DeckTemplate | DeckTemplateValidated {
   const id = templateId || 'default';
+  assertSafeResourceId(id, 'templateId');
 
   if (templateCache.has(id)) {
     return templateCache.get(id)!;

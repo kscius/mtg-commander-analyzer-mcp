@@ -4,6 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { assertSafeResourceId, resolvePathUnderRoot } from '../core/safePath';
 import { getStrategyGuidesIndex, getStrategyProfile } from '../core/strategyProfiles';
 
 export interface GetStrategyGuideInput {
@@ -43,11 +44,12 @@ function loadGuideMeta(slug: string): StrategyGuideMeta | null {
 }
 
 function readMarkdownGuide(slug: string): string | null {
+  assertSafeResourceId(slug, 'preferredStrategy');
   const index = getStrategyGuidesIndex();
   const entry = index[slug];
   const guidesDir = path.join(__dirname, '..', '..', 'docs', 'strategy-guides');
   const fileName = entry?.file ?? `${slug}.md`;
-  const full = path.join(guidesDir, fileName);
+  const full = resolvePathUnderRoot(guidesDir, fileName);
   try {
     if (fs.existsSync(full)) return fs.readFileSync(full, 'utf8');
   } catch {
@@ -60,6 +62,7 @@ export async function runGetStrategyGuide(
   input: GetStrategyGuideInput
 ): Promise<GetStrategyGuideResult> {
   const slug = input.preferredStrategy.trim().toLowerCase();
+  assertSafeResourceId(slug, 'preferredStrategy');
   const profile = getStrategyProfile(slug);
   const meta = loadGuideMeta(slug);
   const indexEntry = getStrategyGuidesIndex()[slug];

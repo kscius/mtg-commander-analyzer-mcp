@@ -7,6 +7,20 @@
 
 import { z } from "zod";
 
+/** Safe filesystem resource id — blocks path traversal in template/bracket/strategy loaders. */
+export const SafeResourceIdSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/,
+    'Invalid resource id: use lowercase letters, digits, and hyphens only'
+  );
+
+/** Optional template id with bracket3 default. */
+export const TemplateIdSchema = SafeResourceIdSchema.optional().default('bracket3');
+
+/** Optional bracket id with bracket3 default. */
+export const BracketIdSchema = SafeResourceIdSchema.optional().default('bracket3');
+
 /** Common EDHREC theme slugs for `preferredStrategy` (confirm with get_synergies per commander). */
 export const PREFERRED_STRATEGY_SLUGS = [
   "tokens",
@@ -46,10 +60,10 @@ export const AnalyzeDeckInputSchema = z.object({
   ),
   
   /** Template ID for deck analysis (optional, defaults to "bracket3") */
-  templateId: z.string().optional().default("bracket3").describe("Template ID for deck analysis (default: bracket3)"),
+  templateId: TemplateIdSchema.describe("Template ID for deck analysis (default: bracket3)"),
 
   /** Bracket ID for rule enforcement (optional, defaults to "bracket3") */
-  bracketId: z.string().optional().default("bracket3").describe("Bracket ID for rule enforcement (default: bracket3)"),
+  bracketId: BracketIdSchema.describe("Bracket ID for rule enforcement (default: bracket3)"),
   
   /** EDHREC theme slug; enables synergyScore and cut/add hints */
   preferredStrategy: z.string().optional().describe(
@@ -96,10 +110,10 @@ export const BuildDeckInputSchema = z.object({
   commanderName: z.string().describe("Commander card name (e.g., \"Atraxa, Praetors' Voice\")"),
   
   /** Template ID for deck building (optional, defaults to "bracket3") */
-  templateId: z.string().optional().default("bracket3").describe("Template ID for deck building (default: bracket3)"),
+  templateId: TemplateIdSchema.describe("Template ID for deck building (default: bracket3)"),
 
   /** Bracket ID for rule enforcement (optional, defaults to "bracket3") */
-  bracketId: z.string().optional().default("bracket3").describe("Bracket ID for rule enforcement (default: bracket3)"),
+  bracketId: BracketIdSchema.describe("Bracket ID for rule enforcement (default: bracket3)"),
   
   /** EDHREC theme slug — boosts generator/autofill card scoring */
   preferredStrategy: z.string().optional().describe(
@@ -249,8 +263,8 @@ export const OptimizeDeckInputSchema = z.object({
   preferredStrategy: z.string().optional().describe(
     `EDHREC theme slug for synergy scoring and EDHREC pool. Examples: ${PREFERRED_STRATEGY_SLUGS.join(', ')}.`
   ),
-  templateId: z.string().optional().default('bracket3'),
-  bracketId: z.string().optional().default('bracket3'),
+  templateId: TemplateIdSchema,
+  bracketId: BracketIdSchema,
   banlistId: z.string().optional().default('commander'),
   maxIterations: z.number().int().min(1).max(12).optional().default(4),
   focusCategories: z
@@ -295,8 +309,8 @@ export const EvaluateCardSwapInputSchema = z.object({
   preferredStrategy: z.string().optional().describe(
     `EDHREC theme slug for synergy scoring. Examples: ${PREFERRED_STRATEGY_SLUGS.join(', ')}.`
   ),
-  templateId: z.string().optional().default('bracket3'),
-  bracketId: z.string().optional().default('bracket3'),
+  templateId: TemplateIdSchema,
+  bracketId: BracketIdSchema,
 });
 
 export type EvaluateCardSwapInput = z.infer<typeof EvaluateCardSwapInputSchema>;
@@ -305,7 +319,9 @@ export type EvaluateCardSwapInput = z.infer<typeof EvaluateCardSwapInputSchema>;
 export const GetStrategyGuideInputSchema = z.object({
   responseMode: McpResponseModeSchema,
   commanderName: z.string().describe('Commander card name (for guide context)'),
-  preferredStrategy: z.string().describe('EDHREC theme slug (e.g. tokens, voltron, group-slug)'),
+  preferredStrategy: SafeResourceIdSchema.describe(
+    'EDHREC theme slug (e.g. tokens, voltron, group-slug)'
+  ),
   summaryOnly: z
     .boolean()
     .optional()
