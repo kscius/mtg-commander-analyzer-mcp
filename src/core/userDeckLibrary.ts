@@ -108,8 +108,14 @@ function projectRoot(): string {
 }
 
 function resolveTxtPath(txtFile: string): string {
-  if (path.isAbsolute(txtFile)) return txtFile;
-  return path.join(projectRoot(), txtFile.replace(/\//g, path.sep));
+  const base = path.resolve(USER_DECK_LIBRARY_DIR);
+  const resolved = path.isAbsolute(txtFile)
+    ? path.resolve(txtFile)
+    : path.resolve(base, txtFile.replace(/\//g, path.sep));
+  if (resolved !== base && !resolved.startsWith(base + path.sep)) {
+    throw new Error(`Invalid deck path: ${txtFile}`);
+  }
+  return resolved;
 }
 
 export function loadUserDeckIndex(): UserDeckIndex | null {
