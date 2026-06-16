@@ -45,7 +45,15 @@ Expected: `data/golden/shadrix-group-slug-analyze.expected.json`
 npm run benchmark:decks
 ```
 
-Builds and analyzes a small set of commanders and prints timing metrics. Exits with code 1 if `cards.db` is not ready.
+Builds and analyzes a small set of commanders (template-only, offline EDHREC) and prints timing metrics.
+
+**Exit codes:**
+
+- `1` if `data/cards.db` is not ready
+- `1` if any commander hits a **hard** failure: build exception, mainboard ≠ 99, banlist invalid, or hard lint issues
+- `0` otherwise — including soft quality gaps (`readyToShip: false`, categories below template mins), which are logged as non-blocking warnings
+
+CI runs this as the final step after golden regression.
 
 ## Fixtures
 
