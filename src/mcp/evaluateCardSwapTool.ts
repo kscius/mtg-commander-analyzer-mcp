@@ -22,6 +22,6 @@ export async function runEvaluateCardSwap(
   const nextSuggestedAction =
     result.recommendation === 'proceed'
       ? 'Apply swap to deckText and re-run analyze_deck.'
-      : 'Try another swap from recommendations.swaps or search_cards.';
+      : 'Try another swap from analysis.prioritizedActions or search_cards.';
   return { ...result, summary, nextSuggestedAction };
 }

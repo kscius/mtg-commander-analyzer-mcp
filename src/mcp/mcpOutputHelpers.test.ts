@@ -4,6 +4,7 @@ import {
   buildAnalyzeSummary,
   buildQualityGate,
   buildNextSuggestedAction,
+  buildAgentBriefFromAnalysis,
   computeRemainingGaps,
   isDeckConverged,
   attachAnalyzeConvergence,
@@ -195,6 +196,37 @@ describe('attachBuildConvergence', () => {
   });
 });
 
+describe('buildAgentBriefFromAnalysis', () => {
+  it('filters categoriesBelow by focusCategories to match blocking gaps', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'ramp', count: 10, min: 9, max: 12, status: 'within' as const },
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 70,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const brief = buildAgentBriefFromAnalysis(analysis, {
+      summary: 'Optimized deck.',
+      focusCategories: ['ramp'],
+      remainingGaps: [],
+      converged: false,
+      readyToShip: false,
+    });
+
+    expect(brief.categoriesBelow).toBeUndefined();
+    expect(brief.remainingGapCount).toBeUndefined();
+  });
+});
+
 describe('attachOptimizeConvergence', () => {
   it('adds qualityGate on optimize results', () => {
     const base = {
@@ -249,6 +281,8 @@ describe('attachOptimizeConvergence', () => {
     expect(out.qualityGate?.converged).toBe(false);
     expect(out.qualityGate?.readyToShip).toBe(false);
     expect(out.nextSuggestedAction).toContain('card_draw');
+    expect(out.agentBrief?.categoriesBelow).toBeUndefined();
+    expect(out.agentBrief?.remainingGapCount).toBeUndefined();
   });
 });
 

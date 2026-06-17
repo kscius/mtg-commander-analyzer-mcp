@@ -166,7 +166,7 @@ export function buildNextSuggestedAction(
     return `Address Bracket 3 warnings (${analysis.bracketWarnings[0]}).`;
   }
   if (analysis.synergyScore != null && analysis.synergyScore < 60) {
-    return 'Synergy is low — review recommendations.cuts/swaps or run optimize_deck.';
+    return 'Synergy is low — review analysis.prioritizedActions or run optimize_deck.';
   }
   return 'Deck looks healthy. Use evaluate_card_swap for single changes.';
 }
@@ -179,12 +179,17 @@ export function buildAgentBriefFromAnalysis(
     converged?: boolean;
     readyToShip?: boolean;
     remainingGaps?: RemainingGap[];
+    focusCategories?: string[];
     polishGapCount?: number;
     nextSuggestedAction?: string;
     buildQualityOverall?: AgentBrief['buildQualityOverall'];
   }
 ): AgentBrief {
-  const below = analysis.categories.filter((c) => c.status === 'below').map((c) => c.name);
+  const focus = options.focusCategories?.map((c) => c.toLowerCase());
+  const below = analysis.categories
+    .filter((c) => c.status === 'below')
+    .filter((c) => !focus?.length || focus.includes(c.name.toLowerCase()))
+    .map((c) => c.name);
   const blockingCount = options.remainingGaps?.length ?? 0;
   const polishCount = options.polishGapCount ?? 0;
   return {
@@ -311,6 +316,7 @@ export function attachOptimizeConvergence(
     converged,
     readyToShip: qualityGate.readyToShip,
     remainingGaps,
+    focusCategories: result.input.focusCategories,
     polishGapCount: qualityGate.polish.length,
     nextSuggestedAction,
   });
