@@ -7,7 +7,7 @@
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { PREFERRED_STRATEGY_SLUGS } from '../core/schemas';
+import { BRACKET3_TEMPLATE_CATEGORY_NAMES, PREFERRED_STRATEGY_SLUGS } from '../core/schemas';
 
 export const PREFERRED_STRATEGY_DOC =
   `EDHREC theme slug (not free text). Examples: ${PREFERRED_STRATEGY_SLUGS.join(', ')}. ` +
@@ -18,6 +18,12 @@ const RESPONSE_MODE_PROP = {
   enum: ['brief', 'full'],
   default: 'brief',
   description: 'brief: compact JSON for agents; full: complete payload',
+} as const;
+
+const TEMPLATE_CATEGORY_PROP = {
+  type: 'string',
+  enum: [...BRACKET3_TEMPLATE_CATEGORY_NAMES],
+  description: 'Bracket 3 template category (e.g. card_draw, ramp, spot_removal)',
 } as const;
 
 /** Tool definitions — keep in sync with Zod schemas in core/schemas.ts */
@@ -113,7 +119,7 @@ export function buildMcpTools(): Tool[] {
         properties: {
           responseMode: RESPONSE_MODE_PROP,
           commanderName: { type: 'string' },
-          category: { type: 'string', description: 'e.g. card_draw, ramp, spot_removal' },
+          category: TEMPLATE_CATEGORY_PROP,
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
           limit: { type: 'number', default: 15 },
           maxMV: { type: 'number' },
@@ -132,7 +138,7 @@ export function buildMcpTools(): Tool[] {
           responseMode: RESPONSE_MODE_PROP,
           query: { type: 'string' },
           colorIdentity: { type: 'array', items: { type: 'string' } },
-          category: { type: 'string' },
+          category: TEMPLATE_CATEGORY_PROP,
           type: { type: 'string' },
           maxMV: { type: 'number', description: 'Maximum mana value (valid filter alone)' },
           commanderLegal: { type: 'boolean', default: true },
@@ -166,7 +172,7 @@ export function buildMcpTools(): Tool[] {
             description: 'Internal banlist key (default commander)',
           },
           maxIterations: { type: 'number', default: 4 },
-          focusCategories: { type: 'array', items: { type: 'string' } },
+          focusCategories: { type: 'array', items: TEMPLATE_CATEGORY_PROP },
           stopWhenScore: {
             type: 'number',
             description: 'Stop when synergyScore reaches this value (0-100)',

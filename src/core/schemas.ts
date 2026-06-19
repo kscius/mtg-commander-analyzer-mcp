@@ -45,6 +45,32 @@ export const McpResponseModeSchema = z
   .describe('brief: compact JSON; full: pretty-printed complete payload');
 
 /**
+ * Bracket 3 template category names from `data/deck-template-bracket3.json` `categories[].name`.
+ * Used to validate category params on search_cards, get_category_candidates, optimize_deck.
+ */
+export const BRACKET3_TEMPLATE_CATEGORY_NAMES = [
+  'lands',
+  'ramp',
+  'card_draw',
+  'card_selection',
+  'spot_removal',
+  'artifact_enchantment_hate',
+  'graveyard_hate',
+  'board_wipes',
+  'protection',
+  'value_engines',
+  'win_conditions',
+  'game_changers',
+  'extra_turns',
+] as const;
+
+export type TemplateCategoryName = (typeof BRACKET3_TEMPLATE_CATEGORY_NAMES)[number];
+
+export const TemplateCategoryNameSchema = z
+  .enum(BRACKET3_TEMPLATE_CATEGORY_NAMES)
+  .describe('Bracket 3 template category (see deck-template-bracket3.json)');
+
+/**
  * Schema for analyze_deck tool input
  * 
  * Corresponds to AnalyzeDeckInput interface in types.ts
@@ -154,9 +180,9 @@ export const BuildDeckInputSchema = z.object({
 export const GetCategoryCandidatesInputSchema = z.object({
   responseMode: McpResponseModeSchema,
   commanderName: z.string().describe("Commander card name for color identity"),
-  category: z
-    .string()
-    .describe("Template category to fill (e.g. card_draw, ramp, spot_removal)"),
+  category: TemplateCategoryNameSchema.describe(
+    'Template category to fill (e.g. card_draw, ramp, spot_removal)'
+  ),
   preferredStrategy: z.string().optional().describe(
     `EDHREC theme slug for synergy ranking. Examples: ${PREFERRED_STRATEGY_SLUGS.join(", ")}.`
   ),
@@ -209,7 +235,9 @@ export const SearchCardsInputSchema = z
     responseMode: McpResponseModeSchema,
     query: z.string().optional().describe("FTS text search on name, oracle text, type line"),
     colorIdentity: z.array(z.string()).optional().describe("Color identity subset filter (W,U,B,R,G)"),
-    category: z.string().optional().describe("Template category tag (ramp, card_draw, spot_removal, etc.)"),
+    category: TemplateCategoryNameSchema.optional().describe(
+      'Template category tag (ramp, card_draw, spot_removal, etc.)'
+    ),
     type: z.string().optional().describe("Type line substring (Creature, Instant, Land, ...)"),
     maxMV: z.number().optional().describe("Maximum mana value (CMC)"),
     commanderLegal: z.boolean().optional().default(true).describe("Only Commander-legal cards (default true)"),
@@ -268,7 +296,7 @@ export const OptimizeDeckInputSchema = z.object({
   banlistId: z.string().optional().default('commander'),
   maxIterations: z.number().int().min(1).max(12).optional().default(4),
   focusCategories: z
-    .array(z.string())
+    .array(TemplateCategoryNameSchema)
     .optional()
     .describe('Optional: only optimize these template categories'),
   stopWhenScore: z

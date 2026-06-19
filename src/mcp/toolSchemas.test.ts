@@ -5,6 +5,7 @@ import {
   AnalyzeDeckInputSchema,
   ApplyDeckChangesInputSchema,
   BuildDeckInputSchema,
+  BRACKET3_TEMPLATE_CATEGORY_NAMES,
   EvaluateCardSwapInputSchema,
   GetCategoryCandidatesInputSchema,
   GetStrategyGuideInputSchema,
@@ -69,5 +70,24 @@ describe('buildMcpTools Zod contract', () => {
 
   it('optimize_deck exposes banlistId for MCP discovery', () => {
     expect(mcpPropertyKeys('optimize_deck')).toContain('banlistId');
+  });
+
+  it('category fields expose bracket3 template category enum', () => {
+    const tools = buildMcpTools();
+    const categoryEnum = [...BRACKET3_TEMPLATE_CATEGORY_NAMES];
+    for (const toolName of ['get_category_candidates', 'search_cards'] as const) {
+      const tool = tools.find((t) => t.name === toolName);
+      const category = (
+        tool?.inputSchema as { properties?: { category?: { enum?: string[] } } }
+      )?.properties?.category;
+      expect(category?.enum).toEqual(categoryEnum);
+    }
+    const optimize = tools.find((t) => t.name === 'optimize_deck');
+    const focusItems = (
+      optimize?.inputSchema as {
+        properties?: { focusCategories?: { items?: { enum?: string[] } } };
+      }
+    )?.properties?.focusCategories?.items;
+    expect(focusItems?.enum).toEqual(categoryEnum);
   });
 });
