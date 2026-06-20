@@ -27,14 +27,14 @@ Iterative workflow for improving a Commander deck using this MCP. Prefer templat
 | `agentBrief` | Read first in `responseMode: brief` (default) |
 | `analysis.deckScore` | Overall health (0–100); track before/after swaps |
 | `analysis.strengthsAndWeaknesses` | Quick narrative for user |
-| `analysis.prioritizedActions` | Top 3–5 next steps |
+| `analysis.prioritizedActions` | Up to 8 next steps (brief mode cap) |
 | `analysis.categories` | `below` / `within` / `above` per template slot |
 | `analysis.lintReport.ok` | `false` means hard or soft template issues |
 | `analysis.lintReport.issues` | `severity: "hard"` must be fixed |
 | `analysis.synergyScore` | Thematic fit when `preferredStrategy` set |
 | `analysis.manaBaseQuality` | Land count, tapped ratio, early sources |
 | `analysis.curveAnalysis` | MV distribution vs template |
-| `analysis.recommendations` | Suggested cuts/adds (verify names with `search_cards`) |
+| `analysis.recommendations` | Suggested cuts/adds — **brief mode omits swaps/packages**; use `prioritizedActions` or `responseMode: "full"` |
 | `decklistText` | Copy-paste mainboard |
 
 ## Iteration loop

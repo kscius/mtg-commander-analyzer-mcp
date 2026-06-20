@@ -39,7 +39,7 @@ For a dedicated “deck agent” process outside the IDE:
 3. Set `CURSOR_API_KEY` and point `mcpServers` at this repo (`npm run mcp`, correct `cwd`).
 4. Seed the agent with `AGENTS.md` or MCP prompt `build-commander-deck`.
 
-See also `.cursor/plans/scout-2026-05-23-cursor-sdk-agent-in-mcp.md` for tradeoffs (avoid MCP → SDK → same MCP recursion).
+See also `scripts/deck-agent.example.mjs` and `.cursor/plans/scout-2026-04-10-commander-deck-chat-flow.md` for Cursor SDK tradeoffs (avoid MCP → SDK → same MCP recursion).
 
 ## MCP surfaces for agents
 
@@ -54,7 +54,7 @@ See also `.cursor/plans/scout-2026-05-23-cursor-sdk-agent-in-mcp.md` for tradeof
 | Field | Tools | Action |
 |-------|-------|--------|
 | `agentBrief` | build, analyze, optimize | Compact status — read before full `analysis` |
-| `qualityGate.readyToShip` | analyze | Do not deliver until `true` or user accepts polish |
+| `qualityGate.readyToShip` | build, analyze, optimize | Do not deliver until `true` or user accepts polish |
 | `converged` / `remainingGaps` | build, analyze, optimize | Loop until converged |
 | `decklistText` | build, analyze, optimize | Final pasteable list |
 | `unresolvedCardNames` | analyze | Fix names via `resolve_card` / `search_cards` |
@@ -66,7 +66,7 @@ See also `.cursor/plans/scout-2026-05-23-cursor-sdk-agent-in-mcp.md` for tradeof
 | MCP errored | Check Node LTS, `npm run mcp`, workspace `cwd` |
 | `search_cards.databaseReady === false` | `npm rebuild better-sqlite3`; `db:create` + `db:import` |
 | Unknown `preferredStrategy` | Call `get_synergies`; use returned slug |
-| Low synergy | `optimize_deck` with same slug; cut `offThemeCards` |
+| Low synergy | `optimize_deck` with same slug; cut off-theme cards (hints in `analysis.notes`) |
 
 Full guide: [agent-mcp-troubleshooting.md](./agent-mcp-troubleshooting.md).
 

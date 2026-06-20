@@ -24,9 +24,11 @@ Usar siempre las herramientas del MCP cuando el usuario pida analizar o construi
 | `get_synergies` | Listar sinergias/slugs EDHREC antes de construir (preguntar al usuario). |
 | `get_user_deck_style` | Perfil de tus mazos importados en `data/my_decks` (tierras, mana base). `useOpenAI: true` opcional con `OPENAI_API_KEY`. |
 | `get_strategy_guide` | Guía de construcción para el slug elegido (ratios, paquetes, anti-patrones). |
+| `get_category_candidates` | Candidatos rankeados para una categoría `below` (gap-fill temático). |
 | `build_deck_from_commander` | Construir 99 cartas (template + EDHREC; **preferido**). Defaults: `useEdhrec`/`useTemplateGenerator`/`useEdhrecAutofill`/`useUserStyleReference` **true**. |
 | `analyze_deck` | Validar mazo: categorías, singleton, legalidad, Bracket 3, `prioritizedActions`, `synergyScore`, `decklistText`. |
 | `optimize_deck` | Mejora automática (cortes/añadidos + autofill EDHREC; `maxIterations` default 4). |
+| `apply_deck_changes` | Aplicar swaps validados (`swaps[]` con `remove`/`add`) sin re-pegar 99 líneas. |
 | `evaluate_card_swap` | Previsualizar un reemplazo (`proceed` / `skip`, deltas de categoría y sinergia). |
 | `search_cards` | Buscar cartas reales en `cards.db` (FTS + filtros). |
 | `resolve_card` | Resolver un nombre y comprobar legalidad/color vs comandante. |

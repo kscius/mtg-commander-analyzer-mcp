@@ -56,7 +56,7 @@ flowchart LR
 | `search_cards` | Query `data/cards.db` | `query`, `colorIdentity`, `category`, `commanderName`, `preferredStrategy` | `commanderLegal` **true**, `limit` **20** |
 | `resolve_card` | Resolve one name + legality/color fit | `cardName`, optional `commanderName` | Use before manual adds when unsure of exact name |
 
-**Response size:** Tools with a `responseMode` param default to **brief** (`apply_deck_changes` has no `responseMode`; responses are always compact). On build/analyze/optimize, read `agentBrief` and `qualityGate` first. On `search_cards`, `get_synergies`, and `get_strategy_guide`, brief mode omits long oracle text and full guide markdown. Use `responseMode: full` when you need complete payloads.
+**Response size:** Tools with a `responseMode` param default to **brief** (`apply_deck_changes` has no `responseMode`; responses are always compact). On build/analyze/optimize, read `agentBrief` and `qualityGate` first. In **brief** `analyze_deck`, use `analysis.prioritizedActions` (and `agentBrief`) for fixes — `recommendations.cuts` / `.adds` / `.swaps` and `synergyPackages` are **empty or omitted** (`toBriefAnalyzeResult` in `src/mcp/mcpResponseFormat.ts`). Pass `responseMode: "full"` when you need thematic cut/add pairs or synergy packages. On `search_cards`, `get_synergies`, and `get_strategy_guide`, brief mode omits long oracle text and full guide markdown.
 
 **Architecture:** the Cursor agent is the LLM; MCP provides data, validation, and deterministic build/optimize. `build_deck_from_commander` fills gaps with EDHREC + local SQLite (`search_cards` / `searchCardsFiltered` fallback).
 
@@ -138,7 +138,7 @@ After every **build**, **analyze**, or **optimize** call, use structured fields 
 | `buildQualityReport.overall` | build | `strong` \| `acceptable` \| `needs_work` |
 | `metricsBefore` / `metricsAfter` | optimize | Track synergy and categoriesBelow |
 | `analysis.prioritizedActions` | analyze | Ordered fixes (prefer over `recommendations.prioritizedActions`); use `suggestedSearch` with `search_cards` |
-| `recommendations.swaps` | analyze | Thematic cut/add pairs |
+| `recommendations.swaps` | analyze (`responseMode: "full"`) | Thematic cut/add pairs — omitted in default brief |
 | Off-theme cut hints | analyze (with strategy) | In `analysis.notes` as `Possible off-theme cards: …` — not a top-level JSON field |
 | `analysis.unresolvedCardNames` | analyze | Names not in `cards.db` — fix before delivery |
 
@@ -196,7 +196,7 @@ Full guide: `docs/agent-mcp-troubleshooting.md`. Skill: `.cursor/skills/mtg-mcp-
 |-------|---------|
 | `analysis.deckScore` | Composite 0–100 (synergy + categories + curve + mana) when computed |
 | `analysis.strengthsAndWeaknesses` | Short bullets for LLM triage |
-| `analysis.prioritizedActions` | Top 3–5 improvements, ordered by impact |
+| `analysis.prioritizedActions` | Up to 8 improvements, ordered by impact (brief mode caps at 8) |
 | `analysis.manaBaseQuality` | Mana-specific sub-score when lint runs |
 | `analysis.categories[].status` | `below` / `within` / `above` vs template |
 | `analysis.bracketWarnings` | Bracket 3 policy violations |
