@@ -7,6 +7,8 @@ import {
   EvaluateCardSwapInputSchema,
   GetStrategyGuideInputSchema,
   ResolveCardInputSchema,
+  GetCategoryCandidatesInputSchema,
+  TemplateCategoryNameSchema,
 } from "./schemas";
 
 describe("AnalyzeDeckInputSchema", () => {
@@ -48,6 +50,14 @@ describe("SearchCardsInputSchema", () => {
     expect(parsed.commanderName).toContain("Shadrix");
   });
 
+  it("rejects invalid category slugs", () => {
+    expect(() =>
+      SearchCardsInputSchema.parse({
+        category: "card-drawl",
+      })
+    ).toThrow();
+  });
+
   it("rejects limit above 100", () => {
     expect(() => SearchCardsInputSchema.parse({ limit: 101, query: "x" })).toThrow();
   });
@@ -81,6 +91,25 @@ describe("OptimizeDeckInputSchema", () => {
     expect(parsed.stopWhenScore).toBe(70);
     expect(parsed.preserveCards).toEqual(["Sol Ring"]);
   });
+
+  it("rejects invalid focusCategories entries", () => {
+    expect(() =>
+      OptimizeDeckInputSchema.parse({
+        deckText: "1 Sol Ring",
+        commanderName: "Atraxa, Praetors' Voice",
+        focusCategories: ["card-drawl"],
+      })
+    ).toThrow();
+  });
+
+  it("accepts valid focusCategories", () => {
+    const parsed = OptimizeDeckInputSchema.parse({
+      deckText: "1 Sol Ring",
+      commanderName: "Atraxa, Praetors' Voice",
+      focusCategories: ["card_draw", "ramp"],
+    });
+    expect(parsed.focusCategories).toEqual(["card_draw", "ramp"]);
+  });
 });
 
 describe("ResolveCardInputSchema", () => {
@@ -110,6 +139,29 @@ describe("EvaluateCardSwapInputSchema", () => {
     });
     expect(parsed.cardToRemove).toBe("Sol Ring");
     expect(parsed.templateId).toBe("bracket3");
+  });
+});
+
+describe("TemplateCategoryNameSchema", () => {
+  it("accepts valid bracket3 category names", () => {
+    expect(TemplateCategoryNameSchema.parse("card_draw")).toBe("card_draw");
+    expect(TemplateCategoryNameSchema.parse("spot_removal")).toBe("spot_removal");
+  });
+
+  it("rejects typos and unknown categories", () => {
+    expect(() => TemplateCategoryNameSchema.parse("card-drawl")).toThrow();
+    expect(() => TemplateCategoryNameSchema.parse("draw")).toThrow();
+  });
+});
+
+describe("GetCategoryCandidatesInputSchema", () => {
+  it("rejects invalid category slugs", () => {
+    expect(() =>
+      GetCategoryCandidatesInputSchema.parse({
+        commanderName: "Atraxa, Praetors' Voice",
+        category: "card-drawl",
+      })
+    ).toThrow();
   });
 });
 
