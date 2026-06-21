@@ -52,14 +52,16 @@ Comprobar y comunicar al usuario:
 
 ### 4. Campos útiles del JSON
 
+Lee primero **`agentBrief`** y **`qualityGate`** (modo `brief` por defecto).
+
 | Campo | Uso |
 |-------|-----|
 | `analysis.categories[].status` | `below` / `within` / `above` vs plantilla |
 | `analysis.synergyScore` | 0–100 con `preferredStrategy` |
-| `analysis.recommendations.cuts` / `.adds` | Cambios sugeridos |
-| `analysis.recommendations.swaps` | Pares cortar → añadir con impacto |
-| `analysis.recommendations.synergyPackages` | Paquetes temáticos faltantes |
-| `analysis.prioritizedActions` | Orden de mejoras (top 3–5) |
+| `analysis.prioritizedActions` | Orden de mejoras (hasta 8 en brief) — **usar en modo brief** |
+| `analysis.recommendations.cuts` / `.adds` | Cambios sugeridos — solo con `responseMode: "full"` |
+| `analysis.recommendations.swaps` | Pares cortar → añadir — solo con `responseMode: "full"` |
+| `analysis.recommendations.synergyPackages` | Paquetes temáticos — solo con `responseMode: "full"` |
 | `analysis.lintReport` | Curva, mana, formato (`format:*`) |
 | `decklistText` | Lista lista para copiar |
 

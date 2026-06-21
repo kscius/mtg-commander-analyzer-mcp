@@ -78,7 +78,7 @@ Usa **siempre** las herramientas del servidor MCP de este proyecto (nombres exac
 | `get_category_candidates` | Categoría `below` — candidatos temáticos desde EDHREC/DB | `commanderName`, `preferredStrategy`, `category` |
 | `analyze_deck` | Modo B al inicio y tras cada cambio; Modo A al final | `deckText`, `templateId: "bracket3"`, `commanderName` o línea `Commander:` o `inferCommander` (default true), `preferredStrategy`, `responseMode: "brief"` |
 | `optimize_deck` | Varios déficits — cortes/añadidos automáticos + autofill | `deckText`, `commanderName`, `preferredStrategy`, `maxIterations: 4` |
-| `apply_deck_changes` | Aplicar cortes/añadidos ya validados en lote | `deckText`, `commanderName`, `cuts[]`, `adds[]` |
+| `apply_deck_changes` | Aplicar cortes/añadidos ya validados en lote | `deckText`, `swaps[]` (`remove`/`add` por swap), `commanderName` opcional |
 | `evaluate_card_swap` | Antes de cada cambio puntual en modo B | `deckText`, `commanderName`, `cardToRemove`, `cardToAdd`, `preferredStrategy` opcional |
 | `search_cards` | Añadir cartas reales por categoría/color | `query`, `category`, `commanderName` (color identity), `limit` |
 | `build_deck_from_commander` | Modo A (única vía de build MCP) | `commanderName`, `preferredStrategy`, `useTemplateGenerator: true`, `useUserStyleReference: true` (default), `refineUntilStable: true`. Revisar `qualityGate`, `buildQualityReport` |

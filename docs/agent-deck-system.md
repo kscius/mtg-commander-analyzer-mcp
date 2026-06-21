@@ -31,7 +31,7 @@ This document adds **implementation detail** (mana base, tagging, data files). D
 | `search_cards` | Find real cards for adds (FTS + category filters) |
 | `resolve_card` | Resolve one name; legality and color fit vs commander |
 
-All tools default to **`responseMode: "brief"`** (compact JSON). Use **`responseMode: "full"`** when you need complete payloads (e.g. full `guideMarkdown` or oracle text).
+Tools with **`responseMode`** default to **`"brief"`** (compact JSON). `apply_deck_changes` has no `responseMode` — responses are always compact. Use **`responseMode: "full"`** when you need complete payloads (e.g. full `guideMarkdown`, oracle text, or `recommendations.swaps`).
 
 ### `get_synergies`
 

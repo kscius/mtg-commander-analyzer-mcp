@@ -188,7 +188,7 @@ npm test
 npm run test:watch   # watch mode during development
 ```
 
-Pull requests and pushes to `main` / `master` run `npm ci`, `npm run build`, and `npm test` on Node 18 and 20 via GitHub Actions (see `.github/workflows/ci.yml`).
+Pull requests and pushes to `main` / `master` run `npm ci`, `npm run build`, and `npm test` on Node 20 via GitHub Actions (see `.github/workflows/ci.yml`).
 
 ## 📖 Usage
 
@@ -425,7 +425,7 @@ In `claude_desktop_config.json`:
 - ✅ Optimized indexes for common queries
 - ✅ Full-text search (FTS5) for card names and oracle text
 - ✅ JSON columns for complex data (legalities, prices, images)
-- ✅ ~520,000+ cards from "All Cards" bulk data
+- ✅ ~38,000 oracle-unique cards from `data/oracle-cards.json` (default `npm run db:import` path)
 
 **Analysis:**
 - ✅ Deck size validation (99 + commander)

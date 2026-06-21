@@ -121,7 +121,7 @@ When tuning the list, re-add fast mana if you want speed — watch total Game Ch
 2. Manual list or `build_deck_from_commander` with seeds — **review** output; generator may infer wrong commander or add illegal colors.
 3. `analyze_deck` with `preferredStrategy: "artifacts"`.
 4. Fix categories with targeted adds (`search_cards` / `get_category_candidates`), not blind optimize.
-5. Read **`agentBrief`**, **`qualityGate`**, **`offThemeCards`** in notes — low-scoring Discover staples are expected.
+5. Read **`agentBrief`**, **`qualityGate`**, and off-theme hints in **`analysis.notes`** (`Possible off-theme cards: …`) — low-scoring Discover staples are expected.
 
 ## Related
 
