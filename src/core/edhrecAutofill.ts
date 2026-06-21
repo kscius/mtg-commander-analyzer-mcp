@@ -373,6 +373,24 @@ async function analyzeBuiltDeck(
 }
 
 /**
+ * True when lands or tracked autofill categories are below template minimums.
+ * Used by the iterative build refinement loop (mirrors optimize_deck land handling).
+ */
+export function hasRemainingEdhrecAutofillDeficits(
+  analysis: DeckAnalysis,
+  template: DeckTemplate
+): boolean {
+  const landsBelow = analysis.categories.some(
+    (c) => c.name === 'lands' && c.status === 'below'
+  );
+  if (landsBelow) {
+    return true;
+  }
+  const deficits = computeCategoryDeficits(analysis, template, [...AUTOFILL_CATEGORY_NAMES]);
+  return deficits.some((d) => d.deficit > 0);
+}
+
+/**
  * Repeatedly fills category deficits until none remain, mainboard is full, no progress, or max iterations.
  */
 export async function runIterativeEdhrecAutofill(
@@ -405,9 +423,7 @@ export async function runIterativeEdhrecAutofill(
   for (let pass = 1; pass <= passLimit; pass++) {
     const analysis = await analyzeBuiltDeck(cards, templateId, input.banlistId);
 
-    const deficits = computeCategoryDeficits(analysis, template, [...AUTOFILL_CATEGORY_NAMES]);
-    const totalDeficit = deficits.reduce((s, d) => s + d.deficit, 0);
-    if (totalDeficit === 0) {
+    if (!hasRemainingEdhrecAutofillDeficits(analysis, template)) {
       iterationNotes.push(`--- EDHREC autofill: pass ${pass} — no category deficits remaining. ---`);
       appendBracket3BuilderNotes(cards, bracketId, bracketRules, iterationNotes);
       return { builtCards: cards, analysis, iterationNotes };
@@ -415,21 +431,44 @@ export async function runIterativeEdhrecAutofill(
 
     iterationNotes.push(`--- EDHREC autofill pass ${pass}/${passLimit} ---`);
 
-    const { newCards, addedCount, passNotes } = runSingleEdhrecAutofillPass(
-      cards,
-      analysis,
-      template,
-      commanderCard,
-      colorIdentity,
-      bracketId,
-      bracketRules,
-      edhrecContext
+    const landsBelow = analysis.categories.some(
+      (c) => c.name === 'lands' && c.status === 'below'
     );
-    iterationNotes.push(...passNotes);
+    const categoryDeficits = computeCategoryDeficits(analysis, template, [...AUTOFILL_CATEGORY_NAMES]);
+    const categoryDeficitTotal = categoryDeficits.reduce((s, d) => s + d.deficit, 0);
 
-    cards = newCards;
+    let passAdded = 0;
 
-    if (addedCount === 0) {
+    if (landsBelow) {
+      const landPass = runLandAutofillPass(
+        cards,
+        analysis,
+        template,
+        colorIdentity,
+        edhrecContext
+      );
+      cards = landPass.newCards;
+      iterationNotes.push(...landPass.passNotes);
+      passAdded += landPass.addedCount;
+    }
+
+    if (categoryDeficitTotal > 0) {
+      const { newCards, addedCount, passNotes } = runSingleEdhrecAutofillPass(
+        cards,
+        analysis,
+        template,
+        commanderCard,
+        colorIdentity,
+        bracketId,
+        bracketRules,
+        edhrecContext
+      );
+      iterationNotes.push(...passNotes);
+      cards = newCards;
+      passAdded += addedCount;
+    }
+
+    if (passAdded === 0) {
       const finalAnalysis = await analyzeBuiltDeck(cards, templateId, input.banlistId);
       appendBracket3BuilderNotes(cards, bracketId, bracketRules, iterationNotes);
       return { builtCards: cards, analysis: finalAnalysis, iterationNotes };
