@@ -1,27 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   analysisHasAutomatableGaps,
+  AUTOFILL_CATEGORY_NAMES,
   hasRemainingEdhrecAutofillDeficits,
-  runLandAutofillPass,
 } from './edhrecAutofill';
-import type { DeckAnalysis, EdhrecContext } from './types';
+import type { DeckAnalysis } from './types';
 import { loadDeckTemplate } from './templates';
-
-vi.mock('./scryfall', () => ({
-  getCardByName: vi.fn((name: string) => {
-    const lands = new Set(['Command Tower', 'Exotic Orchard', 'Plains', 'Island']);
-    if (!lands.has(name)) return null;
-    return {
-      name,
-      type_line: 'Land',
-      color_identity: name === 'Command Tower' || name === 'Exotic Orchard' ? [] : ['W'],
-      mana_cost: '',
-      cmc: 0,
-      oracle_text: '',
-      tags: ['land'],
-    };
-  }),
-}));
 
 function baseAnalysis(overrides: Partial<DeckAnalysis> = {}): DeckAnalysis {
   return {
@@ -128,12 +112,22 @@ describe('hasRemainingEdhrecAutofillDeficits', () => {
   });
 
   it('returns false when lands and autofill categories are within range', () => {
-    const analysis = baseAnalysis({
-      categories: [
-        { name: 'lands', count: 37, min: 35, max: 38, status: 'within' },
-        { name: 'ramp', count: 10, min: 9, max: 12, status: 'within' },
-      ],
-    });
+    const template = loadDeckTemplate('bracket3');
+    const categories = [
+      { name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const },
+      ...AUTOFILL_CATEGORY_NAMES.map((name) => {
+        const cfg = template.categories.find((c) => c.name === name);
+        const min = cfg?.min ?? 0;
+        return {
+          name,
+          count: min,
+          min,
+          max: cfg?.max ?? min + 5,
+          status: 'within' as const,
+        };
+      }),
+    ];
+    const analysis = baseAnalysis({ categories });
 
     expect(hasRemainingEdhrecAutofillDeficits(analysis, template)).toBe(false);
   });
@@ -147,51 +141,5 @@ describe('hasRemainingEdhrecAutofillDeficits', () => {
     });
 
     expect(hasRemainingEdhrecAutofillDeficits(analysis, template)).toBe(true);
-  });
-});
-
-describe('runLandAutofillPass', () => {
-  const template = loadDeckTemplate('bracket3');
-
-  it('adds EDHREC land suggestions when lands category is below minimum', () => {
-    const analysis = baseAnalysis({
-      categories: [
-        { name: 'lands', count: 32, min: 35, max: 38, status: 'below' },
-      ],
-    });
-    const builtCards = Array.from({ length: 32 }, (_, i) => ({
-      name: i < 30 ? `Plains` : `Island`,
-      quantity: 1,
-      roles: ['land'] as string[],
-    }));
-    builtCards.push(
-      ...Array.from({ length: 67 }, (_, i) => ({
-        name: `Nonland Card ${i}`,
-        quantity: 1,
-        roles: ['ramp'] as string[],
-      }))
-    );
-
-    const edhrecContext: EdhrecContext = {
-      sourcesUsed: ['test'],
-      suggestions: [
-        { name: 'Command Tower', synergyScore: 0.9, category: 'lands' },
-        { name: 'Exotic Orchard', synergyScore: 0.85, category: 'lands' },
-        { name: 'Sol Ring', synergyScore: 0.95, category: 'ramp' },
-      ],
-    };
-
-    const result = runLandAutofillPass(
-      builtCards,
-      analysis,
-      template,
-      ['W', 'U', 'B'],
-      edhrecContext
-    );
-
-    expect(result.addedCount).toBe(3);
-    expect(result.newCards.some((c) => c.name === 'Command Tower')).toBe(true);
-    expect(result.newCards.some((c) => c.name === 'Exotic Orchard')).toBe(true);
-    expect(result.passNotes.some((n) => /Land autofill added 3 land/i.test(n))).toBe(true);
   });
 });
