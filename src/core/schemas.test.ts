@@ -8,7 +8,13 @@ import {
   GetStrategyGuideInputSchema,
   ResolveCardInputSchema,
   GetCategoryCandidatesInputSchema,
+  ApplyDeckChangesInputSchema,
+  GetUserDeckStyleInputSchema,
   TemplateCategoryNameSchema,
+  DECK_TEXT_MAX_LENGTH,
+  CARD_NAME_MAX_LENGTH,
+  STYLE_QUESTION_MAX_LENGTH,
+  SWAPS_MAX_COUNT,
 } from "./schemas";
 
 describe("AnalyzeDeckInputSchema", () => {
@@ -172,5 +178,65 @@ describe("GetStrategyGuideInputSchema", () => {
       preferredStrategy: "group-slug",
     });
     expect(parsed.preferredStrategy).toBe("group-slug");
+  });
+});
+
+describe("MCP input bounds (DoS guards)", () => {
+  it("rejects deckText above max length", () => {
+    const oversized = "x".repeat(DECK_TEXT_MAX_LENGTH + 1);
+    expect(() =>
+      AnalyzeDeckInputSchema.parse({ deckText: oversized })
+    ).toThrow();
+  });
+
+  it("rejects path-like preferredStrategy on analyze_deck", () => {
+    expect(() =>
+      AnalyzeDeckInputSchema.parse({
+        deckText: "1 Sol Ring",
+        preferredStrategy: "../../../.env",
+      })
+    ).toThrow();
+  });
+
+  it("rejects swaps above max count", () => {
+    const swaps = Array.from({ length: SWAPS_MAX_COUNT + 1 }, (_, i) => ({
+      remove: `Card A${i}`,
+      add: `Card B${i}`,
+    }));
+    expect(() =>
+      ApplyDeckChangesInputSchema.parse({
+        deckText: "1 Sol Ring",
+        swaps,
+      })
+    ).toThrow();
+  });
+
+  it("rejects card names above max length on resolve_card", () => {
+    expect(() =>
+      ResolveCardInputSchema.parse({
+        cardName: "x".repeat(CARD_NAME_MAX_LENGTH + 1),
+      })
+    ).toThrow();
+  });
+
+  it("rejects oversized OpenAI question on get_user_deck_style", () => {
+    expect(() =>
+      GetUserDeckStyleInputSchema.parse({
+        useOpenAI: true,
+        question: "q".repeat(STYLE_QUESTION_MAX_LENGTH + 1),
+      })
+    ).toThrow();
+  });
+
+  it("accepts swaps at max count", () => {
+    const swaps = Array.from({ length: SWAPS_MAX_COUNT }, (_, i) => ({
+      remove: `Cut${i}`,
+      add: `Add${i}`,
+    }));
+    const parsed = ApplyDeckChangesInputSchema.parse({
+      deckText: "1 Sol Ring",
+      swaps,
+    });
+    expect(parsed.swaps).toHaveLength(SWAPS_MAX_COUNT);
   });
 });

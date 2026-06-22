@@ -21,6 +21,71 @@ export const TemplateIdSchema = SafeResourceIdSchema.optional().default('bracket
 /** Optional bracket id with bracket3 default. */
 export const BracketIdSchema = SafeResourceIdSchema.optional().default('bracket3');
 
+/** Max decklist text size — DoS guard for parse/analyze/optimize loops. */
+export const DECK_TEXT_MAX_LENGTH = 32_768;
+
+/** Max single card or commander name length. */
+export const CARD_NAME_MAX_LENGTH = 200;
+
+/** Max commander name length (same as card names). */
+export const COMMANDER_NAME_MAX_LENGTH = CARD_NAME_MAX_LENGTH;
+
+/** Max OpenAI style-analysis question length. */
+export const STYLE_QUESTION_MAX_LENGTH = 500;
+
+/** Max FTS query length for search_cards. */
+export const SEARCH_QUERY_MAX_LENGTH = 200;
+
+/** Max one-for-one swaps per apply_deck_changes call. */
+export const SWAPS_MAX_COUNT = 30;
+
+/** Max seed cards on build_deck_from_commander. */
+export const SEED_CARDS_MAX_COUNT = 30;
+
+/** Max card names in exclude/preserve lists. */
+export const CARD_NAME_LIST_MAX_COUNT = 100;
+
+/** Max focus categories on optimize_deck (all Bracket 3 categories). */
+export const FOCUS_CATEGORIES_MAX_COUNT = 13;
+
+/** Bounded decklist text (analyze, optimize, evaluate_card_swap, apply_deck_changes). */
+export const DeckTextSchema = z
+  .string()
+  .min(1)
+  .max(DECK_TEXT_MAX_LENGTH)
+  .describe('Decklist text, one card per line with quantity');
+
+/** Bounded card name for resolve, swap, and list entries. */
+export const CardNameSchema = z.string().min(1).max(CARD_NAME_MAX_LENGTH);
+
+/** Required commander name. */
+export const CommanderNameSchema = z.string().min(1).max(COMMANDER_NAME_MAX_LENGTH);
+
+/** Optional commander name. */
+export const OptionalCommanderNameSchema = z
+  .string()
+  .max(COMMANDER_NAME_MAX_LENGTH)
+  .optional();
+
+/** EDHREC theme slug — blocks path-like values before EDHREC/FS reads. */
+export const PreferredStrategySchema = SafeResourceIdSchema.optional().describe(
+  'EDHREC theme slug (e.g. tokens, voltron, group-slug). Use get_synergies for commander-specific slugs.'
+);
+
+/** Bounded list of card names (excludeNames, preserveCards). */
+export const CardNameListSchema = z
+  .array(CardNameSchema)
+  .max(CARD_NAME_LIST_MAX_COUNT);
+
+/** Bounded seed cards for deck build. */
+export const SeedCardsSchema = CardNameListSchema.max(SEED_CARDS_MAX_COUNT).optional();
+
+/** Single cut/add pair for apply_deck_changes. */
+export const SwapItemSchema = z.object({
+  remove: CardNameSchema.describe('Card name to remove'),
+  add: CardNameSchema.describe('Card name to add'),
+});
+
 /** Common EDHREC theme slugs for `preferredStrategy` (confirm with get_synergies per commander). */
 export const PREFERRED_STRATEGY_SLUGS = [
   "tokens",
@@ -77,11 +142,11 @@ export const TemplateCategoryNameSchema = z
  */
 export const AnalyzeDeckInputSchema = z.object({
   /** Raw decklist text (one card per line with quantity) */
-  deckText: z.string().describe(
+  deckText: DeckTextSchema.describe(
     "Raw decklist text, one card per line with quantity (e.g., '1 Sol Ring', '19 Island'). Basic lands may be grouped as N Plains / N Island. Optional first line: Commander: Card Name"
   ),
 
-  commanderName: z.string().optional().describe(
+  commanderName: OptionalCommanderNameSchema.describe(
     "Commander card name for color identity checks (optional if deckText contains a Commander: line)"
   ),
   
@@ -92,7 +157,7 @@ export const AnalyzeDeckInputSchema = z.object({
   bracketId: BracketIdSchema.describe("Bracket ID for rule enforcement (default: bracket3)"),
   
   /** EDHREC theme slug; enables synergyScore and cut/add hints */
-  preferredStrategy: z.string().optional().describe(
+  preferredStrategy: PreferredStrategySchema.describe(
     `EDHREC theme slug. Examples: ${PREFERRED_STRATEGY_SLUGS.join(", ")}. Use get_synergies for commander-specific slugs.`
   ),
 
@@ -133,7 +198,7 @@ const MetaOverrideSchema = z.object({
  */
 export const BuildDeckInputSchema = z.object({
   /** Commander card name to build around */
-  commanderName: z.string().describe("Commander card name (e.g., \"Atraxa, Praetors' Voice\")"),
+  commanderName: CommanderNameSchema.describe("Commander card name (e.g., \"Atraxa, Praetors' Voice\")"),
   
   /** Template ID for deck building (optional, defaults to "bracket3") */
   templateId: TemplateIdSchema.describe("Template ID for deck building (default: bracket3)"),
@@ -142,12 +207,12 @@ export const BuildDeckInputSchema = z.object({
   bracketId: BracketIdSchema.describe("Bracket ID for rule enforcement (default: bracket3)"),
   
   /** EDHREC theme slug — boosts generator/autofill card scoring */
-  preferredStrategy: z.string().optional().describe(
+  preferredStrategy: PreferredStrategySchema.describe(
     `EDHREC theme slug. Examples: ${PREFERRED_STRATEGY_SLUGS.join(", ")}. Ask the user to pick one synergy before building.`
   ),
   
   /** Optional seed cards to include in the deck */
-  seedCards: z.array(z.string()).optional().describe("Optional seed cards to include (e.g., ['Sol Ring', 'Arcane Signet'])"),
+  seedCards: SeedCardsSchema.describe("Optional seed cards to include (e.g., ['Sol Ring', 'Arcane Signet'])"),
   
   /** Whether to fetch EDHREC suggestions (default: true) */
   useEdhrec: z.boolean().optional().default(true).describe("Whether to fetch EDHREC suggestions for card recommendations. Defaults to true."),
@@ -179,19 +244,18 @@ export const BuildDeckInputSchema = z.object({
 /** get_category_candidates tool input */
 export const GetCategoryCandidatesInputSchema = z.object({
   responseMode: McpResponseModeSchema,
-  commanderName: z.string().describe("Commander card name for color identity"),
+  commanderName: CommanderNameSchema.describe("Commander card name for color identity"),
   category: TemplateCategoryNameSchema.describe(
     'Template category to fill (e.g. card_draw, ramp, spot_removal)'
   ),
-  preferredStrategy: z.string().optional().describe(
+  preferredStrategy: PreferredStrategySchema.describe(
     `EDHREC theme slug for synergy ranking. Examples: ${PREFERRED_STRATEGY_SLUGS.join(", ")}.`
   ),
   limit: z.number().int().min(1).max(30).optional().default(15),
   maxMV: z.number().optional().describe("Maximum mana value"),
-  excludeNames: z
-    .array(z.string())
-    .optional()
-    .describe("Card names already in the deck to exclude"),
+  excludeNames: CardNameListSchema.optional().describe(
+    "Card names already in the deck to exclude"
+  ),
 });
 
 export type GetCategoryCandidatesInput = z.infer<typeof GetCategoryCandidatesInputSchema>;
@@ -199,8 +263,10 @@ export type GetCategoryCandidatesInput = z.infer<typeof GetCategoryCandidatesInp
 /** get_user_deck_style — read-only user import library + optional OpenAI narrative */
 export const GetUserDeckStyleInputSchema = z.object({
   responseMode: McpResponseModeSchema,
-  commanderName: z.string().optional().describe("Optional commander to tailor land-count and staple hints"),
-  preferredStrategy: z.string().optional().describe("EDHREC theme slug for OpenAI context"),
+  commanderName: OptionalCommanderNameSchema.describe(
+    "Optional commander to tailor land-count and staple hints"
+  ),
+  preferredStrategy: PreferredStrategySchema.describe("EDHREC theme slug for OpenAI context"),
   useOpenAI: z
     .boolean()
     .optional()
@@ -208,6 +274,7 @@ export const GetUserDeckStyleInputSchema = z.object({
     .describe("When true and OPENAI_API_KEY is set, include narrative style analysis"),
   question: z
     .string()
+    .max(STYLE_QUESTION_MAX_LENGTH)
     .optional()
     .describe("Custom question for OpenAI style analysis (requires useOpenAI: true)"),
 });
@@ -233,25 +300,32 @@ export const SEARCH_CARDS_SORT_BY = [
 export const SearchCardsInputSchema = z
   .object({
     responseMode: McpResponseModeSchema,
-    query: z.string().optional().describe("FTS text search on name, oracle text, type line"),
-    colorIdentity: z.array(z.string()).optional().describe("Color identity subset filter (W,U,B,R,G)"),
+    query: z
+      .string()
+      .max(SEARCH_QUERY_MAX_LENGTH)
+      .optional()
+      .describe("FTS text search on name, oracle text, type line"),
+    colorIdentity: z
+      .array(z.string().min(1).max(1))
+      .max(5)
+      .optional()
+      .describe("Color identity subset filter (W,U,B,R,G)"),
     category: TemplateCategoryNameSchema.optional().describe(
       'Template category tag (ramp, card_draw, spot_removal, etc.)'
     ),
-    type: z.string().optional().describe("Type line substring (Creature, Instant, Land, ...)"),
+    type: z.string().max(100).optional().describe("Type line substring (Creature, Instant, Land, ...)"),
     maxMV: z.number().optional().describe("Maximum mana value (CMC)"),
     commanderLegal: z.boolean().optional().default(true).describe("Only Commander-legal cards (default true)"),
     limit: z.number().int().min(1).max(100).optional().default(20).describe("Max results (default 20)"),
-    preferredStrategy: z.string().optional().describe(
+    preferredStrategy: PreferredStrategySchema.describe(
       `EDHREC theme slug for synergyRelevance sorting. Examples: ${PREFERRED_STRATEGY_SLUGS.join(", ")}.`
     ),
-    commanderName: z.string().optional().describe(
+    commanderName: OptionalCommanderNameSchema.describe(
       "Commander name to load EDHREC inclusion rates and theme-weighted relevance"
     ),
-    excludeNames: z
-      .array(z.string())
-      .optional()
-      .describe("Card names to exclude from results (case-insensitive)"),
+    excludeNames: CardNameListSchema.optional().describe(
+      "Card names to exclude from results (case-insensitive)"
+    ),
     sortBy: z
       .enum(SEARCH_CARDS_SORT_BY)
       .optional()
@@ -279,24 +353,25 @@ export type SearchCardsInput = z.infer<typeof SearchCardsInputSchema>;
 /** get_synergies tool input */
 export const GetSynergiesInputSchema = z.object({
   responseMode: McpResponseModeSchema,
-  commanderName: z.string().describe("Commander card name"),
+  commanderName: CommanderNameSchema.describe("Commander card name"),
 });
 
 export type GetSynergiesInput = z.infer<typeof GetSynergiesInputSchema>;
 
 /** optimize_deck tool input */
 export const OptimizeDeckInputSchema = z.object({
-  deckText: z.string().describe('Current mainboard decklist text (one card per line)'),
-  commanderName: z.string().describe('Commander card name'),
-  preferredStrategy: z.string().optional().describe(
+  deckText: DeckTextSchema.describe('Current mainboard decklist text (one card per line)'),
+  commanderName: CommanderNameSchema.describe('Commander card name'),
+  preferredStrategy: PreferredStrategySchema.describe(
     `EDHREC theme slug for synergy scoring and EDHREC pool. Examples: ${PREFERRED_STRATEGY_SLUGS.join(', ')}.`
   ),
   templateId: TemplateIdSchema,
   bracketId: BracketIdSchema,
-  banlistId: z.string().optional().default('commander'),
+  banlistId: SafeResourceIdSchema.optional().default('commander'),
   maxIterations: z.number().int().min(1).max(12).optional().default(4),
   focusCategories: z
     .array(TemplateCategoryNameSchema)
+    .max(FOCUS_CATEGORIES_MAX_COUNT)
     .optional()
     .describe('Optional: only optimize these template categories'),
   stopWhenScore: z
@@ -306,21 +381,19 @@ export const OptimizeDeckInputSchema = z.object({
     .max(100)
     .optional()
     .describe('Stop iterating when synergyScore reaches this value (requires preferredStrategy)'),
-  preserveCards: z
-    .array(z.string())
-    .optional()
-    .describe('Card names that must not be cut during optimization'),
+  preserveCards: CardNameListSchema.optional().describe(
+    'Card names that must not be cut during optimization'
+  ),
   responseMode: z.enum(['brief', 'full']).optional().default('brief'),
 });
 
 /** resolve_card tool input */
 export const ResolveCardInputSchema = z.object({
   responseMode: McpResponseModeSchema,
-  cardName: z.string().describe('Card name to resolve against cards.db / Scryfall'),
-  commanderName: z
-    .string()
-    .optional()
-    .describe('When set, checks Commander legality and color identity vs this commander'),
+  cardName: CardNameSchema.describe('Card name to resolve against cards.db / Scryfall'),
+  commanderName: OptionalCommanderNameSchema.describe(
+    'When set, checks Commander legality and color identity vs this commander'
+  ),
 });
 
 export type ResolveCardInput = z.infer<typeof ResolveCardInputSchema>;
@@ -330,11 +403,11 @@ export type OptimizeDeckInput = z.infer<typeof OptimizeDeckInputSchema>;
 /** evaluate_card_swap tool input */
 export const EvaluateCardSwapInputSchema = z.object({
   responseMode: McpResponseModeSchema,
-  deckText: z.string().describe('Current decklist text (one card per line)'),
-  commanderName: z.string().describe('Commander card name'),
-  cardToRemove: z.string().describe('Card name to remove from the deck'),
-  cardToAdd: z.string().describe('Card name to add to the deck'),
-  preferredStrategy: z.string().optional().describe(
+  deckText: DeckTextSchema.describe('Current decklist text (one card per line)'),
+  commanderName: CommanderNameSchema.describe('Commander card name'),
+  cardToRemove: CardNameSchema.describe('Card name to remove from the deck'),
+  cardToAdd: CardNameSchema.describe('Card name to add to the deck'),
+  preferredStrategy: PreferredStrategySchema.describe(
     `EDHREC theme slug for synergy scoring. Examples: ${PREFERRED_STRATEGY_SLUGS.join(', ')}.`
   ),
   templateId: TemplateIdSchema,
@@ -346,7 +419,7 @@ export type EvaluateCardSwapInput = z.infer<typeof EvaluateCardSwapInputSchema>;
 /** get_strategy_guide tool input */
 export const GetStrategyGuideInputSchema = z.object({
   responseMode: McpResponseModeSchema,
-  commanderName: z.string().describe('Commander card name (for guide context)'),
+  commanderName: CommanderNameSchema.describe('Commander card name (for guide context)'),
   preferredStrategy: SafeResourceIdSchema.describe(
     'EDHREC theme slug (e.g. tokens, voltron, group-slug)'
   ),
@@ -360,19 +433,14 @@ export const GetStrategyGuideInputSchema = z.object({
 export type GetStrategyGuideInput = z.infer<typeof GetStrategyGuideInputSchema>;
 
 export const ApplyDeckChangesInputSchema = z.object({
-  deckText: z.string().describe('Current mainboard decklist text'),
-  commanderName: z
-    .string()
-    .optional()
-    .describe('Commander for color identity checks (optional if deckText has Commander: line)'),
+  deckText: DeckTextSchema.describe('Current mainboard decklist text'),
+  commanderName: OptionalCommanderNameSchema.describe(
+    'Commander for color identity checks (optional if deckText has Commander: line)'
+  ),
   swaps: z
-    .array(
-      z.object({
-        remove: z.string().describe('Card name to remove'),
-        add: z.string().describe('Card name to add'),
-      })
-    )
+    .array(SwapItemSchema)
     .min(1)
+    .max(SWAPS_MAX_COUNT)
     .describe('One-for-one swaps to apply in order'),
 });
 
