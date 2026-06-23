@@ -368,4 +368,4 @@ Verify: `npm run db:stats` should show ~38k cards. If `search_cards` returns `da
 
 ### MCP in Cloud Agent sessions
 
-Cloud Agents invoke MCP tools through the configured MCP server (not by manually piping JSON-RPC). For manual smoke tests: pipe `initialize` + `notifications/initialized` + `tools/list` to `npm run mcp` — expect 11 tools in the response.
+Cloud Agents invoke MCP tools through the configured MCP server (not by manually piping JSON-RPC). Automated smoke test: `npm run test:mcp-smoke` (also runs in CI). Manual alternative: pipe `initialize` + `notifications/initialized` + `tools/list` to `npm run mcp` — expect 11 tools in the response.

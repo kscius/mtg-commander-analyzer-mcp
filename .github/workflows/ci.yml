@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck (build)
         run: npm run build
 
+      - name: MCP stdio smoke test
+        run: npm run test:mcp-smoke
+
       - name: Unit tests
         run: npm test
 
