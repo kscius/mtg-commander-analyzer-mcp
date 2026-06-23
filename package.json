@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "test:integration": "vitest run src/**/*.integration.test.ts",
     "test:golden": "vitest run --config vitest.golden.config.ts",
+    "test:mcp-smoke": "ts-node scripts/mcpSmokeTest.ts",
     "record:golden": "ts-node scripts/recordGoldenAnalyze.ts",
     "benchmark:decks": "ts-node scripts/benchmarkDecks.ts",
     "decks:download-moxfield": "ts-node scripts/downloadMoxfieldDecks.ts",
