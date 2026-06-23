@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { analysisHasAutomatableGaps } from './edhrecAutofill';
+import {
+  analysisHasAutomatableGaps,
+  AUTOFILL_CATEGORY_NAMES,
+  hasRemainingEdhrecAutofillDeficits,
+} from './edhrecAutofill';
 import type { DeckAnalysis } from './types';
+import { loadDeckTemplate } from './templates';
 
 function baseAnalysis(overrides: Partial<DeckAnalysis> = {}): DeckAnalysis {
   return {
@@ -89,5 +94,52 @@ describe('analysisHasAutomatableGaps', () => {
     });
 
     expect(analysisHasAutomatableGaps(analysis)).toBe(false);
+  });
+});
+
+describe('hasRemainingEdhrecAutofillDeficits', () => {
+  const template = loadDeckTemplate('bracket3');
+
+  it('returns true when only lands are below minimum', () => {
+    const analysis = baseAnalysis({
+      categories: [
+        { name: 'lands', count: 32, min: 35, max: 38, status: 'below' },
+        { name: 'ramp', count: 10, min: 9, max: 12, status: 'within' },
+      ],
+    });
+
+    expect(hasRemainingEdhrecAutofillDeficits(analysis, template)).toBe(true);
+  });
+
+  it('returns false when lands and autofill categories are within range', () => {
+    const template = loadDeckTemplate('bracket3');
+    const categories = [
+      { name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const },
+      ...AUTOFILL_CATEGORY_NAMES.map((name) => {
+        const cfg = template.categories.find((c) => c.name === name);
+        const min = cfg?.min ?? 0;
+        return {
+          name,
+          count: min,
+          min,
+          max: cfg?.max ?? min + 5,
+          status: 'within' as const,
+        };
+      }),
+    ];
+    const analysis = baseAnalysis({ categories });
+
+    expect(hasRemainingEdhrecAutofillDeficits(analysis, template)).toBe(false);
+  });
+
+  it('returns true for autofill category deficits even when lands are fine', () => {
+    const analysis = baseAnalysis({
+      categories: [
+        { name: 'lands', count: 37, min: 35, max: 38, status: 'within' },
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' },
+      ],
+    });
+
+    expect(hasRemainingEdhrecAutofillDeficits(analysis, template)).toBe(true);
   });
 });
