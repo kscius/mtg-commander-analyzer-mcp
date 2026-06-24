@@ -119,13 +119,59 @@ function isFullTemplate(t: DeckTemplate): t is DeckTemplateValidated {
   return 'curve' in t && 'mana_base' in t && t.curve != null && t.mana_base != null;
 }
 
+/** Per-category counts for template constraint checks (primary tag only). */
+type CategoryConstraintMetrics = {
+  instantSpeedByCategory: Record<string, number>;
+  mv2OrLessByCategory: Record<string, number>;
+  exileByCategory: Record<string, number>;
+};
+
+/**
+ * Count instant-speed, low-MV, and exile cards per primary template category.
+ * Uses the same tags as categoryCounts (from analyzeDeckBasic deckWithTags).
+ */
+function countCategoryConstraintMetrics(
+  parsedDeck: ParsedDeck,
+  deckWithTags: CardWithTags[]
+): CategoryConstraintMetrics {
+  const tagByName = new Map(deckWithTags.map((c) => [c.name, c.tags]));
+  const instantSpeedByCategory: Record<string, number> = {};
+  const mv2OrLessByCategory: Record<string, number> = {};
+  const exileByCategory: Record<string, number> = {};
+
+  for (const entry of parsedDeck.cards) {
+    const card = getCardByName(entry.name);
+    if (!card) continue;
+    const tags = tagByName.get(entry.name);
+    if (!tags) continue;
+    const primary = getPrimaryTemplateCategory(tags);
+    if (!primary) continue;
+
+    const qty = entry.quantity;
+    if (isInstant(card)) {
+      instantSpeedByCategory[primary] = (instantSpeedByCategory[primary] ?? 0) + qty;
+    }
+    const mv = getManaValue(card);
+    if (mv <= 2) {
+      mv2OrLessByCategory[primary] = (mv2OrLessByCategory[primary] ?? 0) + qty;
+    }
+    const text = (card.oracle_text ?? '').toLowerCase();
+    if (text.includes('exile')) {
+      exileByCategory[primary] = (exileByCategory[primary] ?? 0) + qty;
+    }
+  }
+
+  return { instantSpeedByCategory, mv2OrLessByCategory, exileByCategory };
+}
+
 /**
  * Build LintReport from deck and full template (curve, mana_base, interaction_coverage, category constraints).
  */
 function buildLintReport(
   parsedDeck: ParsedDeck,
   template: DeckTemplateValidated,
-  categoryCounts: Record<string, number>
+  categoryCounts: Record<string, number>,
+  deckWithTags: CardWithTags[]
 ): LintReport {
   const issues: LintIssue[] = [];
   const metrics: Record<string, unknown> = {};
@@ -328,7 +374,9 @@ function buildLintReport(
     }
   }
 
-  // --- Category constraints (ramp split, spot_removal min_instant_speed, etc.) ---
+  // --- Category constraints (ramp MV, spot_removal/protection instant-speed, etc.) ---
+  const constraintMetrics = countCategoryConstraintMetrics(parsedDeck, deckWithTags);
+
   for (const cat of template.categories) {
     const constraints = cat.constraints as Record<string, unknown> | undefined;
     if (!constraints) continue;
@@ -336,20 +384,75 @@ function buildLintReport(
     if (count === 0) continue;
 
     if (cat.name === 'ramp' && constraints.min_mv2_or_less != null) {
-      // Heuristic: count ramp cards with MV≤2 from deck (we don't have per-card category here, so use global ramp count and note)
       const minLow = constraints.min_mv2_or_less as number;
+      const rampMv2 = constraintMetrics.mv2OrLessByCategory['ramp'] ?? 0;
+      metrics.ramp_min_mv2_or_less = rampMv2;
       metrics.ramp_min_mv2_or_less_required = minLow;
-      // Could iterate cards and count ramp-tagged with MV≤2; for now skip detailed check
-    }
-    if (cat.name === 'spot_removal' && constraints.min_instant_speed != null) {
-      const minInst = constraints.min_instant_speed as number;
-      if (instantSpeedTotal < minInst) {
+      if (rampMv2 < minLow) {
         issues.push({
-          key: `categories:spot_removal.min_instant_speed`,
+          key: 'categories:ramp.min_mv2_or_less',
           severity: 'soft',
-          message: `Spot removal: instant-speed count ${instantSpeedTotal} (min ${minInst})`,
+          message: `Ramp: MV≤2 count ${rampMv2} (min ${minLow})`,
           sectionSuggest: 'interaction',
-          details: { count: instantSpeedTotal, min: minInst }
+          details: { count: rampMv2, min: minLow }
+        });
+      }
+    }
+
+    if (cat.name === 'spot_removal') {
+      if (constraints.min_instant_speed != null) {
+        const minInst = constraints.min_instant_speed as number;
+        const spotInstant = constraintMetrics.instantSpeedByCategory['spot_removal'] ?? 0;
+        metrics.spot_removal_instant_speed = spotInstant;
+        if (spotInstant < minInst) {
+          issues.push({
+            key: 'categories:spot_removal.min_instant_speed',
+            severity: 'soft',
+            message: `Spot removal: instant-speed count ${spotInstant} (min ${minInst})`,
+            sectionSuggest: 'interaction',
+            details: { count: spotInstant, min: minInst }
+          });
+        }
+      }
+      if (constraints.min_mv2_or_less != null) {
+        const minMv2 = constraints.min_mv2_or_less as number;
+        const spotMv2 = constraintMetrics.mv2OrLessByCategory['spot_removal'] ?? 0;
+        if (spotMv2 < minMv2) {
+          issues.push({
+            key: 'categories:spot_removal.min_mv2_or_less',
+            severity: 'soft',
+            message: `Spot removal: MV≤2 count ${spotMv2} (min ${minMv2})`,
+            sectionSuggest: 'interaction',
+            details: { count: spotMv2, min: minMv2 }
+          });
+        }
+      }
+      if (constraints.min_exile != null) {
+        const minExile = constraints.min_exile as number;
+        const spotExile = constraintMetrics.exileByCategory['spot_removal'] ?? 0;
+        if (spotExile < minExile) {
+          issues.push({
+            key: 'categories:spot_removal.min_exile',
+            severity: 'soft',
+            message: `Spot removal: exile effects ${spotExile} (min ${minExile})`,
+            sectionSuggest: 'interaction',
+            details: { count: spotExile, min: minExile }
+          });
+        }
+      }
+    }
+
+    if (cat.name === 'protection' && constraints.min_instant_speed != null) {
+      const minInst = constraints.min_instant_speed as number;
+      const protectionInstant = constraintMetrics.instantSpeedByCategory['protection'] ?? 0;
+      metrics.protection_instant_speed = protectionInstant;
+      if (protectionInstant < minInst) {
+        issues.push({
+          key: 'categories:protection.min_instant_speed',
+          severity: 'soft',
+          message: `Protection: instant-speed count ${protectionInstant} (min ${minInst})`,
+          sectionSuggest: 'interaction',
+          details: { count: protectionInstant, min: minInst }
         });
       }
     }
@@ -667,7 +770,7 @@ export async function analyzeDeckBasic(
   // Build LintReport when template has full schema (bracket3)
   let lintReport: LintReport | undefined;
   if (isFullTemplate(template)) {
-    lintReport = buildLintReport(parsedDeck, template, categoryCounts);
+    lintReport = buildLintReport(parsedDeck, template, categoryCounts, deckWithTags);
     if (!lintReport.ok) {
       notes.push(`Template lint: ${lintReport.issues.filter((i) => i.severity === 'hard').length} hard issue(s), ${lintReport.issues.filter((i) => i.severity === 'soft').length} soft.`);
     }
