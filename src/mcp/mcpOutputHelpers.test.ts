@@ -10,6 +10,7 @@ import {
   attachAnalyzeConvergence,
   attachBuildConvergence,
   attachOptimizeConvergence,
+  resolveOptimizeSynergyTarget,
 } from './mcpOutputHelpers';
 import type { BuildDeckResult, OptimizeDeckResult } from '../core/types';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
@@ -283,6 +284,61 @@ describe('attachOptimizeConvergence', () => {
     expect(out.nextSuggestedAction).toContain('card_draw');
     expect(out.agentBrief?.categoriesBelow).toBeUndefined();
     expect(out.agentBrief?.remainingGapCount).toBeUndefined();
+  });
+});
+
+describe('resolveOptimizeSynergyTarget', () => {
+  it('defaults to 60 when preferredStrategy is set and stopWhenScore is omitted', () => {
+    expect(
+      resolveOptimizeSynergyTarget({ preferredStrategy: 'tokens' })
+    ).toBe(60);
+  });
+
+  it('uses stopWhenScore when provided with preferredStrategy', () => {
+    expect(
+      resolveOptimizeSynergyTarget({
+        preferredStrategy: 'tokens',
+        stopWhenScore: 70,
+      })
+    ).toBe(70);
+  });
+
+  it('returns undefined when no strategy and no stopWhenScore', () => {
+    expect(resolveOptimizeSynergyTarget({})).toBeUndefined();
+    expect(
+      resolveOptimizeSynergyTarget({ stopWhenScore: undefined })
+    ).toBeUndefined();
+  });
+
+  it('returns stopWhenScore only when preferredStrategy is absent', () => {
+    expect(resolveOptimizeSynergyTarget({ stopWhenScore: 55 })).toBe(55);
+  });
+});
+
+describe('isDeckConverged synergy target alignment', () => {
+  it('treats synergy below default 60 as not converged when target is resolved for strategy builds', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 52,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const synergyTarget = resolveOptimizeSynergyTarget({
+      preferredStrategy: 'tokens',
+    });
+
+    expect(synergyTarget).toBe(60);
+    expect(isDeckConverged(analysis, { synergyTarget })).toBe(false);
+    expect(buildQualityGate(analysis, { synergyTarget }).readyToShip).toBe(false);
   });
 });
 

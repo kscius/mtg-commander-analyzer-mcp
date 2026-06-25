@@ -41,7 +41,11 @@ import {
   ScryCard,
 } from '../core/autoTags';
 import { scoreCardForStrategy } from '../core/synergyScorer';
-import { attachOptimizeConvergence, isDeckConverged } from './mcpOutputHelpers';
+import {
+  attachOptimizeConvergence,
+  isDeckConverged,
+  resolveOptimizeSynergyTarget,
+} from './mcpOutputHelpers';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
 
 const MAX_CUTS_PER_PASS = 2;
@@ -269,6 +273,10 @@ export async function runOptimizeDeck(input: OptimizeDeckInput): Promise<Optimiz
   const bracketId = input.bracketId ?? 'bracket3';
   const maxIterations = Math.min(Math.max(input.maxIterations ?? 4, 1), 12);
   const focusCategories = input.focusCategories?.map((c) => c.trim().toLowerCase());
+  const synergyTarget = resolveOptimizeSynergyTarget({
+    preferredStrategy: input.preferredStrategy,
+    stopWhenScore: input.stopWhenScore,
+  });
   const preserve = new Set(
     (input.preserveCards ?? []).map((n) => n.trim().toLowerCase()).filter(Boolean)
   );
@@ -344,7 +352,7 @@ export async function runOptimizeDeck(input: OptimizeDeckInput): Promise<Optimiz
     if (
       isDeckConverged(analysis, {
         focusCategories,
-        synergyTarget: input.stopWhenScore,
+        synergyTarget,
       })
     ) {
       iterationNotes.push(`Pass ${pass}: converged — no remaining automatable gaps.`);
@@ -413,9 +421,6 @@ export async function runOptimizeDeck(input: OptimizeDeckInput): Promise<Optimiz
     colorIdentity
   );
   const metricsAfter = extractMetrics(finalAnalysis);
-  const synergyTarget = input.preferredStrategy
-    ? (input.stopWhenScore ?? 60)
-    : input.stopWhenScore;
 
   return attachOptimizeConvergence(
     {
