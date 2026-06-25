@@ -51,6 +51,20 @@ export function buildAnalyzeSummary(result: AnalyzeDeckResult): string {
   return parts.join('; ') + '.';
 }
 
+/**
+ * Synergy score target for optimize_deck convergence and qualityGate.
+ * When a strategy slug is set, defaults to 60 (AGENTS.md quality checklist) unless stopWhenScore overrides.
+ */
+export function resolveOptimizeSynergyTarget(options: {
+  preferredStrategy?: string;
+  stopWhenScore?: number;
+}): number | undefined {
+  if (options.preferredStrategy?.trim()) {
+    return options.stopWhenScore ?? 60;
+  }
+  return options.stopWhenScore;
+}
+
 export function computeRemainingGaps(
   analysis: DeckAnalysis,
   options?: { focusCategories?: string[]; synergyTarget?: number }
