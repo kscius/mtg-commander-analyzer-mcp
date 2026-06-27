@@ -61,9 +61,24 @@ export const CardNameSchema = z.string().min(1).max(CARD_NAME_MAX_LENGTH);
 /** Required commander name. */
 export const CommanderNameSchema = z.string().min(1).max(COMMANDER_NAME_MAX_LENGTH);
 
-/** Optional commander name. */
+/** MTG color letter (WUBRG). */
+export const ColorLetterSchema = z.enum(['W', 'U', 'B', 'R', 'G']);
+
+/** Commander color identity subset filter (max 5 colors). */
+export const ColorIdentitySchema = z.array(ColorLetterSchema).max(5);
+
+/** Bounded mana value / CMC filter (0–20 covers all legal Commander cards). */
+export const ManaValueSchema = z
+  .number()
+  .finite()
+  .min(0)
+  .max(20)
+  .describe('Mana value (CMC)');
+
+/** Optional commander name — rejects empty string when provided. */
 export const OptionalCommanderNameSchema = z
   .string()
+  .min(1)
   .max(COMMANDER_NAME_MAX_LENGTH)
   .optional();
 
@@ -252,7 +267,7 @@ export const GetCategoryCandidatesInputSchema = z.object({
     `EDHREC theme slug for synergy ranking. Examples: ${PREFERRED_STRATEGY_SLUGS.join(", ")}.`
   ),
   limit: z.number().int().min(1).max(30).optional().default(15),
-  maxMV: z.number().optional().describe("Maximum mana value"),
+  maxMV: ManaValueSchema.optional().describe("Maximum mana value"),
   excludeNames: CardNameListSchema.optional().describe(
     "Card names already in the deck to exclude"
   ),
@@ -305,16 +320,14 @@ export const SearchCardsInputSchema = z
       .max(SEARCH_QUERY_MAX_LENGTH)
       .optional()
       .describe("FTS text search on name, oracle text, type line"),
-    colorIdentity: z
-      .array(z.string().min(1).max(1))
-      .max(5)
-      .optional()
-      .describe("Color identity subset filter (W,U,B,R,G)"),
+    colorIdentity: ColorIdentitySchema.optional().describe(
+      "Color identity subset filter (W,U,B,R,G)"
+    ),
     category: TemplateCategoryNameSchema.optional().describe(
       'Template category tag (ramp, card_draw, spot_removal, etc.)'
     ),
     type: z.string().max(100).optional().describe("Type line substring (Creature, Instant, Land, ...)"),
-    maxMV: z.number().optional().describe("Maximum mana value (CMC)"),
+    maxMV: ManaValueSchema.optional().describe("Maximum mana value (CMC)"),
     commanderLegal: z.boolean().optional().default(true).describe("Only Commander-legal cards (default true)"),
     limit: z.number().int().min(1).max(100).optional().default(20).describe("Max results (default 20)"),
     preferredStrategy: PreferredStrategySchema.describe(
