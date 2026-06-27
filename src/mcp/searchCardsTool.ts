@@ -97,7 +97,7 @@ export async function runSearchCards(raw: unknown): Promise<{
   }
 
   const limit = input.limit ?? 20;
-  let colorIdentity = input.colorIdentity;
+  let colorIdentity: string[] | undefined = input.colorIdentity;
   if ((!colorIdentity || colorIdentity.length === 0) && input.commanderName?.trim()) {
     const commander = getCardByName(input.commanderName.trim());
     if (commander?.color_identity?.length) {

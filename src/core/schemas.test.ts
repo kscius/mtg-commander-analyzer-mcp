@@ -74,6 +74,28 @@ describe("SearchCardsInputSchema", () => {
     expect(parsed.sortBy).toBe("synergyRelevance");
   });
 
+  it("rejects invalid maxMV (negative, NaN, above 20)", () => {
+    expect(() => SearchCardsInputSchema.parse({ maxMV: -1 })).toThrow();
+    expect(() => SearchCardsInputSchema.parse({ maxMV: Number.NaN })).toThrow();
+    expect(() => SearchCardsInputSchema.parse({ maxMV: 21 })).toThrow();
+  });
+
+  it("accepts WUBRG colorIdentity and rejects invalid color letters", () => {
+    const parsed = SearchCardsInputSchema.parse({
+      colorIdentity: ["W", "U", "B"],
+    });
+    expect(parsed.colorIdentity).toEqual(["W", "U", "B"]);
+    expect(() =>
+      SearchCardsInputSchema.parse({ colorIdentity: ["X"] })
+    ).toThrow();
+  });
+
+  it("rejects empty optional commanderName", () => {
+    expect(() =>
+      SearchCardsInputSchema.parse({ category: "ramp", commanderName: "" })
+    ).toThrow();
+  });
+
   it("accepts excludeNames and sortBy", () => {
     const parsed = SearchCardsInputSchema.parse({
       category: "ramp",
