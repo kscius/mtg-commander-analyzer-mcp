@@ -26,7 +26,7 @@ Implementation: `src/core/synergyScorer.ts`, profiles in `data/strategy-profiles
 
 Lands are **excluded** from the average.
 
-Cards scoring **&lt; 0.42** appear in `offThemeCards` (up to 12 names).
+Cards scoring **&lt; 0.42** are flagged as off-theme (up to 12 names). In **`analyze_deck`** output they appear in **`analysis.notes`** as `Possible off-theme cards: …` — there is **no** top-level `analysis.offThemeCards` JSON field.
 
 ## Deck-level score
 
@@ -70,9 +70,11 @@ With `preferredStrategy` + `commanderName`, results include `synergyRelevance` (
 ## Improving a low score
 
 1. Fix **legality and categories** first (`lintReport`, `below` slots).
-2. Cut cards listed in **`offThemeCards`** or `recommendations.cuts`.
-3. Add from **`recommendations.synergyPackages`** or `get_strategy_guide` packages.
+2. Cut cards listed in **`analysis.notes`** (`Possible off-theme cards: …`) or `recommendations.cuts` when using **`responseMode: "full"`**.
+3. Add from **`recommendations.synergyPackages`** (full mode) or follow **`analysis.prioritizedActions`** (brief mode, default); see `get_strategy_guide` packages for thematic adds.
 4. Use **`search_cards`** with `category` + `preferredStrategy` — never invent names.
+
+> **Brief vs full:** default `responseMode: "brief"` omits `recommendations.cuts`/`adds`/`swaps` and `synergyPackages`. Use `analysis.prioritizedActions` and `qualityGate`, or pass `responseMode: "full"` for thematic cut/add pairs.
 
 ## Related
 

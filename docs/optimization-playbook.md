@@ -5,7 +5,9 @@ Iterative workflow for improving a Commander deck using this MCP. Prefer templat
 ## Prerequisites
 
 1. User has chosen **one** synergy slug (`get_synergies` → confirm with user).
-2. Commander is set via **`commanderName`**, a `Commander: Name` line in `deckText`, or **`inferCommander: true`** (default) to pick the first commander-eligible legendary in the list.
+2. **Commander resolution** depends on the tool:
+   - **`analyze_deck`:** set via `commanderName`, a `Commander: Name` line in `deckText`, or **`inferCommander: true`** (default) to pick the first commander-eligible legendary in the list.
+   - **`optimize_deck`**, **`evaluate_card_swap`**, and **`apply_deck_changes`:** require an explicit **`commanderName`** (no `inferCommander`). Run `analyze_deck` first if you only have a decklist line.
 3. Prefer **`optimize_deck`** for multi-gap fixes; use **`apply_deck_changes`** for batched cut/add after you have verified names.
 
 ## Priority order (what to fix first)

@@ -56,7 +56,7 @@ When `analyze_deck` runs with `preferredStrategy`:
 
 - **`synergyScore`** (0–100): thematic fit vs the EDHREC slug.
 - **`deckScore`**: composite of synergy, category coverage, and lint/format health.
-- **`offThemeCards`**: cards with per-card score &lt; 0.42 — verify before cutting; engine pieces may appear off-theme on the wrong slug (e.g. Roaming Throne on `artifacts` for Aloy Discover).
+- **Off-theme hints**: cards with per-card score &lt; 0.42 appear in **`analysis.notes`** as `Possible off-theme cards: …` (not a top-level JSON field). Verify before cutting — engine pieces may appear off-theme on the wrong slug (e.g. Roaming Throne on `artifacts` for Aloy Discover).
 
 ### Commander ability check
 
