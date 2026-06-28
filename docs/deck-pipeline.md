@@ -7,7 +7,7 @@ Este documento describe los **flujos de proceso** del proyecto (no sustituye al 
 1. **Entrada:** texto de lista (`deckText`), opcionalmente `templateId`, `bracketId`, `preferredStrategy` (slug EDHREC).
 2. **Plantilla efectiva:** `templateId ?? bracketId ?? 'bracket3'` (alineado con Bracket 3 por defecto en este repo).
 3. **Reglas de bracket:** se cargan con `bracketId ??` plantilla efectiva; si el id no existe en `data/bracket-rules.json`, el análisis sigue sin etiquetas de bracket en metadata.
-4. **Salida:** categorías, singleton/legality checks, Bracket 3, banlist, lint, **`synergyScore`** y **`recommendations`** (cuts/adds) si hay `preferredStrategy`, y **`decklistText`**.
+4. **Salida:** categorías, singleton/legality checks, Bracket 3, banlist, lint, **`synergyScore`** cuando hay `preferredStrategy`, **`analysis.prioritizedActions`** (hasta 8 en modo brief), **`qualityGate`**, **`agentBrief`**, y **`decklistText`**. Con **`responseMode: "full"`** también devuelve `recommendations.cuts`/`adds`/`swaps` y `synergyPackages`; en **brief** (por defecto) esos campos están vacíos u omitidos — usar `prioritizedActions`.
 
 ### Plantilla por defecto: `bracket3` vs `default`
 
@@ -25,7 +25,7 @@ Quien antes dependiera del template “default” implícito debe fijar `templat
 
 - Usar **`get_synergies`** para listar slugs; el usuario elige **una** sinergia.
 - `preferredStrategy` debe ser un **slug EDHREC** (p. ej. `tokens`, `blink`).
-- `analyze_deck` devuelve **`synergyScore`** (0–100) y sugerencias **`recommendations`** cuando el slug está presente.
+- `analyze_deck` devuelve **`synergyScore`** (0–100) cuando el slug está presente. Las sugerencias de corte/añadido están en **`analysis.prioritizedActions`** (brief, default) o **`recommendations`** (solo con `responseMode: "full"`).
 
 ## Buscar cartas (`search_cards`)
 
