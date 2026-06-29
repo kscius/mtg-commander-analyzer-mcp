@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { appendBuiltCardEntry } from './templateDeckGenerator';
 import { getDefaultBracket3Options } from './autoTags';
+import { sumLandQuantity, sumNonlandQuantity } from './manabaseLandHeuristics';
+import { getCardByName } from './scryfall';
 import type { BuiltCardEntry } from './types';
 
 describe('appendBuiltCardEntry', () => {
@@ -29,5 +31,19 @@ describe('appendBuiltCardEntry', () => {
 
     expect(builtCards).toHaveLength(1);
     expect(builtCards[0]?.quantity).toBe(1);
+  });
+
+  it('seed land budgeting uses quantity not entry count', () => {
+    const builtCards: BuiltCardEntry[] = [];
+    const cardsInDeck = new Set<string>();
+
+    appendBuiltCardEntry(builtCards, cardsInDeck, 'Island', ['U'], tagOpts);
+    appendBuiltCardEntry(builtCards, cardsInDeck, 'Island', ['U'], tagOpts);
+    appendBuiltCardEntry(builtCards, cardsInDeck, 'Island', ['U'], tagOpts);
+    appendBuiltCardEntry(builtCards, cardsInDeck, 'Sol Ring', [], tagOpts);
+
+    expect(builtCards).toHaveLength(2);
+    expect(sumLandQuantity(builtCards, getCardByName)).toBe(3);
+    expect(sumNonlandQuantity(builtCards, getCardByName)).toBe(1);
   });
 });

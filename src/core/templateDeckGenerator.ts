@@ -36,6 +36,7 @@ import {
   violatesComboRules,
 } from './templateGeneratorScoring';
 import { computeLandCountFromCurve, fillManaBaseFromTemplate, MANA_BASE_SYSTEMS } from './manaBaseGenerator';
+import { sumLandQuantity, sumNonlandQuantity } from './manabaseLandHeuristics';
 import { getOracleText, mvBucket } from './scryfallNormalize';
 import { cardFitsCommanderColorIdentity, isBasicLandName } from './commanderFormat';
 import { resolveCardNameSync } from './cardResolution';
@@ -408,11 +409,8 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
     notes.push(`Seeds: ${builtCards.length} cards.`);
   }
 
-  const seedLandCount = builtCards.filter(c => {
-    const card = getCardByName(c.name);
-    return card && (card.type_line?.toLowerCase().includes('land') ?? false);
-  }).length;
-  const seedNonLandCount = builtCards.length - seedLandCount;
+  const seedLandCount = sumLandQuantity(builtCards, getCardByName);
+  const seedNonLandCount = sumNonlandQuantity(builtCards, getCardByName);
   const landsToAdd = Math.max(0, targetLandCount - seedLandCount);
   const nonLandSlotsLeft = targetNonLandCount - seedNonLandCount;
 

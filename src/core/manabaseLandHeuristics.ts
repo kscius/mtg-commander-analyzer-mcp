@@ -277,17 +277,57 @@ export function isDualLikeBucket(bucket: LandMixBucket): boolean {
   return bucket === 'shock_lands' || bucket === 'typed_duals' || bucket === 'mdfc_lands';
 }
 
+/** Expand built-card entries into per-copy names (basics may have quantity > 1). */
+export function expandQuantifiedNames(
+  entries: Array<{ name: string; quantity?: number }>
+): string[] {
+  const names: string[] = [];
+  for (const entry of entries) {
+    const qty = entry.quantity ?? 1;
+    for (let i = 0; i < qty; i++) {
+      names.push(entry.name);
+    }
+  }
+  return names;
+}
+
+function isOracleLand(card: OracleCard | null): boolean {
+  return !!card && getPrimaryTypeLine(card).toLowerCase().includes('land');
+}
+
+/** Sum mainboard land copies (respects basic-land quantity stacking). */
+export function sumLandQuantity(
+  builtCards: Array<{ name: string; quantity: number }>,
+  getCard: (name: string) => OracleCard | null
+): number {
+  return builtCards.reduce((sum, entry) => {
+    const card = getCard(entry.name);
+    return isOracleLand(card) ? sum + entry.quantity : sum;
+  }, 0);
+}
+
+/** Sum mainboard nonland copies (respects quantity on each entry). */
+export function sumNonlandQuantity(
+  builtCards: Array<{ name: string; quantity: number }>,
+  getCard: (name: string) => OracleCard | null
+): number {
+  return builtCards.reduce((sum, entry) => {
+    const card = getCard(entry.name);
+    return isOracleLand(card) ? sum : sum + entry.quantity;
+  }, 0);
+}
+
 /** Decrement mix targets based on lands already in the partial deck (seeds). */
 export function applySeedLandConsumption(
   targets: LandMixTargets,
-  landNames: string[],
+  seededLands: Array<{ name: string; quantity?: number }>,
   getCard: (name: string) => OracleCard | null
 ): LandMixTargets {
   const t: LandMixTargets = { ...targets };
-  for (const name of landNames) {
+  for (const name of expandQuantifiedNames(seededLands)) {
     const card = getCard(name);
-    if (!card || !getPrimaryTypeLine(card).toLowerCase().includes('land')) continue;
-    const b = classifyLandMixBucket(card);
+    if (!isOracleLand(card)) continue;
+    const b = classifyLandMixBucket(card!);
     if (t[b] > 0) t[b]--;
   }
   return t;

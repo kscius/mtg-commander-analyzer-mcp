@@ -7,7 +7,10 @@ import {
   classifyLandMixBucket,
   computeScaledLandMixTargets,
   countsAsTappedLand,
+  expandQuantifiedNames,
   isDualLikeBucket,
+  sumLandQuantity,
+  sumNonlandQuantity,
   type LandMixBucket,
 } from './manabaseLandHeuristics';
 
@@ -193,6 +196,38 @@ describe('isDualLikeBucket', () => {
   });
 });
 
+describe('expandQuantifiedNames', () => {
+  it('repeats each name by entry quantity', () => {
+    expect(
+      expandQuantifiedNames([
+        { name: 'Island', quantity: 3 },
+        { name: 'Sol Ring', quantity: 1 },
+      ])
+    ).toEqual(['Island', 'Island', 'Island', 'Sol Ring']);
+  });
+});
+
+describe('sumLandQuantity / sumNonlandQuantity', () => {
+  const getCard = (name: string): OracleCard | null => {
+    if (name === 'Island' || name === 'Command Tower') {
+      return landCard({ name });
+    }
+    if (name === 'Sol Ring') {
+      return { name, type_line: 'Artifact', oracle_text: '', color_identity: [] } as OracleCard;
+    }
+    return null;
+  };
+
+  it('counts stacked basic land quantity toward land total', () => {
+    const built = [
+      { name: 'Island', quantity: 5 },
+      { name: 'Sol Ring', quantity: 1 },
+    ];
+    expect(sumLandQuantity(built, getCard)).toBe(5);
+    expect(sumNonlandQuantity(built, getCard)).toBe(1);
+  });
+});
+
 describe('applySeedLandConsumption', () => {
   it('decrements the matching bucket for seeded non-basic lands', () => {
     const targets = {
@@ -223,9 +258,34 @@ describe('applySeedLandConsumption', () => {
       return null;
     };
 
-    const after = applySeedLandConsumption(targets, ['Command Tower', 'Steam Vents', 'Sol Ring'], getCard);
+    const after = applySeedLandConsumption(
+      targets,
+      [
+        { name: 'Command Tower', quantity: 1 },
+        { name: 'Steam Vents', quantity: 1 },
+        { name: 'Sol Ring', quantity: 1 },
+      ],
+      getCard
+    );
     expect(after.utility_lands).toBe(2);
     expect(after.shock_lands).toBe(1);
     expect(after.basics).toBe(8);
+  });
+
+  it('decrements basics bucket once per stacked basic copy', () => {
+    const targets = {
+      basics: 8,
+      fetches: 0,
+      shock_lands: 0,
+      typed_duals: 0,
+      mdfc_lands: 0,
+      colorless_lands: 0,
+      utility_lands: 0,
+    };
+    const getCard = (name: string): OracleCard | null =>
+      name === 'Island' ? landCard({ name }) : null;
+
+    const after = applySeedLandConsumption(targets, [{ name: 'Island', quantity: 3 }], getCard);
+    expect(after.basics).toBe(5);
   });
 });
