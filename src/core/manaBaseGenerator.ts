@@ -17,6 +17,7 @@ import { isBanned } from './banlist';
 import {
   allocateBasicsByPips,
   applySeedLandConsumption,
+  expandQuantifiedNames,
   classifyLandMixBucket,
   computeScaledLandMixTargets,
   countFixingDualLands,
@@ -160,9 +161,13 @@ export async function fillManaBaseFromTemplate(ctx: ManaBaseFillContext): Promis
   const maxTapped = manaBase.tapped_lands?.max_total ?? 8;
   const minTypedDuals = manaBase.fetch_policy?.min_typed_duals_total ?? 4;
 
+  const seededLandEntries = builtCards.filter((e) => {
+    const c = getCardByName(e.name);
+    return c && getPrimaryTypeLine(c).toLowerCase().includes('land');
+  });
   let mixRemaining = applySeedLandConsumption(
     computeScaledLandMixTargets(manaBase, landsToAdd),
-    builtCards.map((c) => c.name),
+    seededLandEntries,
     getCardByName
   );
 
@@ -194,12 +199,12 @@ export async function fillManaBaseFromTemplate(ctx: ManaBaseFillContext): Promis
   );
 
   const landNamesInDeck = (): string[] =>
-    builtCards
-      .filter((e) => {
+    expandQuantifiedNames(
+      builtCards.filter((e) => {
         const c = getCardByName(e.name);
         return c && getPrimaryTypeLine(c).toLowerCase().includes('land');
       })
-      .map((e) => e.name);
+    );
 
   const tryAddNonBasic = (sug: EdhrecCardSuggestion, ignoreBucket: boolean): boolean => {
     if (landsAddedFill >= landsToAdd) return false;

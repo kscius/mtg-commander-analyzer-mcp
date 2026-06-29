@@ -32,6 +32,7 @@ import { isBanned, isBanlistAvailable, getBannedCount } from './banlist';
 import { formatDecklistText } from './deckTextFormat';
 import type { DeckTemplateValidated } from './templateSchema';
 import { fillManaBaseFromTemplate } from './manaBaseGenerator';
+import { sumLandQuantity } from './manabaseLandHeuristics';
 import { COMMANDER_MAINBOARD_SIZE, isBasicLandName } from './commanderFormat';
 import { resolveCardNameSync } from './cardResolution';
 
@@ -155,7 +156,7 @@ export async function buildDeckFromCommander(
   }
 
   // Step 6: Mana base (template mix + EDHREC when bracket3 full template; else warn)
-  const landsToAdd = targetLands;
+  const landsToAdd = Math.max(0, targetLands - sumLandQuantity(builtCards, getCardByName));
   const cardsInDeck = new Set(
     builtCards.map((c) => (resolveCardNameSync(c.name)?.canonicalName ?? c.name).toLowerCase())
   );
