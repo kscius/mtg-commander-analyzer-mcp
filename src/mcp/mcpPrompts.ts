@@ -4,6 +4,10 @@
 
 import type { z } from 'zod';
 import { GetPromptResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import {
+  BuildCommanderDeckPromptArgsSchema,
+  OptimizeDecklistPromptArgsSchema,
+} from '../core/schemas.js';
 
 export type McpPromptResult = z.infer<typeof GetPromptResultSchema>;
 
@@ -39,13 +43,25 @@ const QUALITY_CHECKLIST = `- Exactly **99** mainboard cards (+ 1 commander), sin
 - One synergy only — no mixed themes
 - qualityGate.readyToShip === true before delivery`;
 
-function buildCommanderDeckPrompt(args: Record<string, string | undefined>): McpPromptResult {
-  const commanderName = args.commanderName?.trim();
-  const preferredStrategy = args.preferredStrategy?.trim();
-
-  if (!commanderName) {
-    throw new Error('build-commander-deck requires argument: commanderName');
+/** Trim prompt args and drop empty strings before Zod validation. */
+function normalizePromptArgs(
+  args: Record<string, string | undefined>
+): Record<string, string | undefined> {
+  const normalized: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value !== 'string') {
+      normalized[key] = value;
+      continue;
+    }
+    const trimmed = value.trim();
+    normalized[key] = trimmed.length > 0 ? trimmed : undefined;
   }
+  return normalized;
+}
+
+function buildCommanderDeckPrompt(args: Record<string, string | undefined>): McpPromptResult {
+  const parsed = BuildCommanderDeckPromptArgsSchema.parse(normalizePromptArgs(args));
+  const { commanderName, preferredStrategy } = parsed;
 
   const strategyBlock = preferredStrategy
     ? `Use **preferredStrategy**: \`${preferredStrategy}\` (user-confirmed).`
@@ -95,16 +111,8 @@ ${QUALITY_CHECKLIST}
 }
 
 function optimizeDecklistPrompt(args: Record<string, string | undefined>): McpPromptResult {
-  const commanderName = args.commanderName?.trim();
-  const preferredStrategy = args.preferredStrategy?.trim();
-  const deckText = args.deckText?.trim();
-
-  if (!commanderName) {
-    throw new Error('optimize-decklist requires argument: commanderName');
-  }
-  if (!preferredStrategy) {
-    throw new Error('optimize-decklist requires argument: preferredStrategy');
-  }
+  const parsed = OptimizeDecklistPromptArgsSchema.parse(normalizePromptArgs(args));
+  const { commanderName, preferredStrategy, deckText } = parsed;
 
   const deckBlock = deckText
     ? `## Decklist to optimize\n\n\`\`\`\n${deckText}\n\`\`\``

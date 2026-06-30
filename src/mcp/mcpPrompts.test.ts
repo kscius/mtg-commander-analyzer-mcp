@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DECK_TEXT_MAX_LENGTH,
+  COMMANDER_NAME_MAX_LENGTH,
+} from '../core/schemas';
+import {
   getMcpPrompt,
   listMcpPrompts,
 } from './mcpPrompts';
@@ -11,7 +15,24 @@ describe('mcpPrompts', () => {
   });
 
   it('build-commander-deck requires commanderName', () => {
-    expect(() => getMcpPrompt('build-commander-deck', {})).toThrow(/commanderName/);
+    expect(() => getMcpPrompt('build-commander-deck', {})).toThrow();
+  });
+
+  it('build-commander-deck rejects oversized commanderName', () => {
+    expect(() =>
+      getMcpPrompt('build-commander-deck', {
+        commanderName: 'x'.repeat(COMMANDER_NAME_MAX_LENGTH + 1),
+      })
+    ).toThrow();
+  });
+
+  it('build-commander-deck rejects path-like preferredStrategy', () => {
+    expect(() =>
+      getMcpPrompt('build-commander-deck', {
+        commanderName: 'Shadrix Silverquill',
+        preferredStrategy: '../../../.env',
+      })
+    ).toThrow();
   });
 
   it('build-commander-deck includes workflow and commander', () => {
@@ -32,7 +53,17 @@ describe('mcpPrompts', () => {
   it('optimize-decklist requires preferredStrategy', () => {
     expect(() =>
       getMcpPrompt('optimize-decklist', { commanderName: 'X' })
-    ).toThrow(/preferredStrategy/);
+    ).toThrow();
+  });
+
+  it('optimize-decklist rejects oversized deckText', () => {
+    expect(() =>
+      getMcpPrompt('optimize-decklist', {
+        commanderName: 'Shadrix Silverquill',
+        preferredStrategy: 'group-slug',
+        deckText: 'x'.repeat(DECK_TEXT_MAX_LENGTH + 1),
+      })
+    ).toThrow();
   });
 
   it('optimize-decklist embeds deckText when provided', () => {

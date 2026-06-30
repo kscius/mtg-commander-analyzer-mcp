@@ -459,3 +459,22 @@ export const ApplyDeckChangesInputSchema = z.object({
 
 export type ApplyDeckChangesInput = z.infer<typeof ApplyDeckChangesInputSchema>;
 
+/** MCP prompt `build-commander-deck` arguments (prompts/get — not tools/call). */
+export const BuildCommanderDeckPromptArgsSchema = z.object({
+  commanderName: CommanderNameSchema.describe('Exact Scryfall commander name'),
+  preferredStrategy: PreferredStrategySchema.describe(
+    'EDHREC theme slug. Omit to require get_synergies before building.'
+  ),
+});
+
+export type BuildCommanderDeckPromptArgs = z.infer<typeof BuildCommanderDeckPromptArgsSchema>;
+
+/** MCP prompt `optimize-decklist` arguments (prompts/get — not tools/call). */
+export const OptimizeDecklistPromptArgsSchema = z.object({
+  commanderName: CommanderNameSchema.describe('Exact Scryfall commander name'),
+  preferredStrategy: SafeResourceIdSchema.describe('Confirmed EDHREC synergy slug'),
+  deckText: DeckTextSchema.optional().describe('Optional 99-card mainboard text'),
+});
+
+export type OptimizeDecklistPromptArgs = z.infer<typeof OptimizeDecklistPromptArgsSchema>;
+

@@ -10,6 +10,8 @@ import {
   GetCategoryCandidatesInputSchema,
   ApplyDeckChangesInputSchema,
   GetUserDeckStyleInputSchema,
+  BuildCommanderDeckPromptArgsSchema,
+  OptimizeDecklistPromptArgsSchema,
   TemplateCategoryNameSchema,
   DECK_TEXT_MAX_LENGTH,
   CARD_NAME_MAX_LENGTH,
@@ -260,5 +262,32 @@ describe("MCP input bounds (DoS guards)", () => {
       swaps,
     });
     expect(parsed.swaps).toHaveLength(SWAPS_MAX_COUNT);
+  });
+});
+
+describe("MCP prompt argument schemas", () => {
+  it("build-commander-deck accepts optional preferredStrategy", () => {
+    const parsed = BuildCommanderDeckPromptArgsSchema.parse({
+      commanderName: "Shadrix Silverquill",
+    });
+    expect(parsed.preferredStrategy).toBeUndefined();
+  });
+
+  it("optimize-decklist requires preferredStrategy slug", () => {
+    expect(() =>
+      OptimizeDecklistPromptArgsSchema.parse({
+        commanderName: "Shadrix Silverquill",
+      })
+    ).toThrow();
+  });
+
+  it("optimize-decklist rejects oversized deckText", () => {
+    expect(() =>
+      OptimizeDecklistPromptArgsSchema.parse({
+        commanderName: "Shadrix Silverquill",
+        preferredStrategy: "group-slug",
+        deckText: "x".repeat(DECK_TEXT_MAX_LENGTH + 1),
+      })
+    ).toThrow();
   });
 });
