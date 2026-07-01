@@ -504,6 +504,74 @@ describe('buildNextSuggestedAction', () => {
     expect(action).toContain('format:color_identity');
     expect(action).toContain('optimize_deck');
   });
+
+  it('uses custom synergyTarget instead of hardcoded 60', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 65,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const actionDefault = buildNextSuggestedAction(analysis, 'optimize_deck', {
+      synergyTarget: 60,
+    });
+    expect(actionDefault).toContain('healthy');
+
+    const actionRaised = buildNextSuggestedAction(analysis, 'optimize_deck', {
+      synergyTarget: 70,
+    });
+    expect(actionRaised).toContain('65/100');
+    expect(actionRaised).toContain('target 70');
+    expect(actionRaised).not.toContain('healthy');
+  });
+
+  it('aligns attachOptimizeConvergence nextSuggestedAction with qualityGate synergy target', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 65,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+    const base = {
+      input: {
+        commanderName: 'Test',
+        templateId: 'bracket3',
+        bracketId: 'bracket3',
+        preferredStrategy: 'tokens',
+      },
+      deckText: '1 Sol Ring',
+      decklistText: '1 Sol Ring',
+      changes: [],
+      metricsBefore: { categoriesBelow: 0, lintHardIssues: 0 },
+      metricsAfter: { categoriesBelow: 0, lintHardIssues: 0, synergyScore: 65 },
+      analysis,
+      iterationNotes: [],
+    } as OptimizeDeckResult;
+
+    const out = attachOptimizeConvergence(base, 70);
+
+    expect(out.qualityGate?.readyToShip).toBe(false);
+    expect(out.qualityGate?.blocking.some((g) => g.kind === 'synergy')).toBe(true);
+    expect(out.nextSuggestedAction).toContain('target 70');
+    expect(out.nextSuggestedAction).not.toContain('healthy');
+  });
 });
 
 describe('isDeckConverged', () => {

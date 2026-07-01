@@ -150,7 +150,8 @@ export function isDeckConverged(
 
 export function buildNextSuggestedAction(
   analysis: DeckAnalysis,
-  toolHint: 'analyze_deck' | 'optimize_deck' | 'search_cards' | 'build_deck_from_commander'
+  toolHint: 'analyze_deck' | 'optimize_deck' | 'search_cards' | 'build_deck_from_commander',
+  options?: { synergyTarget?: number }
 ): string {
   const hardLint = analysis.lintReport?.issues.filter((i) => i.severity === 'hard') ?? [];
   if (hardLint.length) {
@@ -179,8 +180,13 @@ export function buildNextSuggestedAction(
   if (analysis.bracketWarnings.length) {
     return `Address Bracket 3 warnings (${analysis.bracketWarnings[0]}).`;
   }
-  if (analysis.synergyScore != null && analysis.synergyScore < 60) {
-    return 'Synergy is low — review analysis.prioritizedActions or run optimize_deck.';
+  const synergyTarget = options?.synergyTarget;
+  if (
+    synergyTarget != null &&
+    analysis.synergyScore != null &&
+    analysis.synergyScore < synergyTarget
+  ) {
+    return `Synergy ${analysis.synergyScore}/100 below target ${synergyTarget} — review analysis.prioritizedActions or run optimize_deck.`;
   }
   return 'Deck looks healthy. Use evaluate_card_swap for single changes.';
 }
@@ -243,7 +249,7 @@ export function attachAnalyzeConvergence(
   const summary = result.summary ?? buildAnalyzeSummary(result);
   const nextSuggestedAction = converged
     ? 'Deck converged — run deck-quality checklist, then deliver decklistText.'
-    : buildNextSuggestedAction(result.analysis, 'analyze_deck');
+    : buildNextSuggestedAction(result.analysis, 'analyze_deck', { synergyTarget });
   const agentBrief = buildAgentBriefFromAnalysis(result.analysis, {
     summary,
     decklistText: result.decklistText,
@@ -281,7 +287,9 @@ export function attachBuildConvergence(
     `Built ${result.deck.cards.length}-card mainboard for ${result.deck.commanderName}; ${analysisSummary}`;
   const nextSuggestedAction = qualityGate.readyToShip
     ? 'Build complete — run deck-quality checklist, then deliver decklistText.'
-    : buildNextSuggestedAction(result.analysis, 'build_deck_from_commander');
+    : buildNextSuggestedAction(result.analysis, 'build_deck_from_commander', {
+        synergyTarget,
+      });
   const agentBrief = buildAgentBriefFromAnalysis(result.analysis, {
     summary,
     decklistText: result.decklistText,
@@ -323,7 +331,7 @@ export function attachOptimizeConvergence(
     })}`;
   const nextSuggestedAction = qualityGate.readyToShip
     ? 'Optimization converged — run deck-quality checklist, then deliver decklistText.'
-    : buildNextSuggestedAction(result.analysis, 'optimize_deck');
+    : buildNextSuggestedAction(result.analysis, 'optimize_deck', { synergyTarget });
   const agentBrief = buildAgentBriefFromAnalysis(result.analysis, {
     summary,
     decklistText: result.decklistText,
