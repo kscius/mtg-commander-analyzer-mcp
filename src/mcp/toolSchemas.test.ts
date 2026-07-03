@@ -6,14 +6,23 @@ import {
   ApplyDeckChangesInputSchema,
   BuildDeckInputSchema,
   BRACKET3_TEMPLATE_CATEGORY_NAMES,
+  CARD_NAME_LIST_MAX_COUNT,
+  CARD_NAME_MAX_LENGTH,
+  COMMANDER_NAME_MAX_LENGTH,
+  DECK_TEXT_MAX_LENGTH,
   EvaluateCardSwapInputSchema,
+  FOCUS_CATEGORIES_MAX_COUNT,
   GetCategoryCandidatesInputSchema,
   GetStrategyGuideInputSchema,
   GetSynergiesInputSchema,
   GetUserDeckStyleInputSchema,
   OptimizeDeckInputSchema,
   ResolveCardInputSchema,
+  SEARCH_QUERY_MAX_LENGTH,
   SearchCardsInputSchema,
+  SEED_CARDS_MAX_COUNT,
+  STYLE_QUESTION_MAX_LENGTH,
+  SWAPS_MAX_COUNT,
 } from '../core/schemas';
 
 /** Extract top-level object keys from a Zod input schema (unwraps default/effects wrappers). */
@@ -36,6 +45,17 @@ function mcpPropertyKeys(toolName: string): string[] {
   }
   const props = (tool.inputSchema as { properties?: Record<string, unknown> }).properties;
   return props ? Object.keys(props).sort() : [];
+}
+
+function mcpProperty(toolName: string, propName: string): Record<string, unknown> {
+  const tool = buildMcpTools().find((t) => t.name === toolName);
+  const props = (tool?.inputSchema as { properties?: Record<string, Record<string, unknown>> })
+    ?.properties;
+  const prop = props?.[propName];
+  if (!prop) {
+    throw new Error(`Property ${propName} not found on ${toolName}`);
+  }
+  return prop;
 }
 
 const TOOL_ZOD_SCHEMAS: Record<string, z.ZodType> = {
@@ -89,5 +109,71 @@ describe('buildMcpTools Zod contract', () => {
       }
     )?.properties?.focusCategories?.items;
     expect(focusItems?.enum).toEqual(categoryEnum);
+  });
+
+  describe('Zod constraint parity (DoS bounds in MCP discovery schema)', () => {
+    it('analyze_deck deckText matches DeckTextSchema bounds', () => {
+      const deckText = mcpProperty('analyze_deck', 'deckText');
+      expect(deckText.minLength).toBe(1);
+      expect(deckText.maxLength).toBe(DECK_TEXT_MAX_LENGTH);
+    });
+
+    it('apply_deck_changes swaps matches SwapItemSchema array bounds', () => {
+      const swaps = mcpProperty('apply_deck_changes', 'swaps');
+      expect(swaps.minItems).toBe(1);
+      expect(swaps.maxItems).toBe(SWAPS_MAX_COUNT);
+    });
+
+    it('build_deck_from_commander seedCards matches SeedCardsSchema maxItems', () => {
+      const seedCards = mcpProperty('build_deck_from_commander', 'seedCards');
+      expect(seedCards.maxItems).toBe(SEED_CARDS_MAX_COUNT);
+    });
+
+    it('optimize_deck preserveCards and focusCategories match Zod list caps', () => {
+      expect(mcpProperty('optimize_deck', 'preserveCards').maxItems).toBe(
+        CARD_NAME_LIST_MAX_COUNT
+      );
+      expect(mcpProperty('optimize_deck', 'focusCategories').maxItems).toBe(
+        FOCUS_CATEGORIES_MAX_COUNT
+      );
+      expect(mcpProperty('optimize_deck', 'maxIterations')).toMatchObject({
+        minimum: 1,
+        maximum: 12,
+      });
+      expect(mcpProperty('optimize_deck', 'stopWhenScore')).toMatchObject({
+        minimum: 0,
+        maximum: 100,
+      });
+    });
+
+    it('search_cards query and card fields match Zod string bounds', () => {
+      expect(mcpProperty('search_cards', 'query').maxLength).toBe(SEARCH_QUERY_MAX_LENGTH);
+      expect(mcpProperty('search_cards', 'commanderName').maxLength).toBe(
+        COMMANDER_NAME_MAX_LENGTH
+      );
+      expect(mcpProperty('search_cards', 'excludeNames').maxItems).toBe(
+        CARD_NAME_LIST_MAX_COUNT
+      );
+    });
+
+    it('resolve_card cardName matches CardNameSchema bounds', () => {
+      expect(mcpProperty('resolve_card', 'cardName')).toMatchObject({
+        minLength: 1,
+        maxLength: CARD_NAME_MAX_LENGTH,
+      });
+    });
+
+    it('get_user_deck_style question matches STYLE_QUESTION_MAX_LENGTH', () => {
+      expect(mcpProperty('get_user_deck_style', 'question').maxLength).toBe(
+        STYLE_QUESTION_MAX_LENGTH
+      );
+    });
+
+    it('get_category_candidates limit matches Zod int bounds', () => {
+      expect(mcpProperty('get_category_candidates', 'limit')).toMatchObject({
+        minimum: 1,
+        maximum: 30,
+      });
+    });
   });
 });

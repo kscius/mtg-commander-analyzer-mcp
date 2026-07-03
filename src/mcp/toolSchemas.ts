@@ -7,7 +7,19 @@
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { BRACKET3_TEMPLATE_CATEGORY_NAMES, PREFERRED_STRATEGY_SLUGS } from '../core/schemas';
+import {
+  BRACKET3_TEMPLATE_CATEGORY_NAMES,
+  CARD_NAME_LIST_MAX_COUNT,
+  CARD_NAME_MAX_LENGTH,
+  COMMANDER_NAME_MAX_LENGTH,
+  DECK_TEXT_MAX_LENGTH,
+  FOCUS_CATEGORIES_MAX_COUNT,
+  PREFERRED_STRATEGY_SLUGS,
+  SEARCH_QUERY_MAX_LENGTH,
+  SEED_CARDS_MAX_COUNT,
+  STYLE_QUESTION_MAX_LENGTH,
+  SWAPS_MAX_COUNT,
+} from '../core/schemas';
 
 export const PREFERRED_STRATEGY_DOC =
   `EDHREC theme slug (not free text). Examples: ${PREFERRED_STRATEGY_SLUGS.join(', ')}. ` +
@@ -26,6 +38,31 @@ const TEMPLATE_CATEGORY_PROP = {
   description: 'Bracket 3 template category (e.g. card_draw, ramp, spot_removal)',
 } as const;
 
+/** Shared string bounds — keep in sync with Zod schemas in core/schemas.ts */
+const DECK_TEXT_PROP = {
+  type: 'string',
+  minLength: 1,
+  maxLength: DECK_TEXT_MAX_LENGTH,
+} as const;
+
+const CARD_NAME_PROP = {
+  type: 'string',
+  minLength: 1,
+  maxLength: CARD_NAME_MAX_LENGTH,
+} as const;
+
+const COMMANDER_NAME_PROP = {
+  type: 'string',
+  minLength: 1,
+  maxLength: COMMANDER_NAME_MAX_LENGTH,
+} as const;
+
+const CARD_NAME_ARRAY_PROP = {
+  type: 'array',
+  items: CARD_NAME_PROP,
+  maxItems: CARD_NAME_LIST_MAX_COUNT,
+} as const;
+
 /** Tool definitions — keep in sync with Zod schemas in core/schemas.ts */
 export function buildMcpTools(): Tool[] {
   return [
@@ -40,13 +77,13 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           deckText: {
-            type: 'string',
+            ...DECK_TEXT_PROP,
             description:
               "Raw decklist text, one card per line with quantity (e.g., '1 Sol Ring\\n1 Island')",
           },
           templateId: { type: 'string', default: 'bracket3' },
           bracketId: { type: 'string', default: 'bracket3' },
-          commanderName: { type: 'string' },
+          commanderName: COMMANDER_NAME_PROP,
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
           options: {
             type: 'object',
@@ -75,11 +112,15 @@ export function buildMcpTools(): Tool[] {
       inputSchema: {
         type: 'object',
         properties: {
-          commanderName: { type: 'string' },
+          commanderName: COMMANDER_NAME_PROP,
           templateId: { type: 'string', default: 'bracket3' },
           bracketId: { type: 'string', default: 'bracket3' },
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
-          seedCards: { type: 'array', items: { type: 'string' } },
+          seedCards: {
+            type: 'array',
+            items: CARD_NAME_PROP,
+            maxItems: SEED_CARDS_MAX_COUNT,
+          },
           useEdhrec: { type: 'boolean', default: true },
           useEdhrecAutofill: { type: 'boolean', default: true },
           useTemplateGenerator: { type: 'boolean', default: true },
@@ -96,7 +137,7 @@ export function buildMcpTools(): Tool[] {
               'When true, bias land count and mana base toward read-only imports in data/my_decks (never writes generated decks there).',
           },
           refineUntilStable: { type: 'boolean', default: true },
-          maxRefinementIterations: { type: 'number', default: 5 },
+          maxRefinementIterations: { type: 'number', minimum: 1, maximum: 12, default: 5 },
           responseMode: { type: 'string', enum: ['brief', 'full'], default: 'brief' },
           metaOverride: {
             type: 'object',
@@ -118,12 +159,12 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           responseMode: RESPONSE_MODE_PROP,
-          commanderName: { type: 'string' },
+          commanderName: COMMANDER_NAME_PROP,
           category: TEMPLATE_CATEGORY_PROP,
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
-          limit: { type: 'number', default: 15 },
+          limit: { type: 'number', minimum: 1, maximum: 30, default: 15 },
           maxMV: { type: 'number', minimum: 0, maximum: 20 },
-          excludeNames: { type: 'array', items: { type: 'string' } },
+          excludeNames: CARD_NAME_ARRAY_PROP,
         },
         required: ['commanderName', 'category'],
       },
@@ -136,20 +177,20 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           responseMode: RESPONSE_MODE_PROP,
-          query: { type: 'string' },
+          query: { type: 'string', maxLength: SEARCH_QUERY_MAX_LENGTH },
           colorIdentity: {
             type: 'array',
             items: { type: 'string', enum: ['W', 'U', 'B', 'R', 'G'] },
             maxItems: 5,
           },
           category: TEMPLATE_CATEGORY_PROP,
-          type: { type: 'string' },
+          type: { type: 'string', maxLength: 100 },
           maxMV: { type: 'number', minimum: 0, maximum: 20, description: 'Maximum mana value (valid filter alone)' },
           commanderLegal: { type: 'boolean', default: true },
-          limit: { type: 'number', default: 20 },
+          limit: { type: 'number', minimum: 1, maximum: 100, default: 20 },
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
-          commanderName: { type: 'string' },
-          excludeNames: { type: 'array', items: { type: 'string' } },
+          commanderName: COMMANDER_NAME_PROP,
+          excludeNames: CARD_NAME_ARRAY_PROP,
           sortBy: {
             type: 'string',
             enum: ['synergyRelevance', 'mv', 'name', 'edhrecRank'],
@@ -165,8 +206,8 @@ export function buildMcpTools(): Tool[] {
       inputSchema: {
         type: 'object',
         properties: {
-          deckText: { type: 'string' },
-          commanderName: { type: 'string' },
+          deckText: DECK_TEXT_PROP,
+          commanderName: COMMANDER_NAME_PROP,
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
           templateId: { type: 'string', default: 'bracket3' },
           bracketId: { type: 'string', default: 'bracket3' },
@@ -175,15 +216,20 @@ export function buildMcpTools(): Tool[] {
             default: 'commander',
             description: 'Internal banlist key (default commander)',
           },
-          maxIterations: { type: 'number', default: 4 },
-          focusCategories: { type: 'array', items: TEMPLATE_CATEGORY_PROP },
+          maxIterations: { type: 'number', minimum: 1, maximum: 12, default: 4 },
+          focusCategories: {
+            type: 'array',
+            items: TEMPLATE_CATEGORY_PROP,
+            maxItems: FOCUS_CATEGORIES_MAX_COUNT,
+          },
           stopWhenScore: {
             type: 'number',
+            minimum: 0,
+            maximum: 100,
             description: 'Stop when synergyScore reaches this value (0-100)',
           },
           preserveCards: {
-            type: 'array',
-            items: { type: 'string' },
+            ...CARD_NAME_ARRAY_PROP,
             description: 'Cards that must not be cut',
           },
           responseMode: { type: 'string', enum: ['brief', 'full'], default: 'brief' },
@@ -198,19 +244,20 @@ export function buildMcpTools(): Tool[] {
       inputSchema: {
         type: 'object',
         properties: {
-          deckText: { type: 'string' },
-          commanderName: { type: 'string' },
+          deckText: DECK_TEXT_PROP,
+          commanderName: COMMANDER_NAME_PROP,
           swaps: {
             type: 'array',
             items: {
               type: 'object',
               properties: {
-                remove: { type: 'string' },
-                add: { type: 'string' },
+                remove: CARD_NAME_PROP,
+                add: CARD_NAME_PROP,
               },
               required: ['remove', 'add'],
             },
             minItems: 1,
+            maxItems: SWAPS_MAX_COUNT,
           },
         },
         required: ['deckText', 'swaps'],
@@ -224,8 +271,8 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           responseMode: RESPONSE_MODE_PROP,
-          cardName: { type: 'string' },
-          commanderName: { type: 'string' },
+          cardName: CARD_NAME_PROP,
+          commanderName: COMMANDER_NAME_PROP,
         },
         required: ['cardName'],
       },
@@ -237,7 +284,7 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           responseMode: RESPONSE_MODE_PROP,
-          commanderName: { type: 'string' },
+          commanderName: COMMANDER_NAME_PROP,
         },
         required: ['commanderName'],
       },
@@ -249,10 +296,10 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           responseMode: RESPONSE_MODE_PROP,
-          deckText: { type: 'string' },
-          commanderName: { type: 'string' },
-          cardToRemove: { type: 'string' },
-          cardToAdd: { type: 'string' },
+          deckText: DECK_TEXT_PROP,
+          commanderName: COMMANDER_NAME_PROP,
+          cardToRemove: CARD_NAME_PROP,
+          cardToAdd: CARD_NAME_PROP,
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
           templateId: { type: 'string', default: 'bracket3' },
           bracketId: { type: 'string', default: 'bracket3' },
@@ -267,7 +314,7 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           responseMode: RESPONSE_MODE_PROP,
-          commanderName: { type: 'string' },
+          commanderName: COMMANDER_NAME_PROP,
           preferredStrategy: { type: 'string' },
           summaryOnly: {
             type: 'boolean',
@@ -287,7 +334,7 @@ export function buildMcpTools(): Tool[] {
         properties: {
           responseMode: RESPONSE_MODE_PROP,
           commanderName: {
-            type: 'string',
+            ...COMMANDER_NAME_PROP,
             description: 'Optional commander to tailor land target and staple hints',
           },
           preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
@@ -298,6 +345,7 @@ export function buildMcpTools(): Tool[] {
           },
           question: {
             type: 'string',
+            maxLength: STYLE_QUESTION_MAX_LENGTH,
             description: 'Custom question for OpenAI (only when useOpenAI is true)',
           },
         },
