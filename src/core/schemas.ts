@@ -180,7 +180,7 @@ export const AnalyzeDeckInputSchema = z.object({
   options: z.object({}).optional().describe("Analysis options"),
 
   /** brief (default) returns agentBrief, qualityGate, and slim analysis; full returns complete JSON */
-  responseMode: z.enum(["brief", "full"]).optional().default("brief"),
+  responseMode: McpResponseModeSchema,
 
   /** When true (default), infer commander from legendary commander-capable mainboard card if no Commander: line */
   inferCommander: z
@@ -249,7 +249,7 @@ export const BuildDeckInputSchema = z.object({
   /** Maximum autofill passes when refineUntilStable is true (default 5). */
   maxRefinementIterations: z.number().int().min(1).max(12).optional().default(5).describe("Max EDHREC autofill passes (1–12). Defaults to 5."),
 
-  responseMode: z.enum(["brief", "full"]).optional().default("brief"),
+  responseMode: McpResponseModeSchema,
 
   metaOverride: MetaOverrideSchema.optional().describe(
     "Optional template.meta tweaks (advanced; usually omit)"
@@ -352,11 +352,20 @@ export const SearchCardsInputSchema = z
     const hasColors = Boolean(val.colorIdentity && val.colorIdentity.length > 0);
     const hasCommander = Boolean(val.commanderName?.trim());
     const hasMaxMv = val.maxMV != null;
-    if (!hasQuery && !hasCategory && !hasType && !hasColors && !hasCommander && !hasMaxMv) {
+    const hasCommanderLegalFilter = val.commanderLegal === false;
+    if (
+      !hasQuery &&
+      !hasCategory &&
+      !hasType &&
+      !hasColors &&
+      !hasCommander &&
+      !hasMaxMv &&
+      !hasCommanderLegalFilter
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "At least one of query, category, type, colorIdentity, commanderName, or maxMV is required",
+          'At least one of query, category, type, colorIdentity, commanderName, maxMV, or commanderLegal=false is required',
       });
     }
   });
@@ -397,7 +406,7 @@ export const OptimizeDeckInputSchema = z.object({
   preserveCards: CardNameListSchema.optional().describe(
     'Card names that must not be cut during optimization'
   ),
-  responseMode: z.enum(['brief', 'full']).optional().default('brief'),
+  responseMode: McpResponseModeSchema,
 });
 
 /** resolve_card tool input */

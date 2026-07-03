@@ -107,6 +107,11 @@ describe("SearchCardsInputSchema", () => {
     expect(parsed.excludeNames).toEqual(["Sol Ring"]);
     expect(parsed.sortBy).toBe("mv");
   });
+
+  it("accepts commanderLegal=false alone as a valid filter", () => {
+    const parsed = SearchCardsInputSchema.parse({ commanderLegal: false });
+    expect(parsed.commanderLegal).toBe(false);
+  });
 });
 
 describe("OptimizeDeckInputSchema", () => {
