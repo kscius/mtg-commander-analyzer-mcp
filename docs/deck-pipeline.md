@@ -53,13 +53,66 @@ Tras construir, el mazo se **re-analiza** con el mismo analizador que `analyze_d
 
 Dado `commanderName`, devuelve temas EDHREC + heurísticas y un `recommendedStrategy` opcional. Ejecutar **antes** de `build_deck_from_commander`.
 
+## Optimizar mazo (`optimize_deck`)
+
+Mejora iterativa: cortes temáticos, autofill EDHREC/tierras, devuelve `converged`, `remainingGaps`, `qualityGate` y `decklistText`.
+
+- **Requiere** `commanderName` explícito (no hay `inferCommander`; usar `analyze_deck` antes si solo tienes la lista).
+- **Parámetros clave:** `preferredStrategy` (slug EDHREC), `maxIterations` (default **4**), `focusCategories` (solo optimizar categorías concretas), `stopWhenScore` (parar al alcanzar `synergyScore`), `preserveCards` (nombres que no deben cortarse), `banlistId` (default **`commander`**).
+- Preferir **`optimize_deck`** para varios huecos a la vez; usar las herramientas incrementales de abajo para cambios puntuales verificados.
+
+Ver [optimization-playbook.md](./optimization-playbook.md) para orden de prioridad (formato → mana → interacción → categorías → sinergia).
+
+## Candidatos por categoría (`get_category_candidates`)
+
+Ranking de cartas reales en `cards.db` para rellenar **una** categoría `below` tras leer `analysis.prioritizedActions`.
+
+- **Entrada:** `commanderName`, `category` (p. ej. `card_draw`, `ramp`), `preferredStrategy`, opcional `limit` (default **15**), `maxMV`, `excludeNames`.
+- Ejecutar **después** de `analyze_deck` cuando `prioritizedActions` señala un déficit concreto — antes de búsquedas amplias con `search_cards`.
+
+## Previsualizar cambio (`evaluate_card_swap`)
+
+Simula un corte/añadido (`cardToRemove` / `cardToAdd`) sin mutar la lista.
+
+- Devuelve `recommendation` (`proceed` / `skip`), deltas de categoría y `synergyScoreBefore` / `After`.
+- **Requiere** `commanderName` explícito.
+- Usar antes de `apply_deck_changes` cuando no estés seguro de un swap.
+
+## Aplicar cambios (`apply_deck_changes`)
+
+Aplica swaps validados (`swaps[]` con `remove` / `add` por par) y devuelve `decklistText` actualizado — evita re-pegar 99 líneas.
+
+- Opcional `commanderName` para validar identidad de color y legalidad.
+- Tras aplicar, **re-analizar** con `analyze_deck` hasta `qualityGate.readyToShip`.
+
+## Resolver carta (`resolve_card`)
+
+Resuelve un nombre contra `cards.db` y, con `commanderName`, comprueba legalidad Commander e identidad de color.
+
+- Usar **antes** de añadir manualmente cuando el nombre exacto o la legalidad son dudosos.
+- No sustituye `search_cards` para descubrir candidatos temáticos.
+
 ## Agente LLM (Cursor u otro cliente MCP)
 
-El **modelo del cliente** elige cartas temáticas y cierra huecos. OpenAI solo si se pide análisis narrativo con `get_user_deck_style`. Flujo recomendado: `get_synergies` → (opcional `get_user_deck_style`) → `build_deck_from_commander` → `analyze_deck` → `optimize_deck` / `search_cards` hasta `qualityGate.readyToShip` o convergencia.
+El **modelo del cliente** elige cartas temáticas y cierra huecos. OpenAI solo si se pide análisis narrativo con `get_user_deck_style`.
+
+Flujo recomendado:
+
+```
+get_synergies → (opcional get_user_deck_style) → build_deck_from_commander
+→ analyze_deck → optimize_deck
+   OR get_category_candidates + evaluate_card_swap + apply_deck_changes
+   OR search_cards / resolve_card
+→ analyze_deck de nuevo hasta qualityGate.readyToShip o convergencia
+```
+
+Ver [optimization-playbook.md](./optimization-playbook.md) y `AGENTS.md` (contrato de herramientas MCP).
 
 ## Validación local
 
 - `npm run build` — compilación TypeScript.
 - `npm test` — Vitest (tests en `src/**/*.test.ts`).
+- `npm run test:golden` — regresión analyze (fixture Shadrix).
+- `npm run test:mcp-smoke` — arranque stdio MCP + `tools/list` (11 herramientas).
 
-Ver también [testing.md](./testing.md).
+En CI (Node 20): ver pasos completos en [testing.md](./testing.md) (`build` → `test:mcp-smoke` → `test` → `test:golden` → `benchmark:decks`).

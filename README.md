@@ -188,7 +188,7 @@ npm test
 npm run test:watch   # watch mode during development
 ```
 
-Pull requests and pushes to `main` / `master` run `npm ci`, `npm run build`, and `npm test` on Node 20 via GitHub Actions (see `.github/workflows/ci.yml`).
+Pull requests and pushes to `main` / `master` run on Node 20: `npm ci` → DB setup (`scripts/ci-setup-db.sh`) → `npm run build` → `npm run test:mcp-smoke` → `npm test` → `npm run test:golden` → `npm run benchmark:decks`. See `.github/workflows/ci.yml` and [docs/testing.md](docs/testing.md).
 
 ## 📖 Usage
 
