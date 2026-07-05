@@ -293,8 +293,25 @@ export function runLandAutofillPass(
   const inDeck = new Set(cards.map((c) => c.name.toLowerCase()));
   let addedCount = 0;
 
-  for (const sug of edhrecContext.suggestions) {
-    if (addedCount >= deficit || sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE) {
+  const tagOpts = getDefaultBracket3Options('bracket3');
+  const themeSlug = edhrecContext.selectedTheme;
+  const commanderName = analysis.commanderName ?? '';
+
+  const sortedLandSuggestions = [...edhrecContext.suggestions]
+    .filter((sug) => {
+      const card = getCardByName(sug.name);
+      return card?.type_line?.toLowerCase().includes('land') ?? false;
+    })
+    .sort((a, b) => {
+      const ca = getCardByName(a.name);
+      const cb = getCardByName(b.name);
+      const sa = ca ? rankSuggestion(a, ca, themeSlug, commanderName) : 0;
+      const sb = cb ? rankSuggestion(b, cb, themeSlug, commanderName) : 0;
+      return sb - sa;
+    });
+
+  for (const sug of sortedLandSuggestions) {
+    if (addedCount >= deficit) {
       break;
     }
     if (inDeck.has(sug.name.toLowerCase())) continue;
@@ -302,6 +319,21 @@ export function runLandAutofillPass(
     if (!card?.type_line?.toLowerCase().includes('land')) continue;
     if (!cardFitsCommanderColorIdentity(card, colorIdentity)) continue;
     if (isBanned(card.name)) continue;
+
+    const atCap = sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE;
+    if (atCap) {
+      const cutIdx = findSwapCutIndex(cards, analysis, themeSlug, commanderName, tagOpts);
+      if (cutIdx == null) {
+        passNotes.push(
+          `    ⚠️  At ${COMMANDER_DECK_SIZE} cards; no swap cut for lands (${deficit - addedCount} remaining).`
+        );
+        break;
+      }
+      const cutName = cards[cutIdx].name;
+      cards.splice(cutIdx, 1);
+      inDeck.delete(cutName.toLowerCase());
+      passNotes.push(`    ↔ Swap cut ${cutName} for land autofill`);
+    }
 
     cards.push({
       name: card.name,
