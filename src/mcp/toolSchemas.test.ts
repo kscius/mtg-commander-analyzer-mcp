@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
+import { SAFE_RESOURCE_ID_PATTERN } from '../core/safePath';
 import { buildMcpTools } from './toolSchemas';
 import {
   AnalyzeDeckInputSchema,
@@ -18,6 +19,7 @@ import {
   GetUserDeckStyleInputSchema,
   OptimizeDeckInputSchema,
   ResolveCardInputSchema,
+  RESOURCE_ID_MAX_LENGTH,
   SEARCH_QUERY_MAX_LENGTH,
   SearchCardsInputSchema,
   SEED_CARDS_MAX_COUNT,
@@ -174,6 +176,42 @@ describe('buildMcpTools Zod contract', () => {
         minimum: 1,
         maximum: 30,
       });
+    });
+
+    it('resource id fields match SafeResourceIdSchema bounds', () => {
+      const resourceIdShape = {
+        pattern: SAFE_RESOURCE_ID_PATTERN,
+        maxLength: RESOURCE_ID_MAX_LENGTH,
+      };
+      for (const toolName of [
+        'analyze_deck',
+        'build_deck_from_commander',
+        'optimize_deck',
+        'evaluate_card_swap',
+      ] as const) {
+        expect(mcpProperty(toolName, 'templateId')).toMatchObject(resourceIdShape);
+        expect(mcpProperty(toolName, 'bracketId')).toMatchObject(resourceIdShape);
+      }
+      for (const toolName of [
+        'analyze_deck',
+        'build_deck_from_commander',
+        'get_category_candidates',
+        'search_cards',
+        'optimize_deck',
+        'evaluate_card_swap',
+        'get_strategy_guide',
+        'get_user_deck_style',
+      ] as const) {
+        expect(mcpProperty(toolName, 'preferredStrategy')).toMatchObject(resourceIdShape);
+      }
+      expect(mcpProperty('optimize_deck', 'banlistId')).toMatchObject(resourceIdShape);
+    });
+
+    it('build_deck_from_commander metaOverride numeric fields match MetaOverrideSchema', () => {
+      const meta = mcpProperty('build_deck_from_commander', 'metaOverride');
+      const props = meta.properties as Record<string, { minimum?: number; maximum?: number }>;
+      expect(props.graveyard_meta_share).toMatchObject({ minimum: 0, maximum: 1 });
+      expect(props.creature_meta_share).toMatchObject({ minimum: 0, maximum: 1 });
     });
   });
 });

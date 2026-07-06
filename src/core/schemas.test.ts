@@ -15,6 +15,7 @@ import {
   TemplateCategoryNameSchema,
   DECK_TEXT_MAX_LENGTH,
   CARD_NAME_MAX_LENGTH,
+  RESOURCE_ID_MAX_LENGTH,
   STYLE_QUESTION_MAX_LENGTH,
   SWAPS_MAX_COUNT,
 } from "./schemas";
@@ -223,6 +224,15 @@ describe("MCP input bounds (DoS guards)", () => {
       AnalyzeDeckInputSchema.parse({
         deckText: "1 Sol Ring",
         preferredStrategy: "../../../.env",
+      })
+    ).toThrow();
+  });
+
+  it("rejects oversized preferredStrategy on analyze_deck", () => {
+    expect(() =>
+      AnalyzeDeckInputSchema.parse({
+        deckText: "1 Sol Ring",
+        preferredStrategy: "a".repeat(RESOURCE_ID_MAX_LENGTH + 1),
       })
     ).toThrow();
   });

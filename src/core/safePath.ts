@@ -4,22 +4,31 @@
  */
 
 import * as path from 'path';
+import { RESOURCE_ID_MAX_LENGTH } from './schemas';
 
 /** Lowercase slug safe for template/bracket/strategy ids (e.g. bracket3, group-slug). */
 export const SAFE_RESOURCE_ID_REGEX = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
+
+/** JSON Schema pattern string — keep in sync with SAFE_RESOURCE_ID_REGEX. */
+export const SAFE_RESOURCE_ID_PATTERN = '^[a-z0-9]+(?:[-_][a-z0-9]+)*$';
 
 /**
  * Returns true when `id` is safe to embed in a filename segment.
  */
 export function isSafeResourceId(id: string): boolean {
-  return SAFE_RESOURCE_ID_REGEX.test(id);
+  return id.length <= RESOURCE_ID_MAX_LENGTH && SAFE_RESOURCE_ID_REGEX.test(id);
 }
 
 /**
  * @throws Error when `id` contains traversal or path separator characters.
  */
 export function assertSafeResourceId(id: string, label = 'resource id'): void {
-  if (!isSafeResourceId(id)) {
+  if (id.length > RESOURCE_ID_MAX_LENGTH) {
+    throw new Error(
+      `Invalid ${label}: exceeds maximum length (${RESOURCE_ID_MAX_LENGTH} characters).`
+    );
+  }
+  if (!SAFE_RESOURCE_ID_REGEX.test(id)) {
     throw new Error(
       `Invalid ${label}: "${id}". Use lowercase letters, digits, and hyphens only.`
     );
