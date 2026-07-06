@@ -4,7 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { resolveProjectRelativePath } from '../core/safePath';
+import { assertSafeResourceId, resolveProjectRelativePath } from '../core/safePath';
+import { MCP_RESOURCE_URI_MAX_LENGTH } from '../core/schemas';
 import { USER_DECK_INDEX_FILE, USER_DECK_LIBRARY_DIR } from '../core/userDeckPaths';
 import { getUserDeckStyleProfile } from '../core/userDeckLibrary';
 
@@ -157,6 +158,11 @@ export function listMcpResources(): McpResourceDescriptor[] {
 }
 
 function parseResourceKey(uri: string): string {
+  if (uri.length > MCP_RESOURCE_URI_MAX_LENGTH) {
+    throw new Error(
+      `Resource URI exceeds maximum length (${MCP_RESOURCE_URI_MAX_LENGTH} characters)`
+    );
+  }
   if (!uri.startsWith(MTG_COMMANDER_RESOURCE_PREFIX)) {
     throw new Error(
       `Invalid resource URI (expected ${MTG_COMMANDER_RESOURCE_PREFIX}...): ${uri}`
@@ -248,6 +254,7 @@ export function readMcpResource(uri: string): McpResourceContent {
     if (!slug || slug.includes('/')) {
       throw new Error(`Invalid strategy guide slug in URI: ${uri}`);
     }
+    assertSafeResourceId(slug, 'strategy guide slug');
     let fileName = `${slug}.md`;
     try {
       const index = JSON.parse(

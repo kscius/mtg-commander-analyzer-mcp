@@ -7,6 +7,7 @@
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { SAFE_RESOURCE_ID_PATTERN } from '../core/safePath';
 import {
   BRACKET3_TEMPLATE_CATEGORY_NAMES,
   CARD_NAME_LIST_MAX_COUNT,
@@ -15,6 +16,7 @@ import {
   DECK_TEXT_MAX_LENGTH,
   FOCUS_CATEGORIES_MAX_COUNT,
   PREFERRED_STRATEGY_SLUGS,
+  RESOURCE_ID_MAX_LENGTH,
   SEARCH_QUERY_MAX_LENGTH,
   SEED_CARDS_MAX_COUNT,
   STYLE_QUESTION_MAX_LENGTH,
@@ -63,6 +65,28 @@ const CARD_NAME_ARRAY_PROP = {
   maxItems: CARD_NAME_LIST_MAX_COUNT,
 } as const;
 
+/** Resource id (templateId, bracketId, preferredStrategy, banlistId) — sync with SafeResourceIdSchema */
+const RESOURCE_ID_PROP = {
+  type: 'string',
+  pattern: SAFE_RESOURCE_ID_PATTERN,
+  maxLength: RESOURCE_ID_MAX_LENGTH,
+} as const;
+
+const TEMPLATE_ID_PROP = { ...RESOURCE_ID_PROP, default: 'bracket3' } as const;
+const BRACKET_ID_PROP = { ...RESOURCE_ID_PROP, default: 'bracket3' } as const;
+const BANLIST_ID_PROP = {
+  ...RESOURCE_ID_PROP,
+  default: 'commander',
+  description: 'Internal banlist key (default commander)',
+} as const;
+const PREFERRED_STRATEGY_PROP = {
+  ...RESOURCE_ID_PROP,
+  description: PREFERRED_STRATEGY_DOC,
+} as const;
+const REQUIRED_PREFERRED_STRATEGY_PROP = {
+  ...RESOURCE_ID_PROP,
+} as const;
+
 /** Tool definitions — keep in sync with Zod schemas in core/schemas.ts */
 export function buildMcpTools(): Tool[] {
   return [
@@ -81,10 +105,10 @@ export function buildMcpTools(): Tool[] {
             description:
               "Raw decklist text, one card per line with quantity (e.g., '1 Sol Ring\\n1 Island')",
           },
-          templateId: { type: 'string', default: 'bracket3' },
-          bracketId: { type: 'string', default: 'bracket3' },
+          templateId: TEMPLATE_ID_PROP,
+          bracketId: BRACKET_ID_PROP,
           commanderName: COMMANDER_NAME_PROP,
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
           options: {
             type: 'object',
             description: 'Analysis options (reserved for future flags)',
@@ -113,9 +137,9 @@ export function buildMcpTools(): Tool[] {
         type: 'object',
         properties: {
           commanderName: COMMANDER_NAME_PROP,
-          templateId: { type: 'string', default: 'bracket3' },
-          bracketId: { type: 'string', default: 'bracket3' },
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          templateId: TEMPLATE_ID_PROP,
+          bracketId: BRACKET_ID_PROP,
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
           seedCards: {
             type: 'array',
             items: CARD_NAME_PROP,
@@ -142,9 +166,9 @@ export function buildMcpTools(): Tool[] {
           metaOverride: {
             type: 'object',
             properties: {
-              graveyard_meta_share: { type: 'number' },
+              graveyard_meta_share: { type: 'number', minimum: 0, maximum: 1 },
               fast_combo_density: { type: 'string', enum: ['low', 'mid', 'high'] },
-              creature_meta_share: { type: 'number' },
+              creature_meta_share: { type: 'number', minimum: 0, maximum: 1 },
             },
           },
         },
@@ -161,7 +185,7 @@ export function buildMcpTools(): Tool[] {
           responseMode: RESPONSE_MODE_PROP,
           commanderName: COMMANDER_NAME_PROP,
           category: TEMPLATE_CATEGORY_PROP,
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
           limit: { type: 'number', minimum: 1, maximum: 30, default: 15 },
           maxMV: { type: 'number', minimum: 0, maximum: 20 },
           excludeNames: CARD_NAME_ARRAY_PROP,
@@ -188,7 +212,7 @@ export function buildMcpTools(): Tool[] {
           maxMV: { type: 'number', minimum: 0, maximum: 20, description: 'Maximum mana value (valid filter alone)' },
           commanderLegal: { type: 'boolean', default: true },
           limit: { type: 'number', minimum: 1, maximum: 100, default: 20 },
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
           commanderName: COMMANDER_NAME_PROP,
           excludeNames: CARD_NAME_ARRAY_PROP,
           sortBy: {
@@ -208,14 +232,10 @@ export function buildMcpTools(): Tool[] {
         properties: {
           deckText: DECK_TEXT_PROP,
           commanderName: COMMANDER_NAME_PROP,
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
-          templateId: { type: 'string', default: 'bracket3' },
-          bracketId: { type: 'string', default: 'bracket3' },
-          banlistId: {
-            type: 'string',
-            default: 'commander',
-            description: 'Internal banlist key (default commander)',
-          },
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
+          templateId: TEMPLATE_ID_PROP,
+          bracketId: BRACKET_ID_PROP,
+          banlistId: BANLIST_ID_PROP,
           maxIterations: { type: 'number', minimum: 1, maximum: 12, default: 4 },
           focusCategories: {
             type: 'array',
@@ -300,9 +320,9 @@ export function buildMcpTools(): Tool[] {
           commanderName: COMMANDER_NAME_PROP,
           cardToRemove: CARD_NAME_PROP,
           cardToAdd: CARD_NAME_PROP,
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
-          templateId: { type: 'string', default: 'bracket3' },
-          bracketId: { type: 'string', default: 'bracket3' },
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
+          templateId: TEMPLATE_ID_PROP,
+          bracketId: BRACKET_ID_PROP,
         },
         required: ['deckText', 'commanderName', 'cardToRemove', 'cardToAdd'],
       },
@@ -315,7 +335,7 @@ export function buildMcpTools(): Tool[] {
         properties: {
           responseMode: RESPONSE_MODE_PROP,
           commanderName: COMMANDER_NAME_PROP,
-          preferredStrategy: { type: 'string' },
+          preferredStrategy: REQUIRED_PREFERRED_STRATEGY_PROP,
           summaryOnly: {
             type: 'boolean',
             default: false,
@@ -337,7 +357,7 @@ export function buildMcpTools(): Tool[] {
             ...COMMANDER_NAME_PROP,
             description: 'Optional commander to tailor land target and staple hints',
           },
-          preferredStrategy: { type: 'string', description: PREFERRED_STRATEGY_DOC },
+          preferredStrategy: PREFERRED_STRATEGY_PROP,
           useOpenAI: {
             type: 'boolean',
             default: false,

@@ -7,9 +7,16 @@
 
 import { z } from "zod";
 
+/** Max length for template/bracket/strategy/banlist resource ids (DoS guard). */
+export const RESOURCE_ID_MAX_LENGTH = 64;
+
+/** Max MCP resource URI length (prefix + key). */
+export const MCP_RESOURCE_URI_MAX_LENGTH = 512;
+
 /** Safe filesystem resource id — blocks path traversal in template/bracket/strategy loaders. */
 export const SafeResourceIdSchema = z
   .string()
+  .max(RESOURCE_ID_MAX_LENGTH)
   .regex(
     /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/,
     'Invalid resource id: use lowercase letters, digits, and hyphens only'

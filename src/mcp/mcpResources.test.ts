@@ -71,4 +71,19 @@ describe('mcpResources', () => {
       /Unknown resource/
     );
   });
+
+  it('rejects oversized resource URIs', () => {
+    const longUri = `${MTG_COMMANDER_RESOURCE_PREFIX}${'a'.repeat(600)}`;
+    expect(() => readMcpResource(longUri)).toThrow(/exceeds maximum length/);
+  });
+
+  it('rejects invalid strategy guide slug characters', () => {
+    const uri = `${MTG_COMMANDER_RESOURCE_PREFIX}strategy-guide/UPPER`;
+    expect(() => readMcpResource(uri)).toThrow(/Invalid strategy guide slug/);
+  });
+
+  it('rejects oversized strategy guide slug', () => {
+    const uri = `${MTG_COMMANDER_RESOURCE_PREFIX}strategy-guide/${'tokens'.repeat(20)}`;
+    expect(() => readMcpResource(uri)).toThrow(/exceeds maximum length/);
+  });
 });

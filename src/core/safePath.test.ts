@@ -22,12 +22,23 @@ describe('safePath', () => {
       expect(isSafeResourceId('..')).toBe(false);
       expect(isSafeResourceId('')).toBe(false);
     });
+
+    it('rejects ids exceeding RESOURCE_ID_MAX_LENGTH', () => {
+      const longSlug = 'a'.repeat(65);
+      expect(isSafeResourceId(longSlug)).toBe(false);
+    });
   });
 
   describe('assertSafeResourceId', () => {
     it('throws on malicious ids', () => {
       expect(() => assertSafeResourceId('../../../etc/passwd', 'templateId')).toThrow(
         /Invalid templateId/
+      );
+    });
+
+    it('throws when id exceeds max length', () => {
+      expect(() => assertSafeResourceId('a'.repeat(65), 'preferredStrategy')).toThrow(
+        /exceeds maximum length/
       );
     });
   });
