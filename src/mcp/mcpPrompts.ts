@@ -7,7 +7,7 @@ import { GetPromptResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import {
   BuildCommanderDeckPromptArgsSchema,
   OptimizeDecklistPromptArgsSchema,
-} from '../core/schemas.js';
+} from '../core/schemas';
 
 export type McpPromptResult = z.infer<typeof GetPromptResultSchema>;
 

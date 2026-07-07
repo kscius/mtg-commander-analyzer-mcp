@@ -17,7 +17,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 1. `npm ci`
 2. `bash scripts/ci-setup-db.sh` — downloads Scryfall oracle bulk data and builds `data/cards.db` **once**
 3. `npm run build` — strict TypeScript
-4. `npm run test:mcp-smoke` — boots the real stdio MCP server via `scripts/run-mcp.cjs` and asserts `tools/list` (11 tools), `resources/list`, and `prompts/list` succeed
+4. `npm run test:mcp-smoke` — boots the real stdio MCP server via `scripts/run-mcp.cjs` and asserts `tools/list` (11 tools), `resources/list`, `prompts/list`, and one DB-backed `tools/call` (`resolve_card` for Sol Ring + Shadrix Silverquill) succeed
 5. `npm test` — unit + integration tests (golden excluded)
 6. `npm run test:golden` — analyze regression against `data/golden/shadrix-group-slug-analyze.expected.json`
 7. `npm run benchmark:decks` — template-only builds for three commanders; **fails on hard invariant violations** (wrong card count, banlist, hard lint, thrown errors). Soft gaps (`readyToShip`, category mins) log as warnings only.
