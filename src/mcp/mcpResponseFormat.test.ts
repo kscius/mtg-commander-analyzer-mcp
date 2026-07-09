@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatAuxiliaryMcpJson,
+  formatMcpToolJson,
   toBriefStrategyGuideResult,
   toBriefSynergiesResult,
 } from './mcpResponseFormat';
+import type { BuildDeckResult } from '../core/types';
 
 describe('formatAuxiliaryMcpJson', () => {
   it('strips full oracle text from search_cards in brief mode', () => {
@@ -48,5 +50,40 @@ describe('formatAuxiliaryMcpJson', () => {
       summary: 'ok',
     });
     expect(slim.guideMarkdown).toBe('');
+  });
+});
+
+describe('formatMcpToolJson build brief', () => {
+  it('omits deck.cards array in brief build responses (use decklistText)', () => {
+    const buildResult = {
+      input: { commanderName: 'Test' },
+      templateId: 'bracket3',
+      bracketId: 'bracket3',
+      deck: {
+        commanderName: 'Test',
+        cards: Array.from({ length: 99 }, (_, i) => ({
+          name: `Card ${i}`,
+          quantity: 1,
+        })),
+      },
+      analysis: {
+        commanderName: 'Test',
+        totalCards: 99,
+        uniqueCards: 99,
+        categories: [],
+        notes: [],
+        bracketWarnings: [],
+        bannedCards: [],
+        banlistValid: true,
+      },
+      notes: [],
+      decklistText: '1 Sol Ring\n1 Command Tower',
+    } as BuildDeckResult;
+
+    const parsed = JSON.parse(formatMcpToolJson(buildResult, 'brief')) as BuildDeckResult;
+
+    expect(parsed.decklistText).toContain('Sol Ring');
+    expect(parsed.deck.commanderName).toBe('Test');
+    expect(parsed.deck.cards).toEqual([]);
   });
 });

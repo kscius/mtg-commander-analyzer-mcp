@@ -95,7 +95,7 @@ export function toBriefBuildResult(result: BuildDeckResult): BuildDeckResult {
     notes: result.notes.slice(0, MAX_BRIEF_NOTES),
     deck: {
       commanderName: result.deck.commanderName,
-      cards: result.deck.cards.map((c) => ({ name: c.name, quantity: c.quantity })),
+      cards: [],
     },
     edhrecContext: result.edhrecContext
       ? {

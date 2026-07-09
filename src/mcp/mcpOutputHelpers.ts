@@ -241,8 +241,11 @@ export function buildQualityGate(
 
 export function attachAnalyzeConvergence(
   result: AnalyzeDeckResult,
-  synergyTarget = 60
+  synergyTargetOverride?: number
 ): AnalyzeDeckResult {
+  const synergyTarget =
+    synergyTargetOverride ??
+    resolveOptimizeSynergyTarget({ preferredStrategy: result.input.preferredStrategy });
   const qualityGate = buildQualityGate(result.analysis, { synergyTarget });
   const remainingGaps = qualityGate.blocking;
   const converged = qualityGate.converged;
@@ -272,8 +275,11 @@ export function attachAnalyzeConvergence(
 
 export function attachBuildConvergence(
   result: BuildDeckResult,
-  synergyTarget = 60
+  synergyTargetOverride?: number
 ): BuildDeckResult {
+  const synergyTarget =
+    synergyTargetOverride ??
+    resolveOptimizeSynergyTarget({ preferredStrategy: result.input.preferredStrategy });
   const qualityGate = buildQualityGate(result.analysis, { synergyTarget });
   const remainingGaps = qualityGate.blocking;
   const converged = qualityGate.converged;
@@ -287,7 +293,7 @@ export function attachBuildConvergence(
     `Built ${result.deck.cards.length}-card mainboard for ${result.deck.commanderName}; ${analysisSummary}`;
   const nextSuggestedAction = qualityGate.readyToShip
     ? 'Build complete — run deck-quality checklist, then deliver decklistText.'
-    : buildNextSuggestedAction(result.analysis, 'build_deck_from_commander', {
+    : buildNextSuggestedAction(result.analysis, 'analyze_deck', {
         synergyTarget,
       });
   const agentBrief = buildAgentBriefFromAnalysis(result.analysis, {
