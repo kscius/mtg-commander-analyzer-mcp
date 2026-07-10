@@ -594,3 +594,89 @@ describe('isDeckConverged', () => {
     expect(isDeckConverged(analysis, { synergyTarget: 60 })).toBe(false);
   });
 });
+
+describe('attachAnalyzeConvergence synergy target', () => {
+  it('does not apply synergy target when preferredStrategy is absent', () => {
+    const base = {
+      input: {},
+      analysis: {
+        commanderName: 'Test',
+        totalCards: 99,
+        uniqueCards: 99,
+        categories: [],
+        notes: [],
+        bracketWarnings: [],
+        bannedCards: [],
+        banlistValid: true,
+        synergyScore: 45,
+        lintReport: { ok: true, issues: [], metrics: {} },
+      },
+      parsedDeck: { cards: [] },
+      decklistText: '1 Sol Ring',
+    } as AnalyzeDeckResult;
+
+    const out = attachAnalyzeConvergence(base);
+
+    expect(out.qualityGate?.blocking.some((g) => g.kind === 'synergy')).toBe(false);
+    expect(out.qualityGate?.readyToShip).toBe(true);
+  });
+
+  it('applies synergy target 60 when preferredStrategy is set', () => {
+    const base = {
+      input: { preferredStrategy: 'tokens' },
+      analysis: {
+        commanderName: 'Test',
+        totalCards: 99,
+        uniqueCards: 99,
+        categories: [],
+        notes: [],
+        bracketWarnings: [],
+        bannedCards: [],
+        banlistValid: true,
+        synergyScore: 45,
+        lintReport: { ok: true, issues: [], metrics: {} },
+      },
+      parsedDeck: { cards: [] },
+      decklistText: '1 Sol Ring',
+    } as AnalyzeDeckResult;
+
+    const out = attachAnalyzeConvergence(base);
+
+    expect(out.qualityGate?.blocking.some((g) => g.kind === 'synergy')).toBe(true);
+    expect(out.qualityGate?.readyToShip).toBe(false);
+    expect(out.nextSuggestedAction).toContain('optimize_deck');
+  });
+});
+
+describe('attachBuildConvergence nextSuggestedAction', () => {
+  it('points agents to analyze_deck (not rebuild) when gaps remain', () => {
+    const base = {
+      input: { commanderName: 'Test', preferredStrategy: 'tokens' },
+      templateId: 'bracket3',
+      bracketId: 'bracket3',
+      deck: { commanderName: 'Test', cards: [{ name: 'Sol Ring', quantity: 1 }] },
+      analysis: {
+        commanderName: 'Test',
+        totalCards: 99,
+        uniqueCards: 99,
+        categories: [
+          { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+        ],
+        notes: [],
+        bracketWarnings: [],
+        bannedCards: [],
+        banlistValid: true,
+        synergyScore: 70,
+        lintReport: { ok: true, issues: [], metrics: {} },
+      },
+      notes: [],
+      decklistText: '1 Sol Ring',
+    } as BuildDeckResult;
+
+    const out = attachBuildConvergence(base);
+
+    expect(out.nextSuggestedAction).toContain('card_draw');
+    expect(out.nextSuggestedAction).not.toContain('build_deck_from_commander');
+    expect(out.nextSuggestedAction).toContain('optimize_deck');
+  });
+});
