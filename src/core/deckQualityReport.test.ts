@@ -15,7 +15,7 @@ function minimalAnalysis(overrides: Partial<DeckAnalysis> = {}): DeckAnalysis {
       land_count: 36,
       tapped_lands_always: 2,
       tapped_lands_conditional: 1,
-      land_mix: { basics: 10, other: 26 },
+      land_mix: { basics: 10, utility_lands: 26 },
       curve_avg_mv: 2.8,
       curve_mv_distribution: { '0_1': 10, '2': 14, '3': 12, '4': 8, '5_plus': 5 },
     },

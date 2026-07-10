@@ -20,7 +20,7 @@ import {
   LintSeverity,
   CardSynergyScore,
 } from './types';
-import { getCardByName, getColorIdentity } from './scryfall';
+import { getCardByName, getColorIdentity, type OracleCard } from './scryfall';
 import { inferCommanderFromDeckEntries } from './commanderInference';
 import { getFullCommanderProfile } from './edhrec';
 import type { EdhrecCardSuggestion } from './types';
@@ -60,6 +60,7 @@ import {
 } from './scryfallNormalize';
 import { isInstant } from './scryfall';
 import { buildDeckQualityExtensions } from './deckQualityReport';
+import { classifyLandMixBucket, type LandMixBucket } from './manabaseLandHeuristics';
 
 /**
  * Commander deck size rules
@@ -262,35 +263,19 @@ function buildLintReport(
 
   // --- Mana base / land_mix ---
   metrics.land_count = landCards.length;
-  const landMixCounts: Record<string, number> = {
+  const landMixCounts: Record<LandMixBucket, number> = {
     basics: 0,
     utility_lands: 0,
     fetches: 0,
     shock_lands: 0,
     typed_duals: 0,
     mdfc_lands: 0,
-    other: 0
+    colorless_lands: 0,
   };
-  const basicNames = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
   let tappedAlways = 0;
   let tappedConditional = 0;
   for (const c of landCards) {
-    const name = c.name;
-    const typeLine = getPrimaryTypeLine(c).toLowerCase();
-    const text = getOracleText(c).toLowerCase();
-    if (basicNames.has(name)) {
-      landMixCounts.basics++;
-    } else if (text.includes('fetch') || (text.includes('search your library') && text.includes('land'))) {
-      landMixCounts.fetches++;
-    } else if (text.includes('pay 2 life') && text.includes('untapped')) {
-      landMixCounts.shock_lands++;
-    } else if (text.includes('trinity') || text.includes('tricycle') || name.toLowerCase().includes('tricycle')) {
-      landMixCounts.typed_duals++;
-    } else if (c.card_faces?.length) {
-      landMixCounts.mdfc_lands++;
-    } else {
-      landMixCounts.other++;
-    }
+    landMixCounts[classifyLandMixBucket(c as OracleCard)]++;
     const kind = entersTappedKind(c);
     if (kind === 'always') tappedAlways++;
     else if (kind === 'conditional') tappedConditional++;
@@ -331,6 +316,39 @@ function buildLintReport(
         sectionSuggest: 'mana_base',
         details: { totalTapped, maxTotal }
       });
+    }
+  }
+  if (mb.land_mix) {
+    const lintBuckets: LandMixBucket[] = [
+      'basics',
+      'utility_lands',
+      'colorless_lands',
+      'mdfc_lands',
+      'fetches',
+      'shock_lands',
+      'typed_duals',
+    ];
+    for (const bucket of lintBuckets) {
+      const bounds = mb.land_mix[bucket];
+      if (!bounds) continue;
+      const count = landMixCounts[bucket];
+      if (bounds.min != null && count < bounds.min) {
+        issues.push({
+          key: `mana_base:land_mix.${bucket}`,
+          severity: 'soft',
+          message: `${bucket} count ${count} below min ${bounds.min}`,
+          sectionSuggest: 'mana_base',
+          details: { bucket, count, min: bounds.min, max: bounds.max },
+        });
+      } else if (bounds.max != null && count > bounds.max) {
+        issues.push({
+          key: `mana_base:land_mix.${bucket}`,
+          severity: 'soft',
+          message: `${bucket} count ${count} above max ${bounds.max}`,
+          sectionSuggest: 'mana_base',
+          details: { bucket, count, min: bounds.min, max: bounds.max },
+        });
+      }
     }
   }
 
