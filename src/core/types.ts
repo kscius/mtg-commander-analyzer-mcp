@@ -275,7 +275,8 @@ export interface DeckRecommendations {
 /**
  * Complete result from the analyze_deck tool
  */
-/** Actionable gap after build/optimize convergence check */
+/** Actionable gap after build/optimize convergence check.
+ * Runtime shape locked by `RemainingGapSchema` in schemas.ts. */
 export interface RemainingGap {
   kind: 'category' | 'lint' | 'bracket' | 'banlist' | 'format' | 'synergy' | 'unresolved';
   detail: string;
@@ -283,7 +284,8 @@ export interface RemainingGap {
   severity?: 'hard' | 'soft';
 }
 
-/** Agent-facing pass/fail gate for deck delivery */
+/** Agent-facing pass/fail gate for deck delivery.
+ * Runtime shape locked by `QualityGateSchema` in schemas.ts. */
 export interface QualityGate {
   /** True when no blocking gaps and convergence checks pass */
   readyToShip: boolean;
