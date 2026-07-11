@@ -4,12 +4,15 @@
 
 import {
   evaluateCardSwap,
-  type EvaluateCardSwapInput,
   type EvaluateCardSwapResult,
 } from '../core/cardSwapEvaluator';
+import type { EvaluateCardSwapInput as EvaluateCardSwapMcpInput } from '../core/schemas';
+
+/** Handler input after server strips `responseMode`. */
+export type EvaluateCardSwapToolInput = Omit<EvaluateCardSwapMcpInput, 'responseMode'>;
 
 export async function runEvaluateCardSwap(
-  input: EvaluateCardSwapInput
+  input: EvaluateCardSwapToolInput
 ): Promise<
   EvaluateCardSwapResult & { summary: string; nextSuggestedAction: string }
 > {

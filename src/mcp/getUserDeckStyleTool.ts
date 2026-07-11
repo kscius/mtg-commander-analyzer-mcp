@@ -3,6 +3,7 @@
  */
 
 import { getCardByName } from '../core/scryfall';
+import type { GetUserDeckStyleInput } from '../core/schemas';
 import {
   getCommanderStyleHints,
   getUserDeckStyleProfile,
@@ -11,13 +12,7 @@ import {
 import { isOpenAIAvailable } from '../core/llmConfig';
 import { analyzeUserDeckPreferencesWithOpenAI } from '../core/userDeckStyleLlm';
 
-export interface GetUserDeckStyleInput {
-  commanderName?: string;
-  preferredStrategy?: string;
-  useOpenAI?: boolean;
-  question?: string;
-  responseMode?: 'brief' | 'full';
-}
+export type { GetUserDeckStyleInput };
 
 export async function runGetUserDeckStyle(input: GetUserDeckStyleInput) {
   const profile = getUserDeckStyleProfile();

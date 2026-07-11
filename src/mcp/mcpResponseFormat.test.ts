@@ -117,13 +117,21 @@ describe('formatAuxiliaryMcpJson', () => {
           slug: 'tokens',
           name: 'Tokens',
           description: 'Go wide',
+          source: 'edhrec',
+          cardCount: 42,
           exampleCards: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
         },
       ],
+      recommendedStrategy: 'tokens',
       commander: { name: 'Test' },
     };
     const slim = toBriefSynergiesResult(raw);
-    expect((slim.synergies as Array<{ exampleCards: string[] }>)[0].exampleCards).toHaveLength(5);
+    const first = (slim.synergies as Array<Record<string, unknown>>)[0];
+    expect(first.exampleCards).toHaveLength(5);
+    expect(first.source).toBe('edhrec');
+    expect(first.cardCount).toBe(42);
+    expect(first).not.toHaveProperty('recommendedStrategy');
+    expect(slim.recommendedStrategy).toBe('tokens');
   });
 
   it('omits guide markdown in brief strategy guide', () => {

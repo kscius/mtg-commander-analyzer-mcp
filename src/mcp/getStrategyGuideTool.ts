@@ -5,13 +5,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { assertSafeResourceId, resolvePathUnderRoot } from '../core/safePath';
+import type { GetStrategyGuideInput as GetStrategyGuideMcpInput } from '../core/schemas';
 import { getStrategyGuidesIndex, getStrategyProfile } from '../core/strategyProfiles';
 
-export interface GetStrategyGuideInput {
-  commanderName: string;
-  preferredStrategy: string;
-  summaryOnly?: boolean;
-}
+/** Tool handler input after server strips `responseMode`. */
+export type GetStrategyGuideInput = Omit<GetStrategyGuideMcpInput, 'responseMode'>;
 
 export interface GetStrategyGuideResult {
   commanderName: string;

@@ -200,10 +200,56 @@ export const AnalyzeDeckInputSchema = z.object({
 });
 
 /**
+ * Agent-facing MCP envelope fields shared by analyze_deck / build_deck_from_commander / optimize_deck.
+ * Mirrors `RemainingGap`, `QualityGate`, and `AgentBrief` in types.ts — runtime contract for agents.
+ */
+export const RemainingGapKindSchema = z.enum([
+  'category',
+  'lint',
+  'bracket',
+  'banlist',
+  'format',
+  'synergy',
+  'unresolved',
+]);
+
+export const RemainingGapSchema = z.object({
+  kind: RemainingGapKindSchema,
+  detail: z.string().min(1),
+  category: z.string().optional(),
+  severity: z.enum(['hard', 'soft']).optional(),
+});
+
+export const QualityGateSchema = z.object({
+  readyToShip: z.boolean(),
+  converged: z.boolean(),
+  blocking: z.array(RemainingGapSchema),
+  polish: z.array(RemainingGapSchema),
+});
+
+export const AgentBriefSchema = z.object({
+  summary: z.string().min(1),
+  commanderName: z.string().nullable().optional(),
+  decklistText: z.string().optional(),
+  converged: z.boolean().optional(),
+  readyToShip: z.boolean().optional(),
+  synergyScore: z.number().optional(),
+  categoriesBelow: z.array(z.string()).optional(),
+  remainingGapCount: z.number().int().optional(),
+  polishGapCount: z.number().int().optional(),
+  nextSuggestedAction: z.string().optional(),
+  buildQualityOverall: z.enum(['strong', 'acceptable', 'needs_work']).optional(),
+});
+
+export type RemainingGapParsed = z.infer<typeof RemainingGapSchema>;
+export type QualityGateParsed = z.infer<typeof QualityGateSchema>;
+export type AgentBriefParsed = z.infer<typeof AgentBriefSchema>;
+
+/**
  * Schema for analyze_deck tool output
- * 
- * For now, we treat the result as a generic JSON structure.
- * This can be refined later with more specific zod schemas if needed.
+ *
+ * Full nested analysis remains open (`z.any`); agent envelope fields above are the
+ * validated contract. Refine further when consumers need full-result runtime checks.
  */
 export const AnalyzeDeckResultSchema = z.any().describe("Deck analysis result with categories, warnings, and recommendations");
 

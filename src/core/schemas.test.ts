@@ -13,6 +13,9 @@ import {
   BuildCommanderDeckPromptArgsSchema,
   OptimizeDecklistPromptArgsSchema,
   TemplateCategoryNameSchema,
+  RemainingGapSchema,
+  QualityGateSchema,
+  AgentBriefSchema,
   DECK_TEXT_MAX_LENGTH,
   CARD_NAME_MAX_LENGTH,
   RESOURCE_ID_MAX_LENGTH,
@@ -304,5 +307,42 @@ describe("MCP prompt argument schemas", () => {
         deckText: "x".repeat(DECK_TEXT_MAX_LENGTH + 1),
       })
     ).toThrow();
+  });
+});
+
+describe("Agent envelope schemas (qualityGate / agentBrief / remainingGaps)", () => {
+  it("parses a valid RemainingGap and rejects empty detail", () => {
+    expect(
+      RemainingGapSchema.parse({
+        kind: "category",
+        detail: "card_draw below minimum",
+        category: "card_draw",
+      }).kind
+    ).toBe("category");
+    expect(() => RemainingGapSchema.parse({ kind: "lint", detail: "" })).toThrow();
+    expect(() => RemainingGapSchema.parse({ kind: "unknown", detail: "x" })).toThrow();
+  });
+
+  it("parses QualityGate with blocking and polish arrays", () => {
+    const gate = QualityGateSchema.parse({
+      readyToShip: false,
+      converged: false,
+      blocking: [{ kind: "banlist", detail: "Banned: Sol Ring" }],
+      polish: [{ kind: "lint", detail: "Curve soft", severity: "soft" }],
+    });
+    expect(gate.blocking).toHaveLength(1);
+    expect(gate.polish[0].severity).toBe("soft");
+  });
+
+  it("parses AgentBrief and rejects empty summary", () => {
+    const brief = AgentBriefSchema.parse({
+      summary: "99 cards, synergy 70",
+      commanderName: null,
+      readyToShip: true,
+      buildQualityOverall: "acceptable",
+    });
+    expect(brief.commanderName).toBeNull();
+    expect(brief.buildQualityOverall).toBe("acceptable");
+    expect(() => AgentBriefSchema.parse({ summary: "" })).toThrow();
   });
 });
