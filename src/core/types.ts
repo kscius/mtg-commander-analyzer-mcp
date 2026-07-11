@@ -211,7 +211,8 @@ export interface DeckAnalysis {
   qualityReport?: DeckQualityReport;
 }
 
-/** Compact MCP payload for LLM agents (read before full analysis JSON). */
+/** Compact MCP payload for LLM agents (read before full analysis JSON).
+ * Runtime shape locked by `AgentBriefSchema` in schemas.ts. */
 export interface AgentBrief {
   summary: string;
   commanderName?: string | null;

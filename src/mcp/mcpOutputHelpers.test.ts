@@ -14,8 +14,8 @@ import {
 } from './mcpOutputHelpers';
 import type { BuildDeckResult, OptimizeDeckResult } from '../core/types';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
-import { SearchCardsInputSchema } from '../core/schemas';
 import type { AnalyzeDeckResult } from '../core/types';
+import { AgentBriefSchema, QualityGateSchema, SearchCardsInputSchema } from '../core/schemas';
 
 describe('formatZodValidationError', () => {
   it('formats zod issues as readable lines', () => {
@@ -131,6 +131,32 @@ describe('buildQualityGate', () => {
     expect(gate.converged).toBe(true);
     expect(gate.readyToShip).toBe(true);
     expect(gate.blocking).toHaveLength(0);
+  });
+
+  it('emits qualityGate and agentBrief that satisfy envelope Zod schemas', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [{ name: 'lands', count: 37, min: 35, max: 38, status: 'within' as const }],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      synergyScore: 65,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+    const gate = buildQualityGate(analysis, { synergyTarget: 60 });
+    expect(QualityGateSchema.parse(gate).readyToShip).toBe(true);
+
+    const out = attachAnalyzeConvergence({
+      input: { preferredStrategy: 'tokens' },
+      analysis,
+      parsedDeck: { cards: [] },
+      decklistText: '1 Sol Ring',
+    } as AnalyzeDeckResult);
+    expect(AgentBriefSchema.parse(out.agentBrief).summary.length).toBeGreaterThan(0);
+    expect(QualityGateSchema.parse(out.qualityGate).converged).toBe(true);
   });
 });
 

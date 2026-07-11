@@ -170,7 +170,7 @@ export function toBriefCardSearchResult(result: Record<string, unknown>): Record
   };
 }
 
-/** Slim get_synergies payloads. */
+/** Slim get_synergies payloads (per-item shape matches SynergyOption; top-level recommendedStrategy kept). */
 export function toBriefSynergiesResult(result: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(result.synergies)) return result;
   return {
@@ -179,7 +179,8 @@ export function toBriefSynergiesResult(result: Record<string, unknown>): Record<
       slug: s.slug,
       name: s.name,
       description: s.description,
-      recommendedStrategy: s.recommendedStrategy,
+      source: s.source,
+      ...(typeof s.cardCount === 'number' ? { cardCount: s.cardCount } : {}),
       exampleCards: Array.isArray(s.exampleCards)
         ? (s.exampleCards as string[]).slice(0, MAX_SYNERGY_EXAMPLES)
         : s.exampleCards,
