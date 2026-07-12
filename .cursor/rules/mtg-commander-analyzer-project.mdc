@@ -9,7 +9,7 @@ Estas reglas aplican **únicamente a este proyecto**. No extenderlas a otros rep
 
 ## Alcance del proyecto
 
-- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y generación por plantilla. El **agente Cursor** es el LLM; el MCP aporta datos y validación. **OpenAI es opcional** solo para análisis narrativo de `get_user_deck_style`; el build no requiere API key.
+- **Objetivo**: Herramientas para analizar y construir mazos Commander (EDH): validación de formato, categorización, reglas Bracket 3, banlist personalizada, integración EDHREC y generación por plantilla. El **agente Cursor** es el LLM; el MCP aporta datos y validación. **OpenAI es opcional** (`OPENAI_API_KEY`): narrativa de `get_user_deck_style` (`useOpenAI: true`) y gap-fill de categorías en `build_deck_from_commander` (`useOpenAIEnhancement: true`, default); el build no requiere API key.
 - **Biblioteca personal**: `data/my_decks` — mazos reales importados (Moxfield), **solo lectura** para el sistema. El build usa `useUserStyleReference: true` (default) para sesgar mana base; **nunca** guardar mazos generados ahí.
 - **Stack**: TypeScript (strict), Node.js, MCP (Model Context Protocol), SQLite (`data/cards.db`), Zod para validación.
 - **Estructura**: `src/core/` (lógica), `src/mcp/` (servidor y herramientas MCP), `src/scripts/` (DB, import), `data/` (plantillas, banlist, reglas).

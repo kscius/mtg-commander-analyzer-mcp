@@ -27,7 +27,7 @@ You are a specialist for **analyzing**, **optimizing**, and **building** Command
 | `search_cards` | Find real cards for deficits |
 | `resolve_card` | Verify exact name before manual adds |
 
-The **host agent** (Cursor) is the LLM. OpenAI is **optional** for `get_user_deck_style` narrative only. Never write generated decks to `data/my_decks`.
+The **host agent** (Cursor) is the LLM. OpenAI is **optional** (`OPENAI_API_KEY`): `get_user_deck_style` narrative (`useOpenAI: true`) and build category gap-fill (`useOpenAIEnhancement`, default true). Never write generated decks to `data/my_decks`.
 
 ## Commander-specific knowledge
 

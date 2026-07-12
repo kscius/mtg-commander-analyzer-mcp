@@ -12,7 +12,7 @@ When an LLM agent cannot build or analyze decks, fix environment issues before g
 | `NODE_MODULE_VERSION` / better-sqlite3 error | Native module built for another Node | Put your nvm Node first on PATH, then `npm rebuild better-sqlite3` |
 | `Cannot find module '...\\dist\\mcp\\server.js'` (path under user home) | MCP `args` uses relative path but `cwd` not applied | Use absolute path to `dist/mcp/server.js`, or `npm run mcp` with `cwd` = repo root |
 | `Commander "X" not found` | Name typo or DB stale | Use exact Scryfall name; `resolve_card`; re-import if needed |
-| Empty `search_cards` with `error` | No filter passed | Pass `category`, `query`, `colorIdentity`, `type`, or `maxMV` |
+| Empty `search_cards` with `error` | No filter passed | Pass at least one of `category`, `query`, `colorIdentity`, `type`, `commanderName`, `maxMV`, or `commanderLegal: false` |
 | EDHREC notes in analyze | Network or rate limit | Retry; use `search_cards` + template build without EDHREC adds |
 | Build returns `< 99` cards | Bracket remediation or pool gaps | `optimize_deck` or manual `search_cards` by `below` category |
 

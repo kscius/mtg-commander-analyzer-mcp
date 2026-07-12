@@ -6,9 +6,9 @@ Use with `analyze_deck` (`manaBaseQuality`, `lintReport`) and `data/deck-templat
 
 | Deck profile | Lands (mainboard) | Notes |
 |--------------|-------------------|--------|
-| Low curve (avg MV ≤ 2.8) | 34–36 | More cheap spells, fewer top-end |
-| Mid (avg MV ~3.0–3.2) | 35–38 | Bracket 3 default |
-| High curve / ramp-heavy | 36–38 | Extra ramp can justify 35 |
+| Low curve (avg MV ≤ 2.8) | 35–36 | Stay at template **min 35** — 34 lands flags `categories.lands` as `below` |
+| Mid (avg MV ~3.0–3.2) | 35–38 | Bracket 3 default (`data/deck-template-bracket3.json`) |
+| High curve / ramp-heavy | 36–38 | Extra ramp can justify staying near 35 |
 
 ## Color sources (2–5 colors)
 
