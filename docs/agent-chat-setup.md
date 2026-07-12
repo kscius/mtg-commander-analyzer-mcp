@@ -57,7 +57,7 @@ See also `scripts/deck-agent.example.mjs` and `.cursor/plans/scout-2026-04-10-co
 | `qualityGate.readyToShip` | build, analyze, optimize | Do not deliver until `true` or user accepts polish |
 | `converged` / `remainingGaps` | build, analyze, optimize | Loop until converged |
 | `decklistText` | build, analyze, optimize | Final pasteable list |
-| `unresolvedCardNames` | analyze | Fix names via `resolve_card` / `search_cards` |
+| `analysis.unresolvedCardNames` | analyze | Fix names via `resolve_card` / `search_cards` |
 
 ## Troubleshooting
 

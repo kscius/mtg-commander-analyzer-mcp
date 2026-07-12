@@ -7,7 +7,8 @@ Iterative workflow for improving a Commander deck using this MCP. Prefer templat
 1. User has chosen **one** synergy slug (`get_synergies` → confirm with user).
 2. **Commander resolution** depends on the tool:
    - **`analyze_deck`:** set via `commanderName`, a `Commander: Name` line in `deckText`, or **`inferCommander: true`** (default) to pick the first commander-eligible legendary in the list.
-   - **`optimize_deck`**, **`evaluate_card_swap`**, and **`apply_deck_changes`:** require an explicit **`commanderName`** (no `inferCommander`). Run `analyze_deck` first if you only have a decklist line.
+   - **`optimize_deck`** and **`evaluate_card_swap`:** require an explicit **`commanderName`** (no `inferCommander`). Run `analyze_deck` first if you only have a decklist line.
+   - **`apply_deck_changes`:** `commanderName` is **optional** — color/legality checks fall back to a `Commander: Name` line in `deckText` when omitted.
 3. Prefer **`optimize_deck`** for multi-gap fixes; use **`apply_deck_changes`** for batched cut/add after you have verified names.
 
 ## Priority order (what to fix first)
@@ -55,7 +56,7 @@ When you need on-theme adds for a **below** category, call `get_category_candida
 
 - Pass `preferredStrategy` and `commanderName` for `synergyRelevance` and `edhrecInclusionRate`.
 - Use `category` when filling template gaps (e.g. `spot_removal`, `card_draw`).
-- Provide at least one of: `query`, `category`, `type`, or `colorIdentity` — empty searches are rejected.
+- Provide at least one of: `query`, `category`, `type`, `colorIdentity`, `commanderName`, `maxMV`, or `commanderLegal: false` — empty searches are rejected.
 
 ## When to stop (convergence)
 

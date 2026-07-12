@@ -145,7 +145,7 @@ Returns aggregated profile: `landCount`, `landMixAverages`, `categoryAverages`, 
 ## Agent vs MCP
 
 - **Cursor (or any MCP host)** is the LLM: thematic picks, explanations, manual swaps.
-- **MCP** supplies Scryfall/EDHREC data, template build, validation, and optimization. **OpenAI is optional** for `get_user_deck_style` narrative only; build bias from `data/my_decks` is deterministic.
+- **MCP** supplies Scryfall/EDHREC data, template build, validation, and optimization. **OpenAI is optional** (needs `OPENAI_API_KEY`): `get_user_deck_style` + `useOpenAI: true` for narrative, and `build_deck_from_commander` + `useOpenAIEnhancement: true` (default) for category gap-fill from DB candidates. Build bias from `data/my_decks` (`useUserStyleReference`) is deterministic and does not require a key.
 
 ## User deck style reference
 
@@ -185,7 +185,7 @@ Agents must **not** hallucinate card names. If a name does not resolve, report i
 
 - Heuristics in `autoTags.ts` assign multiple tags; **only one primary** template category counts per card (`getPrimaryTemplateCategory`).
 - Analyzer, template generator, and EDHREC autofill share this model (avoids multi-tag category inflation).
-- Template fill uses heuristics + EDHREC + SQLite category search (no OpenAI in-repo).
+- Template fill uses heuristics + EDHREC + SQLite category search; optional OpenAI enhancement only picks names from those DB candidates when `useOpenAIEnhancement` is on and a key is set.
 
 ## Data files
 

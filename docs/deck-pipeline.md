@@ -94,7 +94,7 @@ Resuelve un nombre contra `cards.db` y, con `commanderName`, comprueba legalidad
 
 ## Agente LLM (Cursor u otro cliente MCP)
 
-El **modelo del cliente** elige cartas temáticas y cierra huecos. OpenAI solo si se pide análisis narrativo con `get_user_deck_style`.
+El **modelo del cliente** elige cartas temáticas y cierra huecos. OpenAI es **opcional** (`OPENAI_API_KEY`): narrativa con `get_user_deck_style` + `useOpenAI: true`, y gap-fill de categorías en `build_deck_from_commander` con `useOpenAIEnhancement: true` (default). Build/analyze funcionan sin clave.
 
 Flujo recomendado:
 
