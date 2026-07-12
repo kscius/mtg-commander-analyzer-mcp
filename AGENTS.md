@@ -155,7 +155,7 @@ After every **build**, **analyze**, or **optimize** call, use structured fields 
 | MCP server **errored** in Cursor | Settings → MCP → verify `npm run mcp`, correct `cwd`, Node LTS |
 | `search_cards.databaseReady === false` | `npm rebuild better-sqlite3` then `npm run db:create && npm run db:import` |
 | NODE_MODULE_VERSION / better-sqlite3 | Align Node version with build; `npm rebuild better-sqlite3` |
-| Empty search with no `error` | Always pass `category` or `query`; read `summary` + `nextSuggestedAction` |
+| Empty search with no `error` | Always pass at least one of `category`, `query`, `type`, `colorIdentity`, `commanderName`, `maxMV`, or `commanderLegal: false`; read `summary` + `nextSuggestedAction` |
 | Commander not found | Exact Scryfall name; try `resolve_card` |
 
 Full guide: `docs/agent-mcp-troubleshooting.md`. Skill: `.cursor/skills/mtg-mcp-troubleshoot/SKILL.md`.
