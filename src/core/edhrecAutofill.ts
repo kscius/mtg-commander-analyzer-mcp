@@ -385,22 +385,29 @@ function appendBracket3BuilderNotes(
   }
 }
 
+/**
+ * Re-analyze a built mainboard with the same analyzer as `analyze_deck`.
+ * Forwards `preferredStrategy` and `commanderName` so autofill refinement
+ * produces a themed `synergyScore` (mirrors `optimize_deck` / build wrapper).
+ */
 async function analyzeBuiltDeck(
   cards: BuiltCardEntry[],
   templateId: string,
-  banlistId: string | undefined
+  banlistId: string | undefined,
+  preferredStrategy: string | undefined,
+  commanderName: string
 ): Promise<DeckAnalysis> {
   const deckText = deckTextFromBuilt(cards);
   const parsed = parseDeckText(deckText);
-  const ar = await analyzeDeckBasic(
-    {
-      deckText,
-      templateId,
-      banlistId,
-      options: {},
-    },
-    parsed
-  );
+  const analyzeInput: AnalyzeDeckInput = {
+    deckText,
+    templateId,
+    banlistId,
+    commanderName,
+    preferredStrategy,
+    options: {},
+  };
+  const ar = await analyzeDeckBasic(analyzeInput, parsed);
   return ar.analysis;
 }
 
@@ -442,18 +449,28 @@ export async function runIterativeEdhrecAutofill(
   iterationNotes: string[];
 }> {
   const colorIdentity = commanderCard.color_identity || [];
+  const commanderName = commanderCard.name;
   let cards = initialCards.map((c) => ({ ...c }));
   const iterationNotes: string[] = [];
 
+  const analyze = (deckCards: BuiltCardEntry[]) =>
+    analyzeBuiltDeck(
+      deckCards,
+      templateId,
+      input.banlistId,
+      input.preferredStrategy,
+      commanderName
+    );
+
   if (!input.useEdhrecAutofill || !edhrecContext.suggestions.length) {
-    const analysis = await analyzeBuiltDeck(cards, templateId, input.banlistId);
+    const analysis = await analyze(cards);
     return { builtCards: cards, analysis, iterationNotes };
   }
 
   const passLimit = refineUntilStable ? Math.max(1, maxIterations) : 1;
 
   for (let pass = 1; pass <= passLimit; pass++) {
-    const analysis = await analyzeBuiltDeck(cards, templateId, input.banlistId);
+    let analysis = await analyze(cards);
 
     if (!hasRemainingEdhrecAutofillDeficits(analysis, template)) {
       iterationNotes.push(`--- EDHREC autofill: pass ${pass} — no category deficits remaining. ---`);
@@ -466,8 +483,8 @@ export async function runIterativeEdhrecAutofill(
     const landsBelow = analysis.categories.some(
       (c) => c.name === 'lands' && c.status === 'below'
     );
-    const categoryDeficits = computeCategoryDeficits(analysis, template, [...AUTOFILL_CATEGORY_NAMES]);
-    const categoryDeficitTotal = categoryDeficits.reduce((s, d) => s + d.deficit, 0);
+    let categoryDeficits = computeCategoryDeficits(analysis, template, [...AUTOFILL_CATEGORY_NAMES]);
+    let categoryDeficitTotal = categoryDeficits.reduce((s, d) => s + d.deficit, 0);
 
     let passAdded = 0;
 
@@ -482,6 +499,18 @@ export async function runIterativeEdhrecAutofill(
       cards = landPass.newCards;
       iterationNotes.push(...landPass.passNotes);
       passAdded += landPass.addedCount;
+
+      // Mana before categories: refresh analysis after land mutations so
+      // category deficits and at-cap swap cuts use post-land category counts.
+      if (landPass.addedCount > 0 && categoryDeficitTotal > 0) {
+        analysis = await analyze(cards);
+        categoryDeficits = computeCategoryDeficits(
+          analysis,
+          template,
+          [...AUTOFILL_CATEGORY_NAMES]
+        );
+        categoryDeficitTotal = categoryDeficits.reduce((s, d) => s + d.deficit, 0);
+      }
     }
 
     if (categoryDeficitTotal > 0) {
@@ -501,13 +530,13 @@ export async function runIterativeEdhrecAutofill(
     }
 
     if (passAdded === 0) {
-      const finalAnalysis = await analyzeBuiltDeck(cards, templateId, input.banlistId);
+      const finalAnalysis = await analyze(cards);
       appendBracket3BuilderNotes(cards, bracketId, bracketRules, iterationNotes);
       return { builtCards: cards, analysis: finalAnalysis, iterationNotes };
     }
   }
 
-  const finalAnalysis = await analyzeBuiltDeck(cards, templateId, input.banlistId);
+  const finalAnalysis = await analyze(cards);
   appendBracket3BuilderNotes(cards, bracketId, bracketRules, iterationNotes);
   return { builtCards: cards, analysis: finalAnalysis, iterationNotes };
 }
