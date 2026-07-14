@@ -10,6 +10,18 @@ import OpenAI from 'openai';
 
 const PLACEHOLDER_KEYS = new Set(['sk-your-api-key-here', '']);
 
+/** Allowed OpenAI-compatible base URL schemes (blocks file:/data: SSRF via env). */
+const ALLOWED_BASE_URL_PROTOCOLS = new Set(['http:', 'https:']);
+
+/** Clamp bounds for OPENAI_TEMPERATURE (OpenAI API range). */
+export const OPENAI_TEMPERATURE_MIN = 0;
+export const OPENAI_TEMPERATURE_MAX = 2;
+
+/** Clamp bounds for OPENAI_MAX_TOKENS (DoS / runaway cost guard). */
+export const OPENAI_MAX_TOKENS_MIN = 1;
+export const OPENAI_MAX_TOKENS_MAX = 16_384;
+export const OPENAI_MAX_TOKENS_DEFAULT = 4096;
+
 const envPath = path.join(__dirname, '..', '..', '.env');
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath, quiet: true });
@@ -43,13 +55,49 @@ function readModel(role: OpenAIModelRole, config: Omit<OpenAIConfig, 'isAvailabl
 }
 
 /**
+ * Parse and validate OPENAI_BASE_URL.
+ * Returns null when unset/invalid so a compromised env cannot point the client at file: or other schemes.
+ */
+export function parseOpenAIBaseURL(raw: string | undefined | null): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  if (!ALLOWED_BASE_URL_PROTOCOLS.has(url.protocol)) {
+    return null;
+  }
+  return trimmed;
+}
+
+/** Clamp temperature to the OpenAI-supported range; fall back to default on NaN. */
+export function clampOpenAITemperature(value: number, fallback = 0.7): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(OPENAI_TEMPERATURE_MAX, Math.max(OPENAI_TEMPERATURE_MIN, value));
+}
+
+/** Clamp max tokens to a safe range; fall back to default on NaN. */
+export function clampOpenAIMaxTokens(
+  value: number,
+  fallback = OPENAI_MAX_TOKENS_DEFAULT
+): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(
+    OPENAI_MAX_TOKENS_MAX,
+    Math.max(OPENAI_MAX_TOKENS_MIN, Math.trunc(value))
+  );
+}
+
+/**
  * Load OpenAI settings from environment (with defaults aligned to current API catalog).
  */
 export function getOpenAIConfig(): OpenAIConfig {
   const rawKey = process.env.OPENAI_API_KEY?.trim() ?? '';
   const apiKey = PLACEHOLDER_KEYS.has(rawKey) ? null : rawKey || null;
-  const rawBase = process.env.OPENAI_BASE_URL?.trim();
-  const baseURL = rawBase && rawBase.length > 0 ? rawBase : null;
+  const baseURL = parseOpenAIBaseURL(process.env.OPENAI_BASE_URL);
 
   const base: Omit<OpenAIConfig, 'isAvailable'> = {
     apiKey,
@@ -58,8 +106,12 @@ export function getOpenAIConfig(): OpenAIConfig {
     modelFast: process.env.OPENAI_MODEL_FAST?.trim() || 'gpt-5.4-nano',
     modelPremium: process.env.OPENAI_MODEL_PREMIUM?.trim() || 'gpt-5.5',
     modelAgent: process.env.OPENAI_MODEL_AGENT?.trim() || 'gpt-5.4-mini',
-    temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
-    maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '4096', 10),
+    temperature: clampOpenAITemperature(
+      parseFloat(process.env.OPENAI_TEMPERATURE || '0.7')
+    ),
+    maxTokens: clampOpenAIMaxTokens(
+      parseInt(process.env.OPENAI_MAX_TOKENS || String(OPENAI_MAX_TOKENS_DEFAULT), 10)
+    ),
   };
 
   return {
