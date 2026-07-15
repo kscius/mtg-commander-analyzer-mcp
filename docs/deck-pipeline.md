@@ -113,6 +113,6 @@ Ver [optimization-playbook.md](./optimization-playbook.md) y `AGENTS.md` (contra
 - `npm run build` — compilación TypeScript.
 - `npm test` — Vitest (tests en `src/**/*.test.ts`).
 - `npm run test:golden` — regresión analyze (fixture Shadrix).
-- `npm run test:mcp-smoke` — arranque stdio MCP + `tools/list` (11 herramientas).
+- `npm run test:mcp-smoke` — arranque stdio MCP + `tools/list`, `resources/read`, `prompts/get`, y `resolve_card` (ver [testing.md](./testing.md)).
 
 En CI (Node 20): ver pasos completos en [testing.md](./testing.md) (`build` → `test:mcp-smoke` → `test` → `test:golden` → `benchmark:decks`).
