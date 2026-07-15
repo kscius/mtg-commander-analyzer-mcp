@@ -13,6 +13,7 @@ import { isDatabaseReady } from '../src/core/cardDatabase';
 import { loadFixtureText } from '../test/helpers/fixtures';
 import type { GoldenAnalyzeExpected } from '../src/core/goldenDeckExpected';
 
+const PROJECT_ROOT = join(__dirname, '..');
 const CARDS_DB_HINT = 'Requires data/cards.db. Run: npm run db:create && npm run db:import';
 
 async function main(): Promise<void> {
@@ -70,7 +71,9 @@ async function main(): Promise<void> {
       })),
   };
 
-  const outDir = join(process.cwd(), 'data', 'golden');
+  // Resolve from script location so `npm run record:golden` from a non-root cwd
+  // cannot write golden expectations outside the repo (matches benchmarkDecks / mcpSmokeTest).
+  const outDir = join(PROJECT_ROOT, 'data', 'golden');
   mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, 'shadrix-group-slug-analyze.expected.json');
   writeFileSync(outPath, JSON.stringify(expected, null, 2) + '\n', 'utf8');
