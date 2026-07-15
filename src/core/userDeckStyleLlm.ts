@@ -162,12 +162,13 @@ Rules:
       referenceDeckNames: parsed.referenceDeckNames,
     };
   } catch (err) {
+    // Keep full upstream detail on stderr only — never echo API/auth/URL bodies to MCP clients.
     const msg = err instanceof Error ? err.message : String(err);
     logOpenAI(`User style analysis failed: ${msg}`);
     return {
       openAiUsed: true,
       summary: 'OpenAI style analysis failed.',
-      error: msg,
+      error: 'openai_request_failed',
     };
   }
 }

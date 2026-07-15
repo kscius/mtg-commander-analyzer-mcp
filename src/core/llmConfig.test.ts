@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildChatCompletionTokenLimit,
+  clampOpenAIMaxTokens,
+  clampOpenAITemperature,
   getOpenAIConfig,
   getOpenAIConfigForLogging,
   isOpenAIAvailable,
   modelRequiresMaxCompletionTokens,
+  OPENAI_MAX_TOKENS_DEFAULT,
+  OPENAI_MAX_TOKENS_MAX,
+  parseOpenAIBaseURL,
   resolveModelForRole,
 } from './llmConfig';
 
@@ -54,5 +59,47 @@ describe('llmConfig', () => {
       max_completion_tokens: 400,
     });
     expect(buildChatCompletionTokenLimit('gpt-4o', 400)).toEqual({ max_tokens: 400 });
+  });
+
+  it('accepts http(s) OPENAI_BASE_URL and rejects other schemes', () => {
+    expect(parseOpenAIBaseURL('https://api.openai.com/v1')).toBe(
+      'https://api.openai.com/v1'
+    );
+    expect(parseOpenAIBaseURL('http://localhost:8080/v1')).toBe(
+      'http://localhost:8080/v1'
+    );
+    expect(parseOpenAIBaseURL('file:///etc/passwd')).toBeNull();
+    expect(parseOpenAIBaseURL('ftp://evil.example/v1')).toBeNull();
+    expect(parseOpenAIBaseURL('not a url')).toBeNull();
+    expect(parseOpenAIBaseURL('')).toBeNull();
+    expect(parseOpenAIBaseURL(undefined)).toBeNull();
+  });
+
+  it('ignores invalid OPENAI_BASE_URL from env', () => {
+    process.env.OPENAI_API_KEY = 'sk-test-key-1234567890';
+    process.env.OPENAI_BASE_URL = 'file:///tmp/secrets';
+    expect(getOpenAIConfig().baseURL).toBeNull();
+  });
+
+  it('clamps temperature and maxTokens from env', () => {
+    process.env.OPENAI_API_KEY = 'sk-test-key-1234567890';
+    process.env.OPENAI_TEMPERATURE = '99';
+    process.env.OPENAI_MAX_TOKENS = '999999';
+    const config = getOpenAIConfig();
+    expect(config.temperature).toBe(2);
+    expect(config.maxTokens).toBe(OPENAI_MAX_TOKENS_MAX);
+
+    process.env.OPENAI_TEMPERATURE = 'not-a-number';
+    process.env.OPENAI_MAX_TOKENS = 'abc';
+    const fallback = getOpenAIConfig();
+    expect(fallback.temperature).toBe(0.7);
+    expect(fallback.maxTokens).toBe(OPENAI_MAX_TOKENS_DEFAULT);
+  });
+
+  it('clamp helpers bound numeric ranges', () => {
+    expect(clampOpenAITemperature(-1)).toBe(0);
+    expect(clampOpenAITemperature(1.5)).toBe(1.5);
+    expect(clampOpenAIMaxTokens(0)).toBe(1);
+    expect(clampOpenAIMaxTokens(100.9)).toBe(100);
   });
 });

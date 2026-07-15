@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Fail on high/critical advisories in the lockfile (direct + transitive).
+      # Run after npm ci so CI matches production install resolution.
+      - name: Dependency audit (high+)
+        run: npm audit --audit-level=high
+
       - name: Setup cards database
         run: bash scripts/ci-setup-db.sh
 
