@@ -1,4 +1,4 @@
-import { describe, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parseDeckText } from './deckParser';
 import { analyzeDeckBasic } from './analyzer';
 import { autoTags, getPrimaryTemplateCategory, getDefaultBracket3Options } from './autoTags';
