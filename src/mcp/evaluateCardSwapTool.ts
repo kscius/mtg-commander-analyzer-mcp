@@ -24,7 +24,7 @@ export async function runEvaluateCardSwap(
   const summary = `${result.recommendation === 'proceed' ? 'Proceed' : 'Skip'}: ${result.resolvedCards.removed} → ${result.resolvedCards.added}${delta}. ${result.reason}`;
   const nextSuggestedAction =
     result.recommendation === 'proceed'
-      ? 'Apply swap to deckText and re-run analyze_deck.'
-      : 'Try another swap from analysis.prioritizedActions or search_cards.';
+      ? 'Apply via apply_deck_changes with this remove/add pair, then re-run analyze_deck.'
+      : 'Try another swap from analysis.prioritizedActions, get_category_candidates, or search_cards.';
   return { ...result, summary, nextSuggestedAction };
 }

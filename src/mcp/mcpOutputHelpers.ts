@@ -175,7 +175,7 @@ export function buildNextSuggestedAction(
   const below = analysis.categories.filter((c) => c.status === 'below');
   if (below.length) {
     const cat = below[0];
-    return `Category ${cat.name} is below min (${cat.count}/${cat.min}). Run optimize_deck or search_cards with category="${cat.name}".`;
+    return `Category ${cat.name} is below min (${cat.count}/${cat.min}). Run get_category_candidates for "${cat.name}", or optimize_deck / search_cards.`;
   }
   if (analysis.bracketWarnings.length) {
     return `Address Bracket 3 warnings (${analysis.bracketWarnings[0]}).`;

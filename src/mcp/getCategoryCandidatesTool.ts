@@ -10,6 +10,7 @@ import { searchCardsFiltered, isDatabaseReady } from '../core/cardDatabase';
 import { autoTags, getDefaultBracket3Options, getPrimaryTemplateCategory, ScryCard } from '../core/autoTags';
 import { scoreCardSynergyRelevance } from '../core/synergyScorer';
 import { getCardByName } from '../core/scryfall';
+import { isLandCard } from '../core/scryfallNormalize';
 import type { EdhrecCardSuggestion } from '../core/types';
 
 export type SynergyRelevance = 'high' | 'medium' | 'low';
@@ -77,9 +78,13 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
   );
   const tagOpts = getDefaultBracket3Options('bracket3');
 
+  // Lands are counted by type_line in the analyzer; autoTags never emits a `land` tag.
+  // Search by type and accept land type lines instead of primary-tag match.
+  const isLandsCategory = category === 'lands';
   const hits = searchCardsFiltered({
     colorIdentity,
-    category,
+    category: isLandsCategory ? undefined : category,
+    type: isLandsCategory ? 'Land' : undefined,
     commanderLegal: true,
     maxMV: input.maxMV,
     limit: Math.min(limit * 8, 80),
@@ -87,7 +92,10 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
 
   const filtered = hits.filter((c) => {
     if (exclude.has(c.name.toLowerCase())) return false;
-    if ((c.type_line ?? '').toLowerCase().includes('land')) return false;
+    const land = isLandCard(c);
+    if (isLandsCategory) return land;
+    // Non-land categories: exclude lands so utility lands do not fill spell slots.
+    if (land) return false;
     const scry: ScryCard = {
       name: c.name,
       oracle_text: c.oracle_text ?? undefined,
@@ -111,7 +119,7 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
       cmc: c.cmc ?? undefined,
     };
     const tags = c.tags?.length ? c.tags : autoTags(scry, tagOpts);
-    const primaryCategory = getPrimaryTemplateCategory(tags);
+    const primaryCategory = isLandsCategory ? 'lands' : getPrimaryTemplateCategory(tags);
     let relevanceScore = 0;
     if (strategy) {
       const edhrecStub: EdhrecCardSuggestion = { name: c.name, rank: c.edhrec_rank ?? undefined };

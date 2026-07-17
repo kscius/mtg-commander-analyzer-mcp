@@ -84,17 +84,18 @@ describe('evaluateCardSwap', () => {
       .mockResolvedValueOnce(analyzeResult(after));
   };
 
-  it('skips when remove card is not found in deck or database', async () => {
-    const scryfall = await import('./scryfall');
-    vi.mocked(scryfall.getCardByName).mockReturnValue(null);
-    const cardResolution = await import('./cardResolution');
-    vi.mocked(cardResolution.resolveCardNameSync).mockReturnValue(null);
+  it('skips when remove card is absent from the decklist even if it exists in the database', async () => {
     mockAnalyzePair(deckAnalysis(), deckAnalysis());
 
-    const result = await evaluateCardSwap(baseInput);
+    const result = await evaluateCardSwap({
+      ...baseInput,
+      deckText: "Commander: Atraxa, Praetors' Voice\n1 Island",
+      cardToRemove: 'Sol Ring',
+    });
 
     expect(result.recommendation).toBe('skip');
-    expect(result.reason).toContain('Card to remove was not found');
+    expect(result.reason).toContain('Card to remove was not found in the decklist');
+    expect(result.removedCardFound).toBe(false);
   });
 
   it('skips when add card is not found in the card database', async () => {
@@ -197,17 +198,20 @@ describe('evaluateCardSwap', () => {
     expect(result.categoryDeltas).toHaveLength(0);
   });
 
-  it('appends add card when remove line is missing from deck text', async () => {
+  it('does not append the add card when the remove line is missing from deck text', async () => {
     mockAnalyzePair(deckAnalysis({ synergyScore: 60 }), deckAnalysis({ synergyScore: 64 }));
 
-    await evaluateCardSwap({
+    const result = await evaluateCardSwap({
       ...baseInput,
       deckText: "Commander: Atraxa, Praetors' Voice\n1 Island",
       cardToRemove: 'Missing Card',
     });
 
+    expect(result.recommendation).toBe('skip');
+    expect(result.removedCardFound).toBe(false);
+
     const secondCall = analyzeDeckBasic.mock.calls[1]?.[0] as { deckText: string };
-    expect(secondCall.deckText).toContain('1 Arcane Signet');
-    expect(secondCall.deckText).not.toContain('Missing Card');
+    expect(secondCall.deckText).not.toContain('1 Arcane Signet');
+    expect(secondCall.deckText).toContain('1 Island');
   });
 });

@@ -500,6 +500,27 @@ describe('buildQualityGate blocking paths', () => {
 });
 
 describe('buildNextSuggestedAction', () => {
+  it('suggests get_category_candidates when a category is below minimum', () => {
+    const analysis = {
+      commanderName: 'Test',
+      totalCards: 99,
+      uniqueCards: 99,
+      categories: [
+        { name: 'card_draw', count: 5, min: 8, max: 11, status: 'below' as const },
+      ],
+      notes: [],
+      bracketWarnings: [],
+      bannedCards: [],
+      banlistValid: true,
+      lintReport: { ok: true, issues: [], metrics: {} },
+    };
+
+    const action = buildNextSuggestedAction(analysis, 'analyze_deck');
+    expect(action).toContain('get_category_candidates');
+    expect(action).toContain('card_draw');
+    expect(action).toContain('optimize_deck');
+  });
+
   it('prioritizes hard lint fixes in the suggested action', () => {
     const analysis = {
       commanderName: 'Test',

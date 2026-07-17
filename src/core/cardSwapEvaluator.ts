@@ -42,7 +42,29 @@ export interface EvaluateCardSwapResult {
   addedCardFound: boolean;
 }
 
-function applySwap(deckText: string, removeName: string, addName: string): string {
+/**
+ * True when `cardName` appears as a mainboard line (exact or via sync name resolution).
+ */
+function deckContainsCard(deckText: string, cardName: string): boolean {
+  const target = cardName.trim().toLowerCase();
+  if (!target) return false;
+  const parsed = parseDeckText(deckText);
+  return parsed.cards.some((entry) => {
+    if (entry.name.toLowerCase() === target) return true;
+    const resolved = resolveCardNameSync(entry.name);
+    return (resolved?.canonicalName ?? '').toLowerCase() === target;
+  });
+}
+
+/**
+ * Replace the first matching remove line with the add card.
+ * Does **not** append the add when the remove name is missing — that would inflate the mainboard.
+ */
+function applySwap(
+  deckText: string,
+  removeName: string,
+  addName: string
+): { deckText: string; replaced: boolean } {
   const lines = deckText.split(/\r?\n/);
   const removeLower = removeName.trim().toLowerCase();
   let replaced = false;
@@ -56,7 +78,12 @@ function applySwap(deckText: string, removeName: string, addName: string): strin
     const m = trimmed.match(/^(\d+)\s+(.+)$/);
     if (m) {
       const name = m[2].trim();
-      if (!replaced && name.toLowerCase() === removeLower) {
+      const nameLower = name.toLowerCase();
+      const resolvedLine = resolveCardNameSync(name);
+      const matchesRemove =
+        nameLower === removeLower ||
+        (resolvedLine?.canonicalName ?? '').toLowerCase() === removeLower;
+      if (!replaced && matchesRemove) {
         out.push(`1 ${addName.trim()}`);
         replaced = true;
         continue;
@@ -64,10 +91,7 @@ function applySwap(deckText: string, removeName: string, addName: string): strin
     }
     out.push(line);
   }
-  if (!replaced) {
-    out.push(`1 ${addName.trim()}`);
-  }
-  return out.join('\n');
+  return { deckText: out.join('\n'), replaced };
 }
 
 function categoryDeltas(before: CategorySummary[], after: CategorySummary[]): CategoryDelta[] {
@@ -158,7 +182,8 @@ export async function evaluateCardSwap(input: EvaluateCardSwapInput): Promise<Ev
   const resolvedAdd = resolveCardNameSync(input.cardToAdd);
   const removeCanonical = resolvedRemove?.canonicalName ?? input.cardToRemove.trim();
   const addCanonical = resolvedAdd?.canonicalName ?? input.cardToAdd.trim();
-  const removedFound = !!getCardByName(removeCanonical) || !!resolvedRemove;
+  // Membership is decklist presence — not "name exists in cards.db".
+  const removedFound = deckContainsCard(input.deckText, removeCanonical);
   const addedFound = !!getCardByName(addCanonical) || !!resolvedAdd;
 
   const baseInput: AnalyzeDeckInput = {
@@ -171,7 +196,13 @@ export async function evaluateCardSwap(input: EvaluateCardSwapInput): Promise<Ev
 
   const parsedBefore = parseDeckText(input.deckText);
   const beforeResult = await analyzeDeckBasic(baseInput, parsedBefore);
-  const swappedText = applySwap(input.deckText, removeCanonical, addCanonical);
+  const { deckText: swappedText, replaced } = applySwap(
+    input.deckText,
+    removeCanonical,
+    addCanonical
+  );
+  // Keep flags consistent if line matching and membership diverge (e.g. punctuation variants).
+  const removeInDeck = removedFound && replaced;
   const parsedAfter = parseDeckText(swappedText);
   const afterResult = await analyzeDeckBasic({ ...baseInput, deckText: swappedText }, parsedAfter);
 
@@ -185,7 +216,7 @@ export async function evaluateCardSwap(input: EvaluateCardSwapInput): Promise<Ev
     deltas,
     synergyDelta,
     newWarns,
-    removedFound,
+    removeInDeck,
     addedFound
   );
 
@@ -198,7 +229,7 @@ export async function evaluateCardSwap(input: EvaluateCardSwapInput): Promise<Ev
     categoryDeltas: deltas,
     newWarnings: newWarns,
     resolvedCards: { removed: removeCanonical, added: addCanonical },
-    removedCardFound: removedFound,
+    removedCardFound: removeInDeck,
     addedCardFound: addedFound,
   };
 }
