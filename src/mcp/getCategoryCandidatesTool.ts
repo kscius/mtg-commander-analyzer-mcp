@@ -92,7 +92,13 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
 
   const filtered = hits.filter((c) => {
     if (exclude.has(c.name.toLowerCase())) return false;
-    const land = isLandCard(c);
+    const land = isLandCard({
+      name: c.name,
+      type_line: c.type_line ?? undefined,
+      oracle_text: c.oracle_text ?? undefined,
+      mana_cost: c.mana_cost ?? undefined,
+      cmc: c.cmc ?? undefined,
+    });
     if (isLandsCategory) return land;
     // Non-land categories: exclude lands so utility lands do not fill spell slots.
     if (land) return false;
