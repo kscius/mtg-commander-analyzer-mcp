@@ -124,10 +124,12 @@ export const PREFERRED_STRATEGY_SLUGS = [
   "artifacts",
 ] as const;
 
+/** brief | full — single source for MCP responseMode (Zod + TypeScript). */
+export const McpResponseModeEnum = z.enum(['brief', 'full']);
+export type McpResponseMode = z.infer<typeof McpResponseModeEnum>;
+
 /** Shared MCP output shape for secondary tools (default brief saves tokens). */
-export const McpResponseModeSchema = z
-  .enum(['brief', 'full'])
-  .optional()
+export const McpResponseModeSchema = McpResponseModeEnum.optional()
   .default('brief')
   .describe('brief: compact JSON; full: pretty-printed complete payload');
 
@@ -216,7 +218,8 @@ export const RemainingGapKindSchema = z.enum([
 export const RemainingGapSchema = z.object({
   kind: RemainingGapKindSchema,
   detail: z.string().min(1),
-  category: z.string().optional(),
+  /** Category name when kind is `category` (template-dependent; not only Bracket 3). */
+  category: z.string().min(1).optional(),
   severity: z.enum(['hard', 'soft']).optional(),
 });
 
@@ -233,10 +236,11 @@ export const AgentBriefSchema = z.object({
   decklistText: z.string().optional(),
   converged: z.boolean().optional(),
   readyToShip: z.boolean().optional(),
-  synergyScore: z.number().optional(),
-  categoriesBelow: z.array(z.string()).optional(),
-  remainingGapCount: z.number().int().optional(),
-  polishGapCount: z.number().int().optional(),
+  /** Deck-level synergy 0–100 when preferredStrategy is set (see docs/synergy-scoring-explained.md). */
+  synergyScore: z.number().min(0).max(100).optional(),
+  categoriesBelow: z.array(z.string().min(1)).optional(),
+  remainingGapCount: z.number().int().nonnegative().optional(),
+  polishGapCount: z.number().int().nonnegative().optional(),
   nextSuggestedAction: z.string().optional(),
   buildQualityOverall: z.enum(['strong', 'acceptable', 'needs_work']).optional(),
 });

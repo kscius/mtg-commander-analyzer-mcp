@@ -2,13 +2,14 @@
  * MCP response shaping: brief vs full payloads and JSON serialization.
  */
 
+import type { McpResponseMode } from '../core/schemas';
 import type {
   AnalyzeDeckResult,
   BuildDeckResult,
   OptimizeDeckResult,
 } from '../core/types';
 
-export type McpResponseMode = 'brief' | 'full';
+export type { McpResponseMode };
 
 const MAX_BRIEF_NOTES = 8;
 const MAX_BRIEF_ACTIONS = 8;

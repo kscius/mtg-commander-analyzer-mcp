@@ -345,4 +345,39 @@ describe("Agent envelope schemas (qualityGate / agentBrief / remainingGaps)", ()
     expect(brief.buildQualityOverall).toBe("acceptable");
     expect(() => AgentBriefSchema.parse({ summary: "" })).toThrow();
   });
+
+  it("rejects AgentBrief synergyScore outside 0–100 and negative gap counts", () => {
+    expect(() =>
+      AgentBriefSchema.parse({ summary: "x", synergyScore: 101 })
+    ).toThrow();
+    expect(() =>
+      AgentBriefSchema.parse({ summary: "x", synergyScore: -1 })
+    ).toThrow();
+    expect(
+      AgentBriefSchema.parse({ summary: "x", synergyScore: 0, remainingGapCount: 0 })
+        .synergyScore
+    ).toBe(0);
+    expect(() =>
+      AgentBriefSchema.parse({ summary: "x", remainingGapCount: -1 })
+    ).toThrow();
+    expect(() =>
+      AgentBriefSchema.parse({ summary: "x", polishGapCount: -2 })
+    ).toThrow();
+    expect(() =>
+      AgentBriefSchema.parse({ summary: "x", categoriesBelow: [""] })
+    ).toThrow();
+  });
+
+  it("rejects RemainingGap empty category string", () => {
+    expect(() =>
+      RemainingGapSchema.parse({ kind: "category", detail: "below", category: "" })
+    ).toThrow();
+    expect(
+      RemainingGapSchema.parse({
+        kind: "category",
+        detail: "target_removal below",
+        category: "target_removal",
+      }).category
+    ).toBe("target_removal");
+  });
 });
