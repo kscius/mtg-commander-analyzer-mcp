@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "caseId": "shadrix-group-slug",
-  "description": "Analyze regression for Shadrix Silverquill group-slug golden list",
+  "description": "Analyze regression for Shadrix Silverquill group-slug golden list (category counts exclude utility lands from non-land buckets)",
   "commanderName": "Shadrix Silverquill",
   "preferredStrategy": "group-slug",
   "fixture": "test/fixtures/shadrix-group-slug-golden.txt",
   "assertions": {
     "mainboardCount": 99,
     "banlistValid": true,
-    "maxCategoriesBelow": 7,
+    "maxCategoriesBelow": 8,
     "maxLintHardIssues": 0,
     "maxBracketWarnings": 0,
     "minSynergyScore": 37,
@@ -31,21 +31,21 @@
     },
     {
       "name": "card_draw",
-      "count": 13,
+      "count": 12,
       "status": "above",
       "min": 8,
       "max": 11
     },
     {
       "name": "card_selection",
-      "count": 1,
+      "count": 0,
       "status": "below",
       "min": 3,
       "max": 6
     },
     {
       "name": "spot_removal",
-      "count": 1,
+      "count": 0,
       "status": "below",
       "min": 4,
       "max": 7
@@ -73,14 +73,14 @@
     },
     {
       "name": "protection",
-      "count": 3,
-      "status": "within",
+      "count": 2,
+      "status": "below",
       "min": 3,
       "max": 6
     },
     {
       "name": "value_engines",
-      "count": 5,
+      "count": 4,
       "status": "within",
       "min": 3,
       "max": 7

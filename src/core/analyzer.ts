@@ -50,9 +50,6 @@ import {
 import type { DeckTemplateValidated } from './templateSchema';
 import {
   getManaValue,
-  getPrimaryManaCost,
-  getPrimaryTypeLine,
-  getOracleText,
   mvBucket,
   entersTappedKind,
   isLandCard,
@@ -703,17 +700,19 @@ export async function analyzeDeckBasic(
 
     deckWithTags.push({ name: entry.name, tags });
 
-    // Lands from type_line (not from tags)
-    const isLand = card?.type_line?.toLowerCase().includes('land');
-    if (isLand) {
+    // Lands count only toward `lands` (type line). Utility lands may still receive
+    // functional tags (card_draw, AE hate, etc.) for synergy/lint, but must not
+    // inflate non-land category mins — same rule as templateDeckGenerator.
+    // See docs/synergy-scoring-explained.md (category coverage = primary tag) and
+    // autoTags ramp comment: lands are counted in "lands" from type_line.
+    if (isLandCard(card)) {
       categoryCounts['lands'] = (categoryCounts['lands'] ?? 0) + entry.quantity;
+      continue;
     }
 
     const primary = getPrimaryTemplateCategory(tags);
     if (primary && Object.prototype.hasOwnProperty.call(categoryCounts, primary)) {
-      if (!(primary === 'ramp' && isLand)) {
-        categoryCounts[primary] += entry.quantity;
-      }
+      categoryCounts[primary] += entry.quantity;
     }
   }
 
