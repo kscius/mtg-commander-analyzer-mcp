@@ -5,12 +5,12 @@
 import { SearchCardsInputSchema, type SearchCardsInput } from '../core/schemas';
 import { searchCardsFiltered, isDatabaseReady, type DatabaseCard } from '../core/cardDatabase';
 import { autoTags, getDefaultBracket3Options, ScryCard } from '../core/autoTags';
-import { scoreCardSynergyRelevance } from '../core/synergyScorer';
+import { scoreCardSynergyRelevance, type SynergyRelevance } from '../core/synergyScorer';
 import { edhrecInclusionPercent } from '../core/edhrecStrategyScoring';
 import { getCardByName } from '../core/scryfall';
 import type { EdhrecCardSuggestion } from '../core/types';
 
-export type SynergyRelevance = 'high' | 'medium' | 'low';
+export type { SynergyRelevance };
 
 function hasSearchFilter(input: SearchCardsInput): boolean {
   return Boolean(

@@ -8,11 +8,11 @@ import {
 } from '../core/schemas';
 import { searchCardsFiltered, isDatabaseReady } from '../core/cardDatabase';
 import { autoTags, getDefaultBracket3Options, getPrimaryTemplateCategory, ScryCard } from '../core/autoTags';
-import { scoreCardSynergyRelevance } from '../core/synergyScorer';
+import { scoreCardSynergyRelevance, type SynergyRelevance } from '../core/synergyScorer';
 import { getCardByName } from '../core/scryfall';
 import type { EdhrecCardSuggestion } from '../core/types';
 
-export type SynergyRelevance = 'high' | 'medium' | 'low';
+export type { SynergyRelevance };
 
 function relevanceLabel(score: number): SynergyRelevance {
   if (score >= 0.55) return 'high';

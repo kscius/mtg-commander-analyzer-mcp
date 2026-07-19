@@ -219,6 +219,7 @@ export interface AgentBrief {
   decklistText?: string;
   converged?: boolean;
   readyToShip?: boolean;
+  /** Deck-level synergy 0–100 when preferredStrategy is set. */
   synergyScore?: number;
   categoriesBelow?: string[];
   /** Count of blocking gaps (excludes soft lint polish). */
@@ -228,7 +229,6 @@ export interface AgentBrief {
   nextSuggestedAction?: string;
   buildQualityOverall?: 'strong' | 'acceptable' | 'needs_work';
 }
-
 export interface DeckRecommendationCut {
   name: string;
   reason: string;
