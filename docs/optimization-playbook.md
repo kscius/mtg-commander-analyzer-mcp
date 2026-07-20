@@ -37,7 +37,7 @@ Iterative workflow for improving a Commander deck using this MCP. Prefer templat
 | `analysis.synergyScore` | Thematic fit when `preferredStrategy` set |
 | `analysis.manaBaseQuality` | Land count, tapped ratio, early sources |
 | `analysis.curveAnalysis` | MV distribution vs template |
-| `analysis.recommendations` | Suggested cuts/adds — **brief mode omits swaps/packages**; use `prioritizedActions` or `responseMode: "full"` |
+| `analysis.recommendations` | Suggested cuts/adds — **brief mode empties `cuts`/`adds`, omits `swaps`/`synergyPackages`**; use `prioritizedActions` or `responseMode: "full"` |
 | `decklistText` | Copy-paste mainboard |
 
 ## Iteration loop
@@ -62,10 +62,11 @@ When you need on-theme adds for a **below** category, call `get_category_candida
 
 Stop optimizing when **all** of the following hold:
 
-- Every `categories[].status` is **`within`** (no `below` or `above` that matters to the user).
+- No category is **`below`** minimum (`qualityGate` / `remainingGaps` only treat `below` as blocking; `above` is polish/user preference, not an automatic stop-blocker).
 - `lintReport.ok` is **true**, or only acceptable soft warnings remain.
 - No hard `format:*` issues; `banlistValid` is true.
 - `synergyScore` **≥ 60** when a strategy slug is set (or user accepts a lower target).
+- Prefer **`qualityGate.readyToShip === true`** (or explicit user acceptance of remaining `polish` gaps).
 - `deckScore` is stable across one full pass (no meaningful gain from last 3 swaps).
 
 ## Common mistakes

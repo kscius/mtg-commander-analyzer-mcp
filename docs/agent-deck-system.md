@@ -68,7 +68,7 @@ Returns `synergies[]` with `slug`, `name`, `description`, `exampleCards`, and op
 - Parses `Commander: <name>` lines in `deckText`.
 - Resolves card names to canonical Scryfall names via `data/cards.db` (never invent names).
 - Validates **99 mainboard** count and **color identity** when commander is known.
-- Returns categories, Bracket 3 warnings, banlist hits, lint report, **`synergyScore`**, **`recommendations`**, **`decklistText`**.
+- Returns categories, Bracket 3 warnings, banlist hits, lint report, **`synergyScore`**, **`analysis.prioritizedActions`**, **`qualityGate`**, **`agentBrief`**, and **`decklistText`**. Default **`responseMode: "brief"`** empties `recommendations.cuts`/`adds` and omits `swaps`/`synergyPackages` — use `prioritizedActions`, or pass `responseMode: "full"` for thematic cut/add pairs.
 
 ### `build_deck_from_commander`
 
@@ -86,7 +86,7 @@ Returns `synergies[]` with `slug`, `name`, `description`, `exampleCards`, and op
 
 - **`useTemplateGenerator`** defaults to **true** for `bracket3` (full 99-card pipeline).
 - **`useUserStyleReference`** defaults to **true** — blends land count and prioritizes staple lands from read-only imports in `data/my_decks`. Set **false** for template-only mana. Never write generated decks to `data/my_decks`.
-- Legacy skeleton (`useTemplateGenerator: false`) only fills basics — avoid for production decks.
+- Legacy skeleton (`useTemplateGenerator: false`) still builds a multi-system mana base for `bracket3`, but does **not** complete a full 99-card non-land list — avoid for production decks. Prefer the default template generator.
 
 ### `get_user_deck_style`
 
@@ -98,7 +98,7 @@ Returns `synergies[]` with `slug`, `name`, `description`, `exampleCards`, and op
 }
 ```
 
-Returns aggregated profile: `landCount`, `landMixAverages`, `categoryAverages`, `topLandStaples`, optional `commanderHints`. See `docs/user-deck-style-reference.md`.
+Returns nested `profile` (`landCount`, `landMixAverages`, `categoryAverages`, `topLandStaples`) plus optional top-level `commanderHints`. See `docs/user-deck-style-reference.md`.
 
 ### `optimize_deck`
 
@@ -140,7 +140,7 @@ Returns aggregated profile: `landCount`, `landMixAverages`, `categoryAverages`, 
 }
 ```
 
-- Returns `guideMarkdown` from `docs/strategy-guides/{slug}.md` plus `keyRatios` from `data/strategy-guides.json`.
+- Returns `keyRatios` from `data/strategy-guides.json`. Default **`responseMode: "brief"`** clears `guideMarkdown` (empty string); pass `responseMode: "full"` for the full markdown from `docs/strategy-guides/{slug}.md`, or read the MCP resource `mtg-commander:///strategy-guide/{slug}`.
 
 ## Agent vs MCP
 
