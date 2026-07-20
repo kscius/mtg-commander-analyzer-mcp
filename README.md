@@ -257,10 +257,23 @@ Analyzes an existing Commander decklist with Bracket 3 validation.
 }
 ```
 
-**Output:**
+**Output** (default `responseMode: "brief"` — read `agentBrief` / `qualityGate` first; use `decklistText` and `analysis.prioritizedActions` for fixes):
 ```json
 {
-  "input": { "deckText": "...", "templateId": "bracket3" },
+  "summary": "Deck analyzed. Synergy 72. No category gaps.",
+  "agentBrief": {
+    "summary": "Deck analyzed. Synergy 72. No category gaps.",
+    "synergyScore": 72,
+    "remainingGapCount": 0,
+    "decklistText": "1 Sol Ring\n..."
+  },
+  "qualityGate": {
+    "readyToShip": true,
+    "converged": true,
+    "blocking": [],
+    "polish": []
+  },
+  "decklistText": "1 Sol Ring\n...",
   "analysis": {
     "commanderName": "Atraxa, Praetors' Voice",
     "totalCards": 99,
@@ -275,19 +288,22 @@ Analyzes an existing Commander decklist with Bracket 3 validation.
     "bracketWarnings": [
       "This deck uses 2 Game Changers (max allowed for Bracket bracket3: 3)."
     ],
+    "prioritizedActions": [],
     "notes": ["..."]
   },
-  "bracketId": "bracket3",
-  "bracketLabel": "Bracket 3 (Upgraded)"
+  "converged": true,
+  "remainingGaps": []
 }
 ```
+
+Pass `responseMode: "full"` when you need `recommendations.cuts` / `.adds` / `.swaps` or synergy packages. Bracket metadata (when present) lives on **`analysis`**, not as top-level `bracketId` / `bracketLabel`.
 
 **Features:**
 - ✅ Commander format validation (99 + 1 commander)
 - ✅ Automatic categorization (lands, ramp, draw, removal, wipes)
 - ✅ Role detection using Scryfall oracle text
 - ✅ Bracket 3 validation (Game Changers, mass land denial, extra turns)
-- ✅ Category-based recommendations
+- ✅ Category-based recommendations (`prioritizedActions` in brief; full cuts/adds/swaps in `full` mode)
 
 #### 2. `build_deck_from_commander`
 
@@ -299,43 +315,42 @@ Builds a Commander deck from a commander name with optional EDHREC autofill.
   "commanderName": "Atraxa, Praetors' Voice",
   "templateId": "bracket3",
   "bracketId": "bracket3",
+  "preferredStrategy": "counters",
   "seedCards": ["Sol Ring", "Arcane Signet"],
   "useEdhrec": true,
   "useEdhrecAutofill": true
 }
 ```
 
-**Output:**
+**Output** (default brief — `deck.cards` is emptied; use **`decklistText`**):
 ```json
 {
-  "input": { "commanderName": "Atraxa, Praetors' Voice", ... },
+  "summary": "Built 99-card deck for Atraxa, Praetors' Voice (counters).",
+  "agentBrief": {
+    "summary": "Built 99-card deck for Atraxa, Praetors' Voice (counters).",
+    "synergyScore": 68,
+    "decklistText": "1 Sol Ring\n1 Arcane Signet\n..."
+  },
+  "qualityGate": {
+    "readyToShip": false,
+    "converged": false,
+    "blocking": [],
+    "polish": ["Category card_draw below minimum (7/8)."]
+  },
+  "decklistText": "1 Sol Ring\n1 Arcane Signet\n...",
   "deck": {
     "commanderName": "Atraxa, Praetors' Voice",
-    "cards": [
-      { "name": "Sol Ring", "quantity": 1, "roles": ["ramp"] },
-      { "name": "Island", "quantity": 9, "roles": ["land"] },
-      { "name": "Talisman of Dominance", "quantity": 1, "roles": ["ramp"] },
-      ...
-    ]
+    "cards": []
   },
   "analysis": {
     "totalCards": 99,
-    "categories": [ ... ],
-    "bracketWarnings": [ ... ]
-  },
-  "edhrecContext": {
-    "sourcesUsed": ["top/multicolor.json", "lands/mono-blue.json", ...],
-    "suggestions": [
-      { "name": "Assassin's Trophy", "rank": 467886, "category": "top/multicolor" },
-      ...
-    ]
+    "categories": [ "...truncated..." ],
+    "bracketWarnings": [ "...truncated..." ]
   },
   "notes": [
     "Commander: Atraxa, Praetors' Voice (Color Identity: BGUW)",
-    "✓ EDHREC: Fetched 50 top cards and 50 lands (100 total suggestions).",
-    "EDHREC Autofill enabled. Attempting to fill category deficits...",
-    "✓ EDHREC Autofill complete: added 16 cards (6 ramp, 4 draw, 5 removal, 1 wipes)",
-    ...
+    "✓ EDHREC: Fetched suggestions for commander + theme.",
+    "..."
   ]
 }
 ```
@@ -343,7 +358,7 @@ Builds a Commander deck from a commander name with optional EDHREC autofill.
 **Features:**
 - ✅ Automatic commander resolution from Scryfall
 - ✅ Land base generation based on color identity
-- ✅ EDHREC integration (top cards + lands by color)
+- ✅ EDHREC integration (commander + theme endpoints)
 - ✅ Intelligent autofill for deficit categories
 - ✅ Bracket 3 constraint enforcement
 - ✅ Color identity validation
@@ -379,13 +394,15 @@ Add this to your MCP configuration in Cursor:
 {
   "mcpServers": {
     "mtg-commander-analyzer": {
-      "command": "npm",
-      "args": ["run", "mcp"],
+      "command": "node",
+      "args": ["scripts/run-mcp.cjs"],
       "cwd": "/path/to/mtg-commander-analyzer-mcp"
     }
   }
 }
 ```
+
+(`npm run mcp` also works; the repo’s `.cursor/mcp.json` uses `scripts/run-mcp.cjs` directly.)
 
 ### Claude Desktop
 
@@ -395,8 +412,8 @@ In `claude_desktop_config.json`:
 {
   "mcpServers": {
     "mtg-commander-analyzer": {
-      "command": "npm",
-      "args": ["run", "mcp"],
+      "command": "node",
+      "args": ["/path/to/mtg-commander-analyzer-mcp/scripts/run-mcp.cjs"],
       "cwd": "/path/to/mtg-commander-analyzer-mcp"
     }
   }
@@ -416,9 +433,11 @@ In `claude_desktop_config.json`:
 - ✅ Template system (Bracket 3)
 - ✅ Bracket 3 rules with card lists
 - ✅ **Always-on EDHREC integration** (enabled by default)
-- ✅ In-memory caching for EDHREC requests
+- ✅ In-memory + **disk cache** for EDHREC (`data/cache/edhrec/`, 24h TTL)
 - ✅ **Custom banlist** (`data/Banlist.txt`) - 74 banned cards
 - ✅ **Template deck generator** — EDHREC + SQLite fill for complete 99-card decks
+- ✅ **Mana curve analysis** (`curveAnalysis` on deck analysis / quality report)
+- ✅ **Theme detection** (`get_synergies`) and thematic autofill (`preferredStrategy`)
 
 **Database:**
 - ✅ Full Scryfall schema with 60+ columns
@@ -452,11 +471,11 @@ In `claude_desktop_config.json`:
 - ✅ Input validation with zod schemas
 - ✅ Graceful error handling
 
-### 🔜 Next Steps (v0.4.0+)
+### 🔜 Next Steps (v0.7.x+)
 
-- [ ] Commander-specific EDHREC endpoints (`commanders/atraxa.json`)
-- [ ] Theme detection and thematic autofill
-- [ ] Mana curve analysis
+- [x] Commander-specific EDHREC endpoints (`commanders/{slug}.json` + theme paths) — shipped
+- [x] Theme detection and thematic autofill (`get_synergies`, `preferredStrategy`) — shipped
+- [x] Mana curve analysis (`curveAnalysis`) — shipped
 - [ ] Infinite combo detection
 - [ ] Support for other brackets (1, 2, 4)
 - [x] MCP tool: `optimize_deck` — shipped
