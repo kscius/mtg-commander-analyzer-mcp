@@ -10,7 +10,7 @@
 
 | Role | Count | Notes |
 |------|-------|-------|
-| Lands | 34–36 | Often fewer with heavy rocks |
+| Lands | 35–36 | Bracket 3 template min is 35; heavy rocks may push toward the low end of 35–38 |
 | Ramp | 12–16 | Rocks are on-theme |
 | Artifact payoffs | 10–16 | |
 | Artifact creatures / engines | 8–14 | |
