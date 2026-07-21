@@ -36,19 +36,13 @@ describe('commanderFormat', () => {
 
     it('trims stacked basic quantity when entry count is under 99 but total quantity exceeds target', () => {
       // Failure mode of builtCards.slice(0, 99): few entries, high basic stacks → oversize mainboard.
-      const cards: BuiltCardEntry[] = [
+      const oversize: BuiltCardEntry[] = [
         { name: 'Island', quantity: 40, roles: ['land'] },
         { name: 'Swamp', quantity: 40, roles: ['land'] },
+        { name: 'Mountain', quantity: 30, roles: ['land'] },
         { name: 'Sol Ring', quantity: 1, roles: ['ramp'] },
         { name: 'Arcane Signet', quantity: 1, roles: ['ramp'] },
         { name: 'Counterspell', quantity: 1, roles: ['interaction'] },
-      ];
-      expect(cards).toHaveLength(5);
-      expect(sumQty(cards)).toBe(83);
-
-      const oversize: BuiltCardEntry[] = [
-        ...cards,
-        { name: 'Mountain', quantity: 30, roles: ['land'] },
       ];
       expect(oversize).toHaveLength(6);
       expect(sumQty(oversize)).toBe(113);
@@ -60,7 +54,9 @@ describe('commanderFormat', () => {
       expect(sumQty(sized)).toBe(99);
       expect(trimmed).toBe(14);
       expect(padded).toBe(0);
-      expect(sized.find((c) => c.name === 'Mountain')?.quantity).toBe(16);
+      // Trims from end: drop 3 singletons, then reduce Mountain by 11 → 19.
+      expect(sized.find((c) => c.name === 'Mountain')?.quantity).toBe(19);
+      expect(sized.some((c) => c.name === 'Sol Ring')).toBe(false);
     });
 
     it('trims trailing singleton entries when more than 99 unique cards', () => {
