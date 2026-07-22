@@ -38,9 +38,13 @@ import {
 import { computeLandCountFromCurve, fillManaBaseFromTemplate, MANA_BASE_SYSTEMS } from './manaBaseGenerator';
 import { sumLandQuantity, sumNonlandQuantity } from './manabaseLandHeuristics';
 import { getOracleText, mvBucket } from './scryfallNormalize';
-import { cardFitsCommanderColorIdentity, isBasicLandName } from './commanderFormat';
+import {
+  cardFitsCommanderColorIdentity,
+  COMMANDER_MAINBOARD_SIZE,
+  enforceMainboardSize,
+  isBasicLandName,
+} from './commanderFormat';
 import { resolveCardNameSync } from './cardResolution';
-import { COMMANDER_MAINBOARD_SIZE } from './commanderFormat';
 import { isDatabaseReady, searchCardsFiltered } from './cardDatabase';
 import {
   autoTags,
@@ -821,9 +825,23 @@ export async function generateDeckFromTemplate(input: TemplateGeneratorInput): P
     notes.push(...comboErrs.map((e) => `  ⛔ ${e}`));
   }
 
+  // Quantity-aware size lock (basics stack quantity; entry-count slice can leave >99).
+  // Same helper as optimize_deck — trims from end / pads basics to exactly 99.
+  const sized = enforceMainboardSize(builtCards, COMMANDER_DECK_SIZE, colorIdentity);
+  if (sized.trimmed > 0) {
+    notes.push(
+      `Trimmed ${sized.trimmed} card(s) to enforce ${COMMANDER_DECK_SIZE}-card mainboard.`
+    );
+  }
+  if (sized.padded > 0) {
+    notes.push(
+      `Padded ${sized.padded} basic land(s) to enforce ${COMMANDER_DECK_SIZE}-card mainboard.`
+    );
+  }
+
   const deck: BuiltDeck = {
     commanderName: commanderCard.name,
-    cards: builtCards.slice(0, COMMANDER_DECK_SIZE),
+    cards: sized.cards,
   };
   return { deck, notes, edhrecProfile: edhrecProfileSnapshot };
 }
