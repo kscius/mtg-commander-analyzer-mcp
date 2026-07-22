@@ -39,13 +39,13 @@ npm run decks:user-style-profile
 
 ### `get_user_deck_style`
 
-Returns aggregated profile from all imported decks:
+Returns aggregated stats from all imported decks under a nested **`profile`** object (plus top-level `summary`, `deckCount`, `commanderHints`, `nextSuggestedAction`):
 
-- `landCount` (avg, min, max, percentiles)
-- `landMixAverages` (basics, fetches, utility lands, …)
-- `categoryAverages` (template categories)
-- `topLandStaples` — lands you use often
-- `commanderHints` — when `commanderName` is passed, land target + staples for that color identity
+- `profile.landCount` (avg, min, max, percentiles)
+- `profile.landMixAverages` (basics, fetches, utility lands, …)
+- `profile.categoryAverages` (template categories)
+- `profile.topLandStaples` — lands you use often (brief mode caps at 12)
+- `commanderHints` (top-level) — when `commanderName` is passed, land target + staples for that color identity
 
 | Param | Default | Purpose |
 |-------|---------|---------|
