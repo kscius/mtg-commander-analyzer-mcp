@@ -10,6 +10,9 @@ import {
   getCombosForCommander,
   clearEdhrecCache,
   getCardsForCommander,
+  getCardsForCommanderTheme,
+  resolveEdhrecFetchUrl,
+  EDHREC_ALLOWED_HOST,
 } from './edhrec';
 import { writeEdhrecDiskCache } from './edhrecDiskCache';
 
@@ -71,6 +74,72 @@ describe('extractEdhrecSuggestionsFromJson', () => {
 describe('commanderNameToSlug', () => {
   it('normalizes typical commander names', () => {
     expect(commanderNameToSlug("Atraxa, Praetors' Voice")).toBe('atraxa-praetors-voice');
+  });
+
+  it('returns empty string for whitespace-only or symbol-only names', () => {
+    expect(commanderNameToSlug('   ')).toBe('');
+    expect(commanderNameToSlug('!!!')).toBe('');
+    expect(commanderNameToSlug(',,,')).toBe('');
+  });
+});
+
+describe('resolveEdhrecFetchUrl', () => {
+  it('resolves relative paths under the EDHREC pages base', () => {
+    expect(resolveEdhrecFetchUrl('commanders/atraxa-praetors-voice.json')).toBe(
+      `https://${EDHREC_ALLOWED_HOST}/pages/commanders/atraxa-praetors-voice.json`
+    );
+  });
+
+  it('accepts absolute https URLs on the allowlisted host', () => {
+    expect(
+      resolveEdhrecFetchUrl(`https://${EDHREC_ALLOWED_HOST}/pages/top/white.json`)
+    ).toBe(`https://${EDHREC_ALLOWED_HOST}/pages/top/white.json`);
+  });
+
+  it('rejects non-https schemes', () => {
+    expect(() => resolveEdhrecFetchUrl('http://json.edhrec.com/pages/top/white.json')).toThrow(
+      /requires https/
+    );
+    expect(() => resolveEdhrecFetchUrl('file:///etc/passwd')).toThrow(/requires https|Invalid/);
+  });
+
+  it('rejects hosts outside the allowlist (SSRF guard)', () => {
+    expect(() => resolveEdhrecFetchUrl('https://evil.example/steal')).toThrow(/host not allowed/);
+    expect(() => resolveEdhrecFetchUrl('https://127.0.0.1/pages/x.json')).toThrow(/host not allowed/);
+    expect(() => resolveEdhrecFetchUrl('https://edhrec.com.evil/pages/x.json')).toThrow(
+      /host not allowed/
+    );
+  });
+
+  it('rejects credentials and paths outside /pages/', () => {
+    expect(() =>
+      resolveEdhrecFetchUrl(`https://user:pass@${EDHREC_ALLOWED_HOST}/pages/top/white.json`)
+    ).toThrow(/credentials/);
+    expect(() =>
+      resolveEdhrecFetchUrl(`https://${EDHREC_ALLOWED_HOST}/other/top/white.json`)
+    ).toThrow(/must start with \/pages\//);
+  });
+
+  it('rejects empty input', () => {
+    expect(() => resolveEdhrecFetchUrl('')).toThrow(/empty/);
+    expect(() => resolveEdhrecFetchUrl('   ')).toThrow(/empty/);
+  });
+});
+
+describe('empty slug skips network', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('getCardsForCommander / themes / combos / theme return [] without fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    await expect(getCardsForCommander('')).resolves.toEqual([]);
+    await expect(getCardsForCommander('   ')).resolves.toEqual([]);
+    await expect(getThemesForCommander('')).resolves.toEqual([]);
+    await expect(getCombosForCommander('')).resolves.toEqual([]);
+    await expect(getCardsForCommanderTheme('', 'tokens')).resolves.toEqual([]);
+    await expect(getCardsForCommanderTheme('atraxa', '')).resolves.toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
