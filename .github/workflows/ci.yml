@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main, master]
 
+# Cancel superseded PR runs; let push-to-main finish (every main commit should validate).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # Bound hung Scryfall download / mcp-smoke / vitest (default GHA job timeout is 360m).
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
