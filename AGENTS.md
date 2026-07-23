@@ -359,7 +359,7 @@ Verify: `npm run db:stats` should show ~38k cards. If `search_cards` returns `da
 | MCP stdio server | `npm run mcp` |
 | Local analyze demo | `npm run test:local` |
 
-**CI:** GitHub Actions downloads `oracle-cards.json` from Scryfall and runs `db:create` + `db:import` before `npm test`. Golden fixtures live in `test/fixtures/` and `data/golden/`.
+**CI:** GitHub Actions runs `npm audit --audit-level=high`, downloads `oracle-cards.json` via `scripts/ci-setup-db.sh` (`db:create` + `db:import`), then `build` → `test:mcp-smoke` → `npm test` → `test:golden` → `benchmark:decks`. Monthly workflow `brackets-check.yml` runs `brackets:check-official:quick`. Dependabot: `.github/dependabot.yml`. Golden fixtures live in `test/fixtures/` and `data/golden/`.
 
 ### Optional env
 
