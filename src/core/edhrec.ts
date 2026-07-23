@@ -18,6 +18,53 @@ import {
  */
 const EDHREC_BASE = 'https://json.edhrec.com/pages';
 
+/** Only this host may be contacted by the EDHREC client (SSRF guard). */
+export const EDHREC_ALLOWED_HOST = 'json.edhrec.com';
+
+/**
+ * Resolve a relative EDHREC path or absolute URL to a fetchable href.
+ * Rejects non-https schemes, credentials, and hosts outside the allowlist.
+ * Mirrors the OPENAI_BASE_URL scheme allowlist pattern in llmConfig.ts.
+ *
+ * @param pathOrUrl - Relative path (e.g. `commanders/atraxa-praetors-voice.json`) or absolute URL
+ * @returns Canonical https URL under `json.edhrec.com`
+ * @throws Error when the input is empty, malformed, or not on the allowlist
+ */
+export function resolveEdhrecFetchUrl(pathOrUrl: string): string {
+  const trimmed = pathOrUrl.trim();
+  if (!trimmed) {
+    throw new Error('EDHREC path or URL is empty');
+  }
+
+  let url: URL;
+  try {
+    if (/^https?:\/\//i.test(trimmed)) {
+      url = new URL(trimmed);
+    } else {
+      const base = EDHREC_BASE.endsWith('/') ? EDHREC_BASE : `${EDHREC_BASE}/`;
+      url = new URL(trimmed.replace(/^\/+/, ''), base);
+    }
+  } catch {
+    throw new Error(`Invalid EDHREC URL: ${pathOrUrl}`);
+  }
+
+  if (url.protocol !== 'https:') {
+    throw new Error(`EDHREC fetch requires https: (got ${url.protocol})`);
+  }
+  if (url.hostname !== EDHREC_ALLOWED_HOST) {
+    throw new Error(`EDHREC fetch host not allowed: ${url.hostname}`);
+  }
+  if (url.username || url.password) {
+    throw new Error('EDHREC URL must not include credentials');
+  }
+  // Keep fetches under the documented JSON pages tree (defense in depth).
+  if (!url.pathname.startsWith('/pages/')) {
+    throw new Error(`EDHREC path must start with /pages/ (got ${url.pathname})`);
+  }
+
+  return url.href;
+}
+
 /**
  * In-memory cache for EDHREC JSON responses
  * Key: full URL, Value: parsed JSON
@@ -154,10 +201,7 @@ const COLOR_COMBINATIONS: Record<string, string> = {
  * @throws Error if fetch fails or JSON is invalid
  */
 async function fetchEdhrecJson(pathOrUrl: string): Promise<any> {
-  // Determine full URL
-  const url = pathOrUrl.startsWith('http') 
-    ? pathOrUrl 
-    : `${EDHREC_BASE}/${pathOrUrl}`;
+  const url = resolveEdhrecFetchUrl(pathOrUrl);
 
   // Memory cache
   if (edhrecCache.has(url)) {
@@ -558,6 +602,9 @@ export async function getCardsForCommander(
   slug: string,
   limit: number = 80
 ): Promise<EdhrecCardSuggestion[]> {
+  if (!slug.trim()) {
+    return [];
+  }
   const path = `commanders/${slug}.json`;
   try {
     const json = await fetchEdhrecJson(path);
@@ -576,6 +623,9 @@ export async function getCardsForCommander(
  * @returns Array of available themes, or [] if not found
  */
 export async function getThemesForCommander(slug: string): Promise<EdhrecTheme[]> {
+  if (!slug.trim()) {
+    return [];
+  }
   const path = `commanders/${slug}.json`;
   try {
     const json = await fetchEdhrecJson(path);
@@ -631,6 +681,9 @@ export async function getCardsForCommanderTheme(
   theme: string,
   limit: number = 100
 ): Promise<EdhrecCardSuggestion[]> {
+  if (!slug.trim() || !theme.trim()) {
+    return [];
+  }
   const path = `commanders/${slug}/${theme}.json`;
   try {
     const json = await fetchEdhrecJson(path);
@@ -699,6 +752,9 @@ export async function getLandsForColorCombination(
 export async function getCombosForCommander(
   slug: string
 ): Promise<Array<{ cards: string[]; description?: string; colorIdentity?: string[] }>> {
+  if (!slug.trim()) {
+    return [];
+  }
   const path = `combos/${slug}.json`;
   try {
     const json = await fetchEdhrecJson(path);
@@ -798,21 +854,29 @@ export async function getFullCommanderProfile(
   const saltThreshold = options?.saltThreshold ?? 2.5;
   const sourcesUsed: string[] = [];
 
-  // Parallel fetch for performance
+  // Empty slug (whitespace / symbol-only names) must not hit commanders/.json
   const [commanderCards, themes, combos, lands] = await Promise.all([
-    options?.theme
-      ? getCardsForCommanderTheme(slug, options.theme, cardLimit)
-      : getCardsForCommander(slug, cardLimit),
-    getThemesForCommander(slug),
-    getCombosForCommander(slug),
+    slug
+      ? options?.theme
+        ? getCardsForCommanderTheme(slug, options.theme, cardLimit)
+        : getCardsForCommander(slug, cardLimit)
+      : Promise.resolve([] as EdhrecCardSuggestion[]),
+    slug ? getThemesForCommander(slug) : Promise.resolve([] as EdhrecTheme[]),
+    slug
+      ? getCombosForCommander(slug)
+      : Promise.resolve(
+          [] as Array<{ cards: string[]; description?: string; colorIdentity?: string[] }>
+        ),
     getLandsForColorCombination(colorIdentity, landLimit),
   ]);
 
-  sourcesUsed.push(`commanders/${slug}.json`);
-  if (options?.theme) {
-    sourcesUsed.push(`commanders/${slug}/${options.theme}.json`);
+  if (slug) {
+    sourcesUsed.push(`commanders/${slug}.json`);
+    if (options?.theme) {
+      sourcesUsed.push(`commanders/${slug}/${options.theme}.json`);
+    }
+    sourcesUsed.push(`combos/${slug}.json`);
   }
-  sourcesUsed.push(`combos/${slug}.json`);
   sourcesUsed.push(`lands/${normalizeColorIdentity(colorIdentity) ? COLOR_COMBINATIONS[normalizeColorIdentity(colorIdentity)] ?? 'mono' : 'colorless'}.json`);
 
   // Supplement with color-based cards for breadth
