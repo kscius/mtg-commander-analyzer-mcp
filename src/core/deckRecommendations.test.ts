@@ -214,10 +214,62 @@ describe('buildDeckRecommendations', () => {
       impact: 'medium',
     });
     expect(result.adds).toEqual([]);
-    expect(result.prioritizedActions.some((a) => a.action === 'swap')).toBe(true);
-    expect(result.prioritizedActions.find((a) => a.action === 'swap')?.suggestedCard).toBe(
-      'Impact Tremors'
+    expect(result.prioritizedActions[0]).toMatchObject({
+      action: 'swap',
+      category: 'win_conditions',
+      suggestedCard: 'Impact Tremors',
+    });
+    // Paired off-theme cut is not duplicated after the swap.
+    expect(
+      result.prioritizedActions.some(
+        (a) => a.action === 'cut' && a.suggestedCard === 'Divination'
+      )
+    ).toBe(false);
+  });
+
+  it('emits category gap actions before unused off-theme cuts', () => {
+    scoreDeckSynergy.mockReturnValue({
+      synergyScore: 40,
+      offThemeCards: ['Off1', 'Off2', 'Off3', 'Off4', 'Off5'],
+    });
+
+    const result = buildDeckRecommendations(
+      [entry('Sol Ring')],
+      [cat('card_draw', 6, 'below', 8, 11)],
+      input({ preferredStrategy: 'tokens' }),
+      []
     );
+
+    expect(result.prioritizedActions[0]).toMatchObject({
+      action: 'search',
+      category: 'card_draw',
+    });
+    expect(result.prioritizedActions.slice(1).every((a) => a.action === 'cut')).toBe(true);
+    expect(result.prioritizedActions[1].suggestedCard).toBe('Off1');
+    expect(result.cuts).toHaveLength(5);
+  });
+
+  it('uses distinct off-theme cuts for multiple category swaps', () => {
+    scoreDeckSynergy.mockReturnValue({
+      synergyScore: 35,
+      offThemeCards: ['CutA', 'CutB'],
+    });
+    getCardByName.mockImplementation((name: string) => {
+      if (name === 'Arcane Signet') return scry(name, { tags: ['ramp'] });
+      if (name === 'Phyrexian Arena') return scry(name, { tags: ['card_draw'] });
+      return scry(name, { tags: ['ramp'] });
+    });
+
+    const result = buildDeckRecommendations(
+      [entry('CutA'), entry('CutB')],
+      [cat('ramp', 5, 'below', 9, 12), cat('card_draw', 6, 'below', 8, 11)],
+      input({ preferredStrategy: 'tokens' }),
+      pool('Arcane Signet', 'Phyrexian Arena')
+    );
+
+    expect(result.swaps).toHaveLength(2);
+    expect(result.swaps!.map((s) => s.cut).sort()).toEqual(['CutA', 'CutB']);
+    expect(new Set(result.swaps!.map((s) => s.cut)).size).toBe(2);
   });
 
   it('marks swap impact high when category deficit is at least 3', () => {

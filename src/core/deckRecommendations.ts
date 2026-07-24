@@ -94,11 +94,15 @@ export function buildDeckRecommendations(
   const themeSlug = input.preferredStrategy;
   const commanderName = input.commanderName;
 
+  // Collect off-theme cuts for swap pairing first; emit into prioritizedActions
+  // only after category gap closers so brief-mode agents fix `below` slots first
+  // (docs/synergy-scoring-explained.md — "Fix legality and categories first").
+  const offThemePrioritized: PrioritizedAction[] = [];
   const { offThemeCards } = scoreDeckSynergy(cards, themeSlug, commanderName);
   for (const name of offThemeCards.slice(0, 5)) {
     const reason = `Low thematic fit for "${themeSlug}" — frees a slot for on-theme cards.`;
     cuts.push({ name, reason, priority: priorityCounter++, category: 'synergy' });
-    prioritizedActions.push({
+    offThemePrioritized.push({
       priority: priorityCounter - 1,
       action: 'cut',
       category: 'synergy',
@@ -109,6 +113,7 @@ export function buildDeckRecommendations(
 
   const tagOpts = getDefaultBracket3Options('bracket3');
   const inDeck = new Set(cards.map((c) => c.name.toLowerCase()));
+  const usedSwapCuts = new Set<string>();
 
   const belowCats = categories.filter((c) => c.status === 'below' && c.min != null);
   belowCats.sort((a, b) => b.min! - b.count - (a.min! - a.count));
@@ -123,8 +128,13 @@ export function buildDeckRecommendations(
         pickBestAdd(edhrecPool, cat.name, inDeck, themeSlug, commanderName)
       : null;
 
-    const cutForSwap = cuts.find((c) => c.category === 'synergy' || c.category === cat.name);
+    const cutForSwap = cuts.find(
+      (c) =>
+        (c.category === 'synergy' || c.category === cat.name) &&
+        !usedSwapCuts.has(c.name.toLowerCase())
+    );
     if (cutForSwap && addCandidate) {
+      usedSwapCuts.add(cutForSwap.name.toLowerCase());
       const reason = `Swap improves ${cat.name} (${cat.count}/${cat.min} min) while staying on-theme for ${themeSlug ?? 'deck'}.`;
       swaps.push({
         cut: cutForSwap.name,
@@ -201,6 +211,16 @@ export function buildDeckRecommendations(
     }
   }
 
+  // Off-theme cuts after category closers; skip cuts already paired into a swap.
+  for (const cutAction of offThemePrioritized) {
+    const name = cutAction.suggestedCard?.toLowerCase();
+    if (name && usedSwapCuts.has(name)) continue;
+    prioritizedActions.push({
+      ...cutAction,
+      priority: priorityCounter++,
+    });
+  }
+
   const synergyPackages: DeckRecommendations['synergyPackages'] = [];
   const profile = getStrategyProfile(themeSlug);
   if (profile?.synergyPackages?.length) {
@@ -224,12 +244,17 @@ export function buildDeckRecommendations(
     }
   }
 
+  const cappedActions = prioritizedActions.slice(0, 8).map((a, i) => ({
+    ...a,
+    priority: i + 1,
+  }));
+
   return {
     cuts: cuts.slice(0, 10),
     adds: adds.slice(0, 12),
     swaps: swaps.slice(0, 8),
     synergyPackages,
-    prioritizedActions: prioritizedActions.slice(0, 8),
+    prioritizedActions: cappedActions,
   };
 }
 
