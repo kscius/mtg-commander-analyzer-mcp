@@ -37,7 +37,8 @@ const RESPONSE_MODE_PROP = {
 const TEMPLATE_CATEGORY_PROP = {
   type: 'string',
   enum: [...BRACKET3_TEMPLATE_CATEGORY_NAMES],
-  description: 'Bracket 3 template category (e.g. card_draw, ramp, spot_removal)',
+  description:
+    'Bracket 3 template category (e.g. lands, card_draw, ramp, spot_removal). lands uses type-line matching, not autoTags.',
 } as const;
 
 /** Shared string bounds — keep in sync with Zod schemas in core/schemas.ts */

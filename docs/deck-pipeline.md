@@ -67,7 +67,8 @@ Ver [optimization-playbook.md](./optimization-playbook.md) para orden de priorid
 
 Ranking de cartas reales en `cards.db` para rellenar **una** categoría `below` tras leer `analysis.prioritizedActions`.
 
-- **Entrada:** `commanderName`, `category` (p. ej. `card_draw`, `ramp`), `preferredStrategy`, opcional `limit` (default **15**), `maxMV`, `excludeNames`.
+- **Entrada:** `commanderName`, `category` (p. ej. `lands`, `card_draw`, `ramp`), `preferredStrategy`, opcional `limit` (default **15**), `maxMV`, `excludeNames`.
+- **`category=lands`:** candidatos por type line (`Land`), alineado con `analyze_deck` (las tierras no llevan tag `land` en autoTags).
 - Ejecutar **después** de `analyze_deck` cuando `prioritizedActions` señala un déficit concreto — antes de búsquedas amplias con `search_cards`.
 
 ## Previsualizar cambio (`evaluate_card_swap`)
