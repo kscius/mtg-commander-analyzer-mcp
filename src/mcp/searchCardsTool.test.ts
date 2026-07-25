@@ -119,6 +119,59 @@ describe('runSearchCards', () => {
     expect(result.cards.map((c) => c.name)).toEqual(['Rhystic Study']);
   });
 
+  it('uses Land type path for category=lands (type-line, not autoTags)', async () => {
+    searchCardsFiltered.mockReturnValue([
+      mockHit({
+        name: 'Command Tower',
+        type_line: 'Land',
+        tags: [],
+        cmc: 0,
+        oracle_text: '{T}: Add one mana of any color in your commander\'s color identity.',
+      }),
+      mockHit({
+        name: 'Sol Ring',
+        type_line: 'Artifact',
+        tags: ['ramp'],
+        cmc: 1,
+      }),
+    ]);
+
+    const result = await runSearchCards({
+      category: 'lands',
+      colorIdentity: ['W', 'U', 'B', 'G'],
+    });
+
+    expect(searchCardsFiltered).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'Land', category: undefined })
+    );
+    expect(result.cards.map((c) => c.name)).toEqual(['Command Tower']);
+    expect(result.count).toBe(1);
+  });
+
+  it('excludes lands from non-land category searches even if tagged', async () => {
+    searchCardsFiltered.mockReturnValue([
+      mockHit({
+        name: 'Boseiju, Who Endures',
+        type_line: 'Legendary Land',
+        tags: ['artifact_enchantment_hate'],
+        cmc: 0,
+      }),
+      mockHit({
+        name: 'Nature\'s Claim',
+        type_line: 'Instant',
+        tags: ['artifact_enchantment_hate'],
+        cmc: 1,
+      }),
+    ]);
+
+    const result = await runSearchCards({
+      category: 'artifact_enchantment_hate',
+      colorIdentity: ['G'],
+    });
+
+    expect(result.cards.map((c) => c.name)).toEqual(["Nature's Claim"]);
+  });
+
   it('sorts results by mana value when sortBy is mv', async () => {
     searchCardsFiltered.mockReturnValue([
       mockHit({ name: 'High CMC', cmc: 5, tags: ['ramp'] }),

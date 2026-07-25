@@ -10,6 +10,7 @@ import { searchCardsFiltered, isDatabaseReady } from '../core/cardDatabase';
 import { autoTags, getDefaultBracket3Options, getPrimaryTemplateCategory, ScryCard } from '../core/autoTags';
 import { scoreCardSynergyRelevance, type SynergyRelevance } from '../core/synergyScorer';
 import { getCardByName } from '../core/scryfall';
+import { isLandCard } from '../core/scryfallNormalize';
 import type { EdhrecCardSuggestion } from '../core/types';
 
 export type { SynergyRelevance };
@@ -18,6 +19,15 @@ function relevanceLabel(score: number): SynergyRelevance {
   if (score >= 0.55) return 'high';
   if (score >= 0.35) return 'medium';
   return 'low';
+}
+
+/**
+ * Lands are counted by type line in analyze_deck (not primary autoTags).
+ * Candidate search must use the same rule — tag-based category lookup never
+ * yields `"lands"` because autoTags intentionally skips a land tag.
+ */
+function isLandsCategory(category: string): boolean {
+  return category === 'lands';
 }
 
 export async function runGetCategoryCandidates(raw: unknown): Promise<{
@@ -76,10 +86,13 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
     (input.excludeNames ?? []).map((n) => n.trim().toLowerCase()).filter(Boolean)
   );
   const tagOpts = getDefaultBracket3Options('bracket3');
+  const landsCategory = isLandsCategory(category);
 
+  // Lands: type-line path (matches analyzer). Other categories: tag primary path.
   const hits = searchCardsFiltered({
     colorIdentity,
-    category,
+    category: landsCategory ? undefined : category,
+    type: landsCategory ? 'Land' : undefined,
     commanderLegal: true,
     maxMV: input.maxMV,
     limit: Math.min(limit * 8, 80),
@@ -87,7 +100,11 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
 
   const filtered = hits.filter((c) => {
     if (exclude.has(c.name.toLowerCase())) return false;
-    if ((c.type_line ?? '').toLowerCase().includes('land')) return false;
+    if (landsCategory) {
+      return isLandCard({ name: c.name, type_line: c.type_line ?? undefined });
+    }
+    // Non-land gaps must not be filled by lands (utility lands stay in lands).
+    if (isLandCard({ name: c.name, type_line: c.type_line ?? undefined })) return false;
     const scry: ScryCard = {
       name: c.name,
       oracle_text: c.oracle_text ?? undefined,
@@ -111,7 +128,7 @@ export async function runGetCategoryCandidates(raw: unknown): Promise<{
       cmc: c.cmc ?? undefined,
     };
     const tags = c.tags?.length ? c.tags : autoTags(scry, tagOpts);
-    const primaryCategory = getPrimaryTemplateCategory(tags);
+    const primaryCategory = landsCategory ? 'lands' : getPrimaryTemplateCategory(tags);
     let relevanceScore = 0;
     if (strategy) {
       const edhrecStub: EdhrecCardSuggestion = { name: c.name, rank: c.edhrec_rank ?? undefined };

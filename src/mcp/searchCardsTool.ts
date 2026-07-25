@@ -8,6 +8,7 @@ import { autoTags, getDefaultBracket3Options, ScryCard } from '../core/autoTags'
 import { scoreCardSynergyRelevance, type SynergyRelevance } from '../core/synergyScorer';
 import { edhrecInclusionPercent } from '../core/edhrecStrategyScoring';
 import { getCardByName } from '../core/scryfall';
+import { isLandCard } from '../core/scryfallNormalize';
 import type { EdhrecCardSuggestion } from '../core/types';
 
 export type { SynergyRelevance };
@@ -111,11 +112,14 @@ export async function runSearchCards(raw: unknown): Promise<{
   );
   const sortBy = input.sortBy ?? 'synergyRelevance';
 
+  // Lands are counted by type line in analyze_deck; autoTags never emits a land tag,
+  // so category=lands must use the Land type path (see docs/mana-base-guide.md).
+  const landsCategory = categoryTag === 'lands';
   const hits = searchCardsFiltered({
     query: input.query,
     colorIdentity,
     category: categoryTag ? undefined : input.category,
-    type: input.type,
+    type: landsCategory ? (input.type ?? 'Land') : input.type,
     maxMV: input.maxMV,
     commanderLegal: input.commanderLegal ?? true,
     limit: categoryTag ? Math.min(limit * 5, 100) : Math.min(limit * 3, 150),
@@ -124,6 +128,12 @@ export async function runSearchCards(raw: unknown): Promise<{
   const tagOpts = getDefaultBracket3Options('bracket3');
   const categoryFiltered = categoryTag
     ? hits.filter((c) => {
+        const land = isLandCard({ name: c.name, type_line: c.type_line ?? undefined });
+        if (landsCategory) {
+          return land;
+        }
+        // Match analyze_deck: lands count only toward lands, not functional tags.
+        if (land) return false;
         const scry: ScryCard = {
           name: c.name,
           oracle_text: c.oracle_text ?? undefined,
