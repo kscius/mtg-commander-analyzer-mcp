@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isBlockingPrioritizedAction,
+  isCategoryGapAction,
   mergePrioritizedActions,
   recommendationsToPrioritized,
 } from './prioritizedActions';
@@ -18,7 +19,7 @@ const action = (
 });
 
 describe('isBlockingPrioritizedAction', () => {
-  it('treats fix actions and banlist cuts as blocking', () => {
+  it('treats hard format/bracket fixes and banlist cuts as blocking', () => {
     expect(
       isBlockingPrioritizedAction(
         action({ action: 'fix', detail: 'Fix format/lint: deck has 98 cards' })
@@ -45,10 +46,51 @@ describe('isBlockingPrioritizedAction', () => {
       )
     ).toBe(false);
   });
+
+  it('does not treat soft curve polish as blocking', () => {
+    expect(
+      isBlockingPrioritizedAction(
+        action({ action: 'fix', detail: 'Curve: average MV is high (3.9)' })
+      )
+    ).toBe(false);
+  });
+});
+
+describe('isCategoryGapAction', () => {
+  it('recognizes add/search/swap for template categories', () => {
+    expect(
+      isCategoryGapAction(
+        action({ action: 'search', category: 'ramp', detail: 'Add ramp cards' })
+      )
+    ).toBe(true);
+    expect(
+      isCategoryGapAction(
+        action({ action: 'add', category: 'card_draw', detail: 'Add draw' })
+      )
+    ).toBe(true);
+    expect(
+      isCategoryGapAction(
+        action({ action: 'swap', category: 'spot_removal', detail: 'Swap removal' })
+      )
+    ).toBe(true);
+  });
+
+  it('rejects synergy cuts and uncategorized package adds', () => {
+    expect(
+      isCategoryGapAction(
+        action({ action: 'cut', category: 'synergy', detail: 'Low thematic fit' })
+      )
+    ).toBe(false);
+    expect(
+      isCategoryGapAction(
+        action({ action: 'add', detail: 'Package "Token Doublers": add X + Y' })
+      )
+    ).toBe(false);
+  });
 });
 
 describe('mergePrioritizedActions', () => {
-  it('places blocking quality actions before recommendations and renumbers priority', () => {
+  it('places blocking, then category gaps, then synergy cuts', () => {
     const fromRecommendations = [
       action({ action: 'cut', category: 'synergy', detail: 'Low thematic fit for tokens' }),
       action({ action: 'add', category: 'card_draw', detail: 'Add repeatable draw' }),
@@ -66,13 +108,13 @@ describe('mergePrioritizedActions', () => {
     expect(merged[0].priority).toBe(1);
     expect(merged[1].detail).toBe('Remove all banlisted cards.');
     expect(merged[1].priority).toBe(2);
-    expect(merged[2].detail).toBe('Low thematic fit for tokens');
-    expect(merged[3].detail).toBe('Add repeatable draw');
-    expect(merged[4].detail).toBe('Add 2 card(s) to card_draw');
+    expect(merged[2].detail).toBe('Add repeatable draw');
+    expect(merged[3].detail).toBe('Add 2 card(s) to card_draw');
+    expect(merged[4].detail).toBe('Low thematic fit for tokens');
     expect(merged[4].priority).toBe(5);
   });
 
-  it('reserves blocking slots when recommendations fill maxItems', () => {
+  it('reserves category gap slots when recommendations are all synergy cuts', () => {
     const fromRecommendations = Array.from({ length: 8 }, (_, i) =>
       action({ action: 'cut', category: 'synergy', detail: `off-theme-${i}` })
     );
@@ -85,8 +127,27 @@ describe('mergePrioritizedActions', () => {
 
     expect(merged).toHaveLength(8);
     expect(merged[0].detail).toBe('Fix format/lint: singleton violation');
-    expect(merged[1].detail).toBe('off-theme-0');
-    expect(merged.some((a) => a.detail === 'Add ramp cards')).toBe(false);
+    expect(merged[1].detail).toBe('Add ramp cards');
+    expect(merged[2].detail).toBe('off-theme-0');
+    expect(merged.some((a) => a.detail === 'Add ramp cards')).toBe(true);
+  });
+
+  it('keeps soft curve polish after category gaps and synergy cuts', () => {
+    const fromRecommendations = [
+      action({ action: 'cut', category: 'synergy', detail: 'off-theme cut' }),
+      action({ action: 'search', category: 'ramp', detail: 'Need 2 more ramp' }),
+    ];
+    const fromQuality = [
+      action({ action: 'fix', detail: 'Curve: average MV is high (3.9)' }),
+    ];
+
+    const merged = mergePrioritizedActions(fromRecommendations, fromQuality);
+
+    expect(merged.map((a) => a.detail)).toEqual([
+      'Need 2 more ramp',
+      'off-theme cut',
+      'Curve: average MV is high (3.9)',
+    ]);
   });
 
   it('deduplicates actions with the same action/category/card/detail prefix', () => {
@@ -133,11 +194,11 @@ describe('mergePrioritizedActions', () => {
     expect(merged).toHaveLength(2);
   });
 
-  it('honors maxItems after merging blocking, recommendations, and quality actions', () => {
+  it('honors maxItems after merging blocking, category gaps, and other actions', () => {
     const fromRecommendations = [
-      action({ action: 'add', detail: 'rec-1' }),
-      action({ action: 'add', detail: 'rec-2' }),
-      action({ action: 'add', detail: 'rec-3' }),
+      action({ action: 'add', category: 'ramp', detail: 'rec-1' }),
+      action({ action: 'add', category: 'card_draw', detail: 'rec-2' }),
+      action({ action: 'cut', category: 'synergy', detail: 'rec-3' }),
     ];
     const fromQuality = [
       action({ action: 'fix', detail: 'Fix format/lint: hard issue' }),
