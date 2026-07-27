@@ -6,6 +6,7 @@
  */
 
 import type { BuildQualityReport, SuggestedUpgrade } from './buildQualityReport';
+import type { McpResponseMode } from './schemas';
 
 export interface ManaBaseQualitySummary {
   score: number;
@@ -102,7 +103,7 @@ export interface AnalyzeDeckInput {
   /** Additional options for analysis */
   options?: Record<string, never>;
   /** MCP response size: brief (default) omits heavy analysis fields */
-  responseMode?: 'brief' | 'full';
+  responseMode?: McpResponseMode;
 }
 
 /**
@@ -489,7 +490,7 @@ export interface BuildDeckInput {
     creature_meta_share: number;
   }>;
   /** MCP response size: brief (default) omits heavy analysis fields */
-  responseMode?: 'brief' | 'full';
+  responseMode?: McpResponseMode;
 }
 
 /**
@@ -569,7 +570,7 @@ export interface OptimizeDeckInput {
   /** Card names that must not be cut */
   preserveCards?: string[];
   /** MCP response size: brief (default) omits heavy analysis fields */
-  responseMode?: 'brief' | 'full';
+  responseMode?: McpResponseMode;
 }
 
 export interface OptimizeDeckMetrics {

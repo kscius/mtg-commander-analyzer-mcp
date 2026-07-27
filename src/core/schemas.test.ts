@@ -16,6 +16,10 @@ import {
   RemainingGapSchema,
   QualityGateSchema,
   AgentBriefSchema,
+  AnalyzeDeckResultSchema,
+  BuildDeckResultSchema,
+  OptimizeDeckResultSchema,
+  AgentFacingDeckResultEnvelopeSchema,
   DECK_TEXT_MAX_LENGTH,
   CARD_NAME_MAX_LENGTH,
   RESOURCE_ID_MAX_LENGTH,
@@ -379,5 +383,89 @@ describe("Agent envelope schemas (qualityGate / agentBrief / remainingGaps)", ()
         category: "target_removal",
       }).category
     ).toBe("target_removal");
+  });
+});
+
+describe("Agent-facing deck result envelope schemas (analyze/build/optimize)", () => {
+  const validEnvelope = {
+    summary: "99 cards, synergy 72, ready to ship",
+    nextSuggestedAction: "Deliver decklistText after quality checklist.",
+    converged: true,
+    remainingGaps: [] as [],
+    qualityGate: {
+      readyToShip: true,
+      converged: true,
+      blocking: [] as [],
+      polish: [] as [],
+    },
+    agentBrief: {
+      summary: "99 cards, synergy 72, ready to ship",
+      readyToShip: true,
+      converged: true,
+      synergyScore: 72,
+    },
+    decklistText: "1 Sol Ring\n1 Arcane Signet",
+  };
+
+  it("parses a full envelope and keeps nested analysis passthrough keys", () => {
+    const parsed = AnalyzeDeckResultSchema.parse({
+      ...validEnvelope,
+      analysis: { categories: [{ name: "ramp", count: 10 }], notes: ["ok"] },
+      parsedDeck: { cards: [], commanderName: "Shadrix Silverquill" },
+    });
+    expect(parsed.summary).toContain("synergy 72");
+    expect(parsed.qualityGate.readyToShip).toBe(true);
+    expect(parsed.agentBrief.synergyScore).toBe(72);
+    expect((parsed as { analysis?: { notes?: string[] } }).analysis?.notes).toEqual(["ok"]);
+  });
+
+  it("BuildDeckResultSchema and OptimizeDeckResultSchema share the same envelope contract", () => {
+    const withDeck = BuildDeckResultSchema.parse({
+      ...validEnvelope,
+      deck: { commanderName: "Atraxa, Praetors' Voice", cards: [] },
+      notes: ["built"],
+    });
+    expect((withDeck as { deck?: { commanderName?: string } }).deck?.commanderName).toContain(
+      "Atraxa"
+    );
+
+    const withMetrics = OptimizeDeckResultSchema.parse({
+      ...validEnvelope,
+      changes: [{ type: "add", name: "Phyrexian Arena", reason: "draw" }],
+      metricsBefore: { categoriesBelow: 1, lintHardIssues: 0 },
+      metricsAfter: { categoriesBelow: 0, lintHardIssues: 0 },
+    });
+    expect(
+      (withMetrics as { metricsAfter?: { categoriesBelow?: number } }).metricsAfter
+        ?.categoriesBelow
+    ).toBe(0);
+    expect(AgentFacingDeckResultEnvelopeSchema.parse(validEnvelope).converged).toBe(true);
+  });
+
+  it("rejects missing envelope fields and invalid nested agentBrief / qualityGate", () => {
+    expect(() => AnalyzeDeckResultSchema.parse({ summary: "only summary" })).toThrow();
+    expect(() =>
+      AnalyzeDeckResultSchema.parse({
+        ...validEnvelope,
+        agentBrief: { summary: "", readyToShip: true },
+      })
+    ).toThrow();
+    expect(() =>
+      BuildDeckResultSchema.parse({
+        ...validEnvelope,
+        qualityGate: {
+          readyToShip: true,
+          converged: true,
+          blocking: [{ kind: "unknown", detail: "bad kind" }],
+          polish: [],
+        },
+      })
+    ).toThrow();
+    expect(() =>
+      OptimizeDeckResultSchema.parse({
+        ...validEnvelope,
+        agentBrief: { summary: "x", synergyScore: 101 },
+      })
+    ).toThrow();
   });
 });
