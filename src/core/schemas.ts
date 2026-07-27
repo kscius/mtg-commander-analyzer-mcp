@@ -250,12 +250,35 @@ export type QualityGateParsed = z.infer<typeof QualityGateSchema>;
 export type AgentBriefParsed = z.infer<typeof AgentBriefSchema>;
 
 /**
- * Schema for analyze_deck tool output
+ * Shared agent-facing envelope for analyze_deck / build_deck_from_commander / optimize_deck.
  *
- * Full nested analysis remains open (`z.any`); agent envelope fields above are the
- * validated contract. Refine further when consumers need full-result runtime checks.
+ * Validates AGENTS.md contract fields (`summary`, `nextSuggestedAction`, `converged`,
+ * `remainingGaps`, `qualityGate`, `agentBrief`). Nested payloads (`analysis`, `deck`,
+ * `changes`, …) pass through unvalidated via `z.looseObject` — full nested result Zod
+ * remains deferred (see #37 / #44).
  */
-export const AnalyzeDeckResultSchema = z.any().describe("Deck analysis result with categories, warnings, and recommendations");
+export const AgentFacingDeckResultEnvelopeSchema = z
+  .looseObject({
+    summary: z.string().min(1),
+    nextSuggestedAction: z.string().min(1),
+    converged: z.boolean(),
+    remainingGaps: z.array(RemainingGapSchema),
+    qualityGate: QualityGateSchema,
+    agentBrief: AgentBriefSchema,
+    decklistText: z.string().optional(),
+  })
+  .describe(
+    'Agent envelope required; nested analysis/deck/metrics fields pass through unvalidated'
+  );
+
+export type AgentFacingDeckResultEnvelope = z.infer<typeof AgentFacingDeckResultEnvelopeSchema>;
+
+/**
+ * Schema for analyze_deck tool output (envelope-validated; nested analysis passthrough).
+ */
+export const AnalyzeDeckResultSchema = AgentFacingDeckResultEnvelopeSchema.describe(
+  'analyze_deck result with agent envelope + passthrough analysis/parsedDeck/…'
+);
 
 const MetaOverrideSchema = z.object({
   graveyard_meta_share: z.number().min(0).max(1).optional(),
@@ -354,12 +377,18 @@ export const GetUserDeckStyleInputSchema = z.object({
 export type GetUserDeckStyleInput = z.infer<typeof GetUserDeckStyleInputSchema>;
 
 /**
- * Schema for build_deck_from_commander tool output
- * 
- * For now, we treat the result as a generic JSON structure.
- * This can be refined later with more specific zod schemas if needed.
+ * Schema for build_deck_from_commander tool output (envelope-validated; nested deck passthrough).
  */
-export const BuildDeckResultSchema = z.any().describe("Built deck with cards, analysis, EDHREC context, and builder notes");
+export const BuildDeckResultSchema = AgentFacingDeckResultEnvelopeSchema.describe(
+  'build_deck_from_commander result with agent envelope + passthrough deck/analysis/…'
+);
+
+/**
+ * Schema for optimize_deck tool output (envelope-validated; nested changes/metrics passthrough).
+ */
+export const OptimizeDeckResultSchema = AgentFacingDeckResultEnvelopeSchema.describe(
+  'optimize_deck result with agent envelope + passthrough changes/metrics/analysis/…'
+);
 
 export const SEARCH_CARDS_SORT_BY = [
   "synergyRelevance",
