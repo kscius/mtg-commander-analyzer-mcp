@@ -16,7 +16,7 @@
 | Lords / anthems | 6–10 | |
 | Removal | 5–7 | |
 | Draw | 8–10 | Often creature-based |
-| Protection | 2–4 | Protect lord or commander |
+| Protection | 3–5 | Protect lord or commander; template protection min **3** |
 
 ## Core card types
 

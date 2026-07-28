@@ -13,7 +13,7 @@
 | Lands | 35–38 | Bracket 3 template |
 | Ramp | 9–12 | Rocks and efficient mana |
 | Equipment / auras | 12–18 | Core voltron package |
-| Protection | 6–10 | Boots, greaves, shields |
+| Protection | 4–6 | Boots, greaves, shields; template protection max **6** |
 | Evasion / equipment tutors | 4–6 | Connect for lethal |
 | Removal | 5–7 | Instant-speed priority |
 | Draw | 8–11 | Find pieces and gas |

@@ -10,12 +10,12 @@
 
 | Role | Count | Notes |
 |------|-------|-------|
-| Lands | 38–45+ | Above template minimum is normal |
-| Ramp | 6–10 | Land ramp > rocks often |
+| Lands | 36–38 | Top of Bracket 3 template band (hard max **38**; `above` if higher) |
+| Ramp | 9–12 | Prefer land ramp / extra land drops within template ramp band |
 | Landfall payoffs | 10–16 | |
 | Land enablers | 8–12 | Extra land drops, bounce lands |
 | Removal | 4–6 | |
-| Draw | 8–10 | Land-based draw |
+| Draw | 8–11 | Land-based draw; meet template `card_draw` min 8 |
 
 ## Core card types
 
@@ -28,7 +28,8 @@
 - **Too few lands** for the strategy.
 - **Mass land destruction** (banned in Bracket 3).
 - **Non-land** ramp that does not support landfall.
-- Typical 35-land midrange manabase.
+- Typical 35-land midrange manabase (prefer **36–38** within the template hard max).
+- Running **above 38** lands (template/`qualityGate` will flag `above`).
 
 ## Synergy packages
 

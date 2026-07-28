@@ -9,7 +9,7 @@
   "voltron": {
     "summary": "Stack equipment and auras on the commander; prioritize protection, evasion, and efficient removal.",
     "guidePath": "docs/strategy-guides/voltron.md",
-    "keyRatios": { "equipmentAuras": "12-18", "protection": "6-10", "evasion": "4-6" },
+    "keyRatios": { "equipmentAuras": "12-18", "protection": "4-6", "evasion": "4-6" },
     "packages": ["Equipment Suite (Swiftfoot Boots, Greaves, premium swords)"],
     "antiPatterns": ["Too many board wipes that kill your commander setup", "Slow five-mana engines with no equip support"]
   },
@@ -58,14 +58,14 @@
   "lands": {
     "summary": "Extra land drops, landfall, and lands-as-resources; mana base is the deck.",
     "guidePath": "docs/strategy-guides/lands.md",
-    "keyRatios": { "lands": "38-45", "landfallPayoffs": "10-16", "landEnablers": "8-12" },
+    "keyRatios": { "lands": "36-38", "landfallPayoffs": "10-16", "landEnablers": "8-12" },
     "packages": ["Extra land + landfall (Azusa, Retreat to Coralhelm)", "Land animation payoffs"],
     "antiPatterns": ["Too few lands for the strategy", "Mass land destruction", "Typical 35-land midrange manabase"]
   },
   "tribal": {
     "summary": "Shared creature type with lords and density; interaction and ramp still required.",
     "guidePath": "docs/strategy-guides/tribal.md",
-    "keyRatios": { "tribalCreatures": "28-40", "lordsAnthems": "6-10", "protection": "2-4" },
+    "keyRatios": { "tribalCreatures": "28-40", "lordsAnthems": "6-10", "protection": "3-5" },
     "packages": ["Lord stack + haste enabler", "Tribal tutor + lord"],
     "antiPatterns": ["Too few creatures of the tribe", "Mixing two tribes without commander support", "Board wipes without recovery"]
   },
@@ -79,7 +79,7 @@
   "artifacts": {
     "summary": "Artifact mana, payoffs, and finishers; affinity, tokens, or sacrifice sub-themes.",
     "guidePath": "docs/strategy-guides/artifacts.md",
-    "keyRatios": { "artifactPayoffs": "10-16", "artifactCreaturesEngines": "8-14", "ramp": "12-16" },
+    "keyRatios": { "artifactPayoffs": "10-16", "artifactCreaturesEngines": "8-14", "ramp": "10-12" },
     "packages": ["Affordable artifacts + cost reducer", "Sacrifice artifacts (Deadly Dispute-style)"],
     "antiPatterns": ["Too few artifacts for payoff cards", "No interaction with only artifacts", "Mixing unrelated tribal or voltron packages"]
   }
