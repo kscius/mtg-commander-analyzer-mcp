@@ -28,7 +28,8 @@
 - **Too few lands** for the strategy.
 - **Mass land destruction** (banned in Bracket 3).
 - **Non-land** ramp that does not support landfall.
-- Typical 35-land midrange manabase.
+- Typical 35-land midrange manabase (prefer **36–38** within the template hard max).
+- Running **above 38** lands (template/`qualityGate` will flag `above`).
 
 ## Synergy packages
 
