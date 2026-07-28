@@ -11,7 +11,7 @@
 | Role | Count | Notes |
 |------|-------|-------|
 | Lands | 35–36 | Bracket 3 template min is 35; heavy rocks may push toward the low end of 35–38 |
-| Ramp | 12–16 | Rocks are on-theme |
+| Ramp | 10–12 | Rocks are on-theme; stay within template ramp max **12** (`above` if higher) |
 | Artifact payoffs | 10–16 | |
 | Artifact creatures / engines | 8–14 | |
 | Removal | 5–7 | Include artifact removal for opponents |

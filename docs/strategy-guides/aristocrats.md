@@ -17,7 +17,7 @@
 | Token fodder | 8–12 | Tokens, recursive creatures, cheap bodies |
 | Removal | 5–7 | |
 | Recursion | 4–6 | Reanimate fodder you sacrifice |
-| Protection | 2–4 | Protect engines, not every 1/1 |
+| Protection | 3–5 | Protect engines, not every 1/1; template protection min **3** |
 
 ## Core card types
 

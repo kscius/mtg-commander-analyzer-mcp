@@ -16,7 +16,7 @@
 | Proliferate | 4–7 | |
 | Removal | 6–8 | Protect walkers |
 | Board wipes | 2–3 | Reset creature boards |
-| Draw | 6–8 | Some from walkers |
+| Draw | 8–11 | Walker draw helps but still meet template `card_draw` min **8** |
 
 ## Core card types
 

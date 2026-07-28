@@ -11,7 +11,7 @@
 | Role | Count | Notes |
 |------|-------|-------|
 | Lands | 35–37 | |
-| Ramp | 8–10 | Some ramp cheats big creatures |
+| Ramp | 9–11 | Some ramp cheats big creatures; meet template ramp min **9** |
 | Enablers | 10–14 | Mill, discard, loot |
 | Reanimation | 8–12 | Cheaper MV reanimate spells |
 | Targets | 8–12 | Few but high-impact creatures |
