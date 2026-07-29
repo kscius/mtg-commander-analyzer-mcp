@@ -46,7 +46,7 @@ PR runs use workflow `concurrency` with `cancel-in-progress` so superseded commi
 | `npm run brackets:check-official:quick` | same (`--skip-moxfield`) | no | yes | monthly schedule |
 | `bash scripts/ci-setup-db.sh` | downloads oracle bulk + `db:create`/`db:import` | creates DB | yes (Scryfall) | yes |
 
-`ci-setup-db.sh` and `./setup.sh` / `setup.ps1` parse Scryfall bulk-data JSON with a real JSON parser (not `grep`/`cut`) and reject truncated `oracle-cards.json` downloads before import (or before reporting setup complete).
+`ci-setup-db.sh` (via `scripts/download-oracle-cards.sh`) and `./setup.sh` / `setup.ps1` parse Scryfall bulk-data JSON with a real JSON parser (not `grep`/`cut`). They accept legacy `download_uri` (JSON array) or current `jsonl_download_uri` (`.jsonl.gz`, converted to a JSON array on disk) and reject truncated `oracle-cards.json` downloads before import (or before reporting setup complete).
 
 ## Manual integration scripts
 
