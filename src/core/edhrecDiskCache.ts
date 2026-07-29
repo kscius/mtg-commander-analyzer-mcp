@@ -105,7 +105,11 @@ export function writeEdhrecDiskCache(url: string, data: unknown): boolean {
 /** Remove all disk cache files and stray write temps (for tests or manual refresh). */
 export function clearEdhrecDiskCache(): void {
   const dir = getEdhrecCacheDir();
-  if (!fs.existsSync(dir)) return;
+  try {
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return;
+  } catch {
+    return;
+  }
   for (const name of fs.readdirSync(dir)) {
     if (name.endsWith('.json') || name.endsWith('.tmp')) {
       fs.unlinkSync(path.join(dir, name));

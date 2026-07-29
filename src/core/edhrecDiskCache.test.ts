@@ -56,13 +56,17 @@ describe('edhrecDiskCache', () => {
     const blocked = path.join(tempDir, 'not-a-dir');
     fs.writeFileSync(blocked, 'file-not-dir', 'utf8');
     process.env.EDHREC_CACHE_DIR = blocked;
-
-    expect(() =>
-      writeEdhrecDiskCache('https://json.edhrec.com/pages/commanders/fail-write.json', { x: 1 })
-    ).not.toThrow();
-    expect(
-      writeEdhrecDiskCache('https://json.edhrec.com/pages/commanders/fail-write.json', { x: 1 })
-    ).toBe(false);
+    try {
+      expect(() =>
+        writeEdhrecDiskCache('https://json.edhrec.com/pages/commanders/fail-write.json', { x: 1 })
+      ).not.toThrow();
+      expect(
+        writeEdhrecDiskCache('https://json.edhrec.com/pages/commanders/fail-write.json', { x: 1 })
+      ).toBe(false);
+    } finally {
+      // Restore writable temp dir before afterEach clearEdhrecDiskCache.
+      process.env.EDHREC_CACHE_DIR = tempDir;
+    }
   });
 
   it('atomic write leaves no .tmp siblings after success', () => {
