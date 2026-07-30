@@ -337,6 +337,25 @@ function dedupeCardsByOracleId(cards: DatabaseCard[], limit: number): DatabaseCa
 }
 
 /**
+ * Build a safe FTS5 prefix MATCH query from free-text user input.
+ *
+ * Strips characters that break FTS phrase quoting (notably `"`) and wraps each
+ * remaining token as `"token"*`. Empty string means no usable tokens — callers
+ * should fall back to LIKE / non-FTS search rather than binding an empty MATCH.
+ *
+ * @see https://www.sqlite.org/fts5.html (phrase queries)
+ */
+export function buildFtsPrefixQuery(raw: string): string {
+  const tokens = raw
+    .trim()
+    .replace(/[^\w\s',-]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length > 1);
+  if (tokens.length === 0) return '';
+  return tokens.map((t) => `"${t}"*`).join(' ');
+}
+
+/**
  * Full-text search on card name, oracle text, and type line (deduped by oracle_id).
  */
 export function searchCardsFTS(query: string, limit: number = 20): DatabaseCard[] {
@@ -556,11 +575,16 @@ export function searchCardsFiltered(filters: SearchCardsFilters): DatabaseCard[]
 
   let candidates: DatabaseCard[];
   if (filters.query?.trim()) {
-    const q = filters.query.trim().split(/\s+/).map((t) => `"${t}"*`).join(' ');
-    try {
-      candidates = searchCardsFTS(q, limit * 5);
-    } catch {
-      candidates = searchCardsByName(filters.query.trim(), limit * 5);
+    const rawQuery = filters.query.trim();
+    const q = buildFtsPrefixQuery(rawQuery);
+    if (q) {
+      try {
+        candidates = searchCardsFTS(q, limit * 5);
+      } catch {
+        candidates = searchCardsByName(rawQuery, limit * 5);
+      }
+    } else {
+      candidates = searchCardsByName(rawQuery, limit * 5);
     }
   } else if (categoryTag && commanderLegal) {
     candidates = findCommanderLegalCardsByCategoryTag(

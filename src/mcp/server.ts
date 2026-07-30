@@ -52,7 +52,7 @@ import { buildMcpTools } from './toolSchemas';
 import { listMcpResources, readMcpResource } from './mcpResources';
 import { getMcpPrompt, listMcpPrompts } from './mcpPrompts';
 
-import { formatZodValidationError } from './mcpOutputHelpers';
+import { formatZodValidationError, toSafeZodIssues } from './mcpOutputHelpers';
 import { formatAuxiliaryMcpJson, formatMcpToolJson, type McpResponseMode } from './mcpResponseFormat';
 import { runApplyDeckChanges } from './applyDeckChangesTool';
 import { runGetCategoryCandidates } from './getCategoryCandidatesTool';
@@ -338,7 +338,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
                 message: formatZodValidationError(error),
 
-                issues: error.issues,
+                issues: toSafeZodIssues(error),
 
               },
 
