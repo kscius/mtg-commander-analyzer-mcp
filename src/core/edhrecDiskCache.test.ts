@@ -34,7 +34,7 @@ describe('edhrecDiskCache', () => {
   it('writes and reads cached JSON by URL', () => {
     const url = 'https://json.edhrec.com/pages/commanders/test-slug.json';
     const payload = { container: { json_dict: { cardlists: [] } } };
-    writeEdhrecDiskCache(url, payload);
+    expect(writeEdhrecDiskCache(url, payload)).toBe(true);
     expect(readEdhrecDiskCache(url)).toEqual(payload);
     const stats = getEdhrecDiskCacheStats();
     expect(stats.entries).toBe(1);
@@ -49,5 +49,37 @@ describe('edhrecDiskCache', () => {
     writeEdhrecDiskCache('https://json.edhrec.com/pages/top/white.json', { ok: true });
     clearEdhrecDiskCache();
     expect(getEdhrecDiskCacheStats().entries).toBe(0);
+  });
+
+  it('write failure returns false and does not throw', () => {
+    // Point cache at a path that cannot be a writable directory.
+    const blocked = path.join(tempDir, 'not-a-dir');
+    fs.writeFileSync(blocked, 'file-not-dir', 'utf8');
+    process.env.EDHREC_CACHE_DIR = blocked;
+    try {
+      expect(() =>
+        writeEdhrecDiskCache('https://json.edhrec.com/pages/commanders/fail-write.json', { x: 1 })
+      ).not.toThrow();
+      expect(
+        writeEdhrecDiskCache('https://json.edhrec.com/pages/commanders/fail-write.json', { x: 1 })
+      ).toBe(false);
+    } finally {
+      // Restore writable temp dir before afterEach clearEdhrecDiskCache.
+      process.env.EDHREC_CACHE_DIR = tempDir;
+    }
+  });
+
+  it('atomic write leaves no .tmp siblings after success', () => {
+    const url = 'https://json.edhrec.com/pages/commanders/atomic.json';
+    expect(writeEdhrecDiskCache(url, { ok: true })).toBe(true);
+    const leftovers = fs.readdirSync(tempDir).filter((n) => n.endsWith('.tmp'));
+    expect(leftovers).toEqual([]);
+    expect(readEdhrecDiskCache(url)).toEqual({ ok: true });
+  });
+
+  it('clearEdhrecDiskCache also removes stray .tmp files', () => {
+    fs.writeFileSync(path.join(tempDir, 'orphan.tmp'), '{}', 'utf8');
+    clearEdhrecDiskCache();
+    expect(fs.readdirSync(tempDir)).toEqual([]);
   });
 });

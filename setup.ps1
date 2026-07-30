@@ -1,5 +1,6 @@
 # Setup script for MTG Commander Analyzer MCP (Windows PowerShell)
-# Downloads required Scryfall data and installs dependencies
+# Downloads required Scryfall data and installs dependencies.
+# Supports legacy download_uri (JSON array) and current jsonl_download_uri (.jsonl.gz).
 
 $ErrorActionPreference = "Stop"
 
@@ -17,42 +18,110 @@ New-Item -ItemType Directory -Force -Path "data" | Out-Null
 
 # Download Scryfall data
 Write-Host "📥 Downloading Scryfall Oracle Cards data..." -ForegroundColor Yellow
-Write-Host "   (This may take a few minutes - file is ~158 MB)" -ForegroundColor Gray
+Write-Host "   (This may take a few minutes — Scryfall now ships gzipped JSONL)" -ForegroundColor Gray
 Write-Host ""
 
-# Fetch the latest bulk data info from Scryfall API (JSON-parsed; reject non-https)
-Write-Host "   Fetching latest download URL..." -ForegroundColor Gray
 try {
-    $response = Invoke-RestMethod -Uri "https://api.scryfall.com/bulk-data/oracle-cards"
-    $oracleUrl = $response.download_uri
+    Write-Host "   Fetching latest download URL..." -ForegroundColor Gray
+    $headers = @{ "User-Agent" = "mtg-commander-analyzer-mcp/0.7.0" }
+    $response = Invoke-RestMethod -Uri "https://api.scryfall.com/bulk-data/oracle-cards" -Headers $headers
+
+    $legacyUrl = $response.download_uri
+    $jsonlUrl = $response.jsonl_download_uri
+    $oracleUrl = if ($legacyUrl) { $legacyUrl } else { $jsonlUrl }
+    $isJsonlGz = -not $legacyUrl -and [bool]$jsonlUrl
 
     if (-not $oracleUrl -or $oracleUrl -notmatch '^https://') {
-        throw "Scryfall bulk-data response missing https download_uri"
+        throw "Scryfall bulk-data response missing https download_uri or jsonl_download_uri"
     }
 
     Write-Host "   Downloading from: $oracleUrl" -ForegroundColor Gray
-    Invoke-WebRequest -Uri $oracleUrl -OutFile "data/oracle-cards.json"
+
+    if ($isJsonlGz) {
+        $gzPath = "data/oracle-cards.jsonl.gz"
+        Invoke-WebRequest -Uri $oracleUrl -OutFile $gzPath -Headers $headers
+        $gzBytes = (Get-Item $gzPath).Length
+        if ($gzBytes -lt 1000000) {
+            throw "oracle-cards.jsonl.gz too small ($gzBytes bytes). Download may be truncated."
+        }
+
+        # Prefer gzip.exe (Git for Windows / WSL tools); fall back to .NET DeflateStream for raw deflate after gzip header.
+        $jsonlPath = "data/oracle-cards.jsonl"
+        if (Get-Command gzip -ErrorAction SilentlyContinue) {
+            # gzip -dc writes uncompressed JSONL to stdout
+            & gzip -dc $gzPath | Set-Content -Path $jsonlPath -Encoding utf8NoBOM
+        } else {
+            # Manual gzip decompress via .NET
+            Add-Type -AssemblyName System.IO.Compression
+            $inStream = [System.IO.File]::OpenRead((Resolve-Path $gzPath))
+            try {
+                # Skip 10-byte gzip header (minimal); use GZipStream which handles header
+                $gzip = New-Object System.IO.Compression.GZipStream($inStream, [System.IO.Compression.CompressionMode]::Decompress)
+                $outStream = [System.IO.File]::Create((Join-Path (Get-Location) $jsonlPath))
+                try {
+                    $gzip.CopyTo($outStream)
+                } finally {
+                    $outStream.Close()
+                    $gzip.Close()
+                }
+            } finally {
+                $inStream.Close()
+            }
+        }
+
+        # Convert JSONL → JSON array for existing db:import / scryfall fallback
+        node -e @"
+const fs = require('fs');
+const readline = require('readline');
+const input = fs.createReadStream('data/oracle-cards.jsonl');
+const out = fs.createWriteStream('data/oracle-cards.json');
+out.write('[\n');
+let first = true;
+let lines = 0;
+const rl = readline.createInterface({ input, crlfDelay: Infinity });
+rl.on('line', (line) => {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  JSON.parse(trimmed);
+  if (!first) out.write(',\n');
+  first = false;
+  out.write(trimmed);
+  lines++;
+});
+rl.on('close', () => {
+  out.write('\n]\n');
+  out.end(() => {
+    if (lines < 1000) {
+      console.error('Too few JSONL records (' + lines + ')');
+      process.exit(1);
+    }
+    console.error('Converted ' + lines + ' JSONL records → data/oracle-cards.json');
+  });
+});
+"@
+        Remove-Item -Force $gzPath, $jsonlPath -ErrorAction SilentlyContinue
+    } else {
+        Invoke-WebRequest -Uri $oracleUrl -OutFile "data/oracle-cards.json" -Headers $headers
+    }
 
     if (-not (Test-Path "data/oracle-cards.json")) {
         throw "Download failed"
     }
 
-    # Sanity-check: truncated downloads break db:import silently or with opaque errors.
     $minOracleBytes = 50000000
     $oracleBytes = (Get-Item "data/oracle-cards.json").Length
     if ($oracleBytes -lt $minOracleBytes) {
         throw "oracle-cards.json too small ($oracleBytes bytes; expected >= $minOracleBytes). Download may be truncated."
     }
 
-    # Confirm the file looks like JSON (array or object start).
     $fs = [System.IO.File]::OpenRead((Resolve-Path "data/oracle-cards.json"))
     try {
         $first = [char]$fs.ReadByte()
     } finally {
         $fs.Close()
     }
-    if ($first -ne '[' -and $first -ne '{') {
-        throw "oracle-cards.json does not look like JSON (first byte: $first)"
+    if ($first -ne '[') {
+        throw "oracle-cards.json does not look like a JSON array (first byte: $first)"
     }
 
     $fileSizeMb = [math]::Round($oracleBytes / 1MB, 2)
@@ -64,7 +133,7 @@ catch {
     Write-Host "Please download manually from:" -ForegroundColor Yellow
     Write-Host "https://scryfall.com/docs/api/bulk-data" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Save the Oracle Cards file as: data/oracle-cards.json" -ForegroundColor Yellow
+    Write-Host "Save the Oracle Cards file as: data/oracle-cards.json (JSON array)" -ForegroundColor Yellow
     exit 1
 }
 

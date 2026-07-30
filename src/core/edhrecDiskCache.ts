@@ -72,24 +72,46 @@ export function readEdhrecDiskCache(url: string): unknown | null {
   }
 }
 
-/** Persist JSON response for a full EDHREC URL. */
-export function writeEdhrecDiskCache(url: string, data: unknown): void {
+/**
+ * Persist JSON response for a full EDHREC URL.
+ * Uses sibling temp + rename so readers never see a partial write.
+ * Disk/permission failures are swallowed (returns false) so a successful
+ * network fetch can still populate the in-memory cache and return JSON.
+ */
+export function writeEdhrecDiskCache(url: string, data: unknown): boolean {
   const dir = getEdhrecCacheDir();
-  fs.mkdirSync(dir, { recursive: true });
-  const entry: DiskCacheEntry = {
-    url,
-    fetchedAt: new Date().toISOString(),
-    data,
-  };
-  fs.writeFileSync(urlToCachePath(url), JSON.stringify(entry), 'utf8');
+  const targetPath = urlToCachePath(url);
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const entry: DiskCacheEntry = {
+      url,
+      fetchedAt: new Date().toISOString(),
+      data,
+    };
+    fs.writeFileSync(tmpPath, JSON.stringify(entry), 'utf8');
+    fs.renameSync(tmpPath, targetPath);
+    return true;
+  } catch {
+    try {
+      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+    } catch {
+      // Best-effort temp cleanup; ignore secondary failures.
+    }
+    return false;
+  }
 }
 
-/** Remove all disk cache files (for tests or manual refresh). */
+/** Remove all disk cache files and stray write temps (for tests or manual refresh). */
 export function clearEdhrecDiskCache(): void {
   const dir = getEdhrecCacheDir();
-  if (!fs.existsSync(dir)) return;
+  try {
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return;
+  } catch {
+    return;
+  }
   for (const name of fs.readdirSync(dir)) {
-    if (name.endsWith('.json')) {
+    if (name.endsWith('.json') || name.endsWith('.tmp')) {
       fs.unlinkSync(path.join(dir, name));
     }
   }
