@@ -2,7 +2,7 @@
  * Canonical card name resolution via local DB (exact + FTS) with optional Scryfall fallback.
  */
 
-import { isDatabaseReady, searchCardsFTS } from './cardDatabase';
+import { buildFtsPrefixQuery, isDatabaseReady, searchCardsFTS } from './cardDatabase';
 import { getCardByName, getCardByNameWithFallback, type OracleCard } from './scryfall';
 import { fetchScryfallCollectionByNames } from './scryfallCollection';
 
@@ -13,16 +13,6 @@ export interface ResolvedCard {
   canonicalName: string;
   card: OracleCard;
   source: CardResolutionSource;
-}
-
-function ftsQueryFromName(name: string): string {
-  const tokens = name
-    .trim()
-    .replace(/[^\w\s',-]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length > 1);
-  if (tokens.length === 0) return '';
-  return tokens.map((t) => `"${t}"*`).join(' ');
 }
 
 /**
@@ -38,7 +28,7 @@ export function resolveCardNameSync(name: string): ResolvedCard | null {
   }
 
   if (isDatabaseReady()) {
-    const q = ftsQueryFromName(trimmed);
+    const q = buildFtsPrefixQuery(trimmed);
     if (q) {
       try {
         const hits = searchCardsFTS(q, 8);
@@ -171,7 +161,7 @@ export async function resolveCardNamesBatch(
  */
 export function suggestCardNamesFts(name: string, limit: number = 5): string[] {
   if (!isDatabaseReady()) return [];
-  const q = ftsQueryFromName(name);
+  const q = buildFtsPrefixQuery(name);
   if (!q) return [];
   try {
     return searchCardsFTS(q, limit).map((c) => c.name);

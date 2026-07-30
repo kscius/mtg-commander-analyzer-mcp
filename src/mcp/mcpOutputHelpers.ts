@@ -24,6 +24,21 @@ export function formatZodValidationError(error: ZodError): string {
   return `Invalid tool arguments:\n${lines.join('\n')}`;
 }
 
+/**
+ * Strip Zod issues down to path/code/message for MCP clients.
+ * Raw `error.issues` can include `received` / input fragments (e.g. a full deckText),
+ * which must not be reflected back over stdio.
+ */
+export function toSafeZodIssues(
+  error: ZodError
+): Array<{ path: string; code: string; message: string }> {
+  return error.issues.map((issue) => ({
+    path: issue.path.length ? issue.path.map(String).join('.') : '(root)',
+    code: String(issue.code),
+    message: issue.message,
+  }));
+}
+
 export function buildAnalyzeSummary(result: AnalyzeDeckResult): string {
   const a = result.analysis;
   const parts: string[] = [];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatZodValidationError,
+  toSafeZodIssues,
   buildAnalyzeSummary,
   buildQualityGate,
   buildNextSuggestedAction,
@@ -16,6 +17,7 @@ import type { BuildDeckResult, OptimizeDeckResult } from '../core/types';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
 import type { AnalyzeDeckResult } from '../core/types';
 import { AgentBriefSchema, QualityGateSchema, SearchCardsInputSchema } from '../core/schemas';
+import { z } from 'zod';
 
 describe('formatZodValidationError', () => {
   it('formats zod issues as readable lines', () => {
@@ -28,6 +30,28 @@ describe('formatZodValidationError', () => {
     const text = formatZodValidationError(err as import('zod').ZodError);
     expect(text).toContain('Invalid tool arguments');
     expect(text).toContain('maxMV');
+  });
+});
+
+describe('toSafeZodIssues', () => {
+  it('returns only path, code, and message — not received/input payloads', () => {
+    const huge = '1 Sol Ring\n'.repeat(2000);
+    let err: z.ZodError | undefined;
+    try {
+      z.object({ deckText: z.string().max(100) }).parse({ deckText: huge });
+    } catch (e) {
+      err = e as z.ZodError;
+    }
+    expect(err).toBeDefined();
+    const safe = toSafeZodIssues(err!);
+    expect(safe).toHaveLength(1);
+    expect(safe[0]).toEqual({
+      path: 'deckText',
+      code: expect.any(String),
+      message: expect.any(String),
+    });
+    expect(JSON.stringify(safe)).not.toContain('Sol Ring');
+    expect(Object.keys(safe[0]).sort()).toEqual(['code', 'message', 'path']);
   });
 });
 
