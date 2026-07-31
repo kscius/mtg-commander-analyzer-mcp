@@ -123,12 +123,32 @@ async function smokeTestDbBackedTools(client: Client): Promise<void> {
   }
 }
 
+/** Fail fast if the MCP child never completes the stdio handshake (hung spawn / DB lock). */
+const CONNECT_TIMEOUT_MS = 30_000;
+
+async function connectWithTimeout(client: Client, transport: StdioClientTransport): Promise<void> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      client.connect(transport),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`client.connect timed out after ${CONNECT_TIMEOUT_MS}ms`));
+        }, CONNECT_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
 async function main(): Promise<void> {
+  // Default stderr is "inherit" (MCP SDK): server logs reach CI without buffering
+  // a discarded pipe that can stall the child when unread.
   const transport = new StdioClientTransport({
     command: 'node',
     args: [SERVER_ENTRY],
     cwd: PROJECT_ROOT,
-    stderr: 'pipe',
   });
 
   const client = new Client(
@@ -138,7 +158,7 @@ async function main(): Promise<void> {
 
   let connected = false;
   try {
-    await client.connect(transport);
+    await connectWithTimeout(client, transport);
     connected = true;
 
     const { tools } = await client.listTools();
