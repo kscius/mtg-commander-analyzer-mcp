@@ -255,7 +255,8 @@ export type AgentBriefParsed = z.infer<typeof AgentBriefSchema>;
  * Validates AGENTS.md contract fields (`summary`, `nextSuggestedAction`, `converged`,
  * `remainingGaps`, `qualityGate`, `agentBrief`). Nested payloads (`analysis`, `deck`,
  * `changes`, …) pass through unvalidated via `z.looseObject` — full nested result Zod
- * remains deferred (see #37 / #44).
+ * remains deferred (see #37 / #44). Runtime: `validateAgentFacingDeckResultEnvelope`
+ * in `mcpOutputHelpers.ts` (called from `server.ts` toolTextResponse).
  */
 export const AgentFacingDeckResultEnvelopeSchema = z
   .looseObject({
