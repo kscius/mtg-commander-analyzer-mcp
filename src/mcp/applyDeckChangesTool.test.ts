@@ -66,7 +66,7 @@ describe('runApplyDeckChanges', () => {
     );
   });
 
-  it('steers agents to fix skipped swaps even when errors are empty', async () => {
+  it('includes skip reasons in summary when swaps are skipped without errors', async () => {
     applyDeckSwaps.mockReturnValue(
       mockApplyResult({
         applied: [],
@@ -87,7 +87,9 @@ describe('runApplyDeckChanges', () => {
       swaps: [{ remove: 'Sol Ring', add: 'Mana Crypt' }],
     });
 
-    expect(result.summary).toBe('Applied 0 swap(s); mainboard 99 cards.');
+    expect(result.summary).toBe(
+      'Applied 0 swap(s); 1 skipped (Mana Crypt is on the banlist); mainboard 99 cards.'
+    );
     expect(result.skipped).toHaveLength(1);
     expect(result.nextSuggestedAction).toBe(
       'Fix skipped swaps or errors, then analyze_deck with the updated decklistText.'
