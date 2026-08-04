@@ -60,11 +60,11 @@
   "license": "MIT",
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20.0.0",
+    "@types/node": "^26.1.2",
     "@types/stream-json": "^1.7.8",
-    "playwright": "^1.61.1",
+    "playwright": "^1.62.1",
     "ts-node": "^10.9.0",
-    "typescript": "^5.0.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "engines": {
@@ -76,6 +76,8 @@
     "dotenv": "^17.2.3",
     "openai": "^7.2.0",
     "stream-json": "^1.9.1",
+    "openai": "^6.49.0",
+    "stream-json": "^3.5.0",
     "zod": "^4.4.3"
   },
   "overrides": {

@@ -17,10 +17,15 @@ export async function runApplyDeckChanges(
     commanderName: input.commanderName,
   });
 
+  const appliedPart = `Applied ${result.applied.length} swap(s)`;
+  const skippedPart =
+    result.skipped.length > 0
+      ? `; ${result.skipped.length} skipped (${result.skipped[0]!.reason})`
+      : '';
   const summary =
     result.errors.length > 0
-      ? `Applied ${result.applied.length} swap(s); ${result.errors.join(' ')}`
-      : `Applied ${result.applied.length} swap(s); mainboard ${result.totalCards} cards.`;
+      ? `${appliedPart}${skippedPart}; ${result.errors.join(' ')}`
+      : `${appliedPart}${skippedPart}; mainboard ${result.totalCards} cards.`;
 
   const nextSuggestedAction =
     result.errors.length > 0 || result.skipped.length > 0
