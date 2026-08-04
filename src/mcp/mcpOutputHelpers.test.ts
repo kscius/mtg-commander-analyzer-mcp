@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   formatZodValidationError,
   toSafeZodIssues,
@@ -12,11 +12,19 @@ import {
   attachBuildConvergence,
   attachOptimizeConvergence,
   resolveOptimizeSynergyTarget,
+  validateAgentFacingDeckResultEnvelope,
+  isAgentDeckToolResult,
+  inferAgentDeckToolName,
 } from './mcpOutputHelpers';
 import type { BuildDeckResult, OptimizeDeckResult } from '../core/types';
 import { validatePreferredStrategySlug } from '../core/strategyProfiles';
 import type { AnalyzeDeckResult } from '../core/types';
-import { AgentBriefSchema, QualityGateSchema, SearchCardsInputSchema } from '../core/schemas';
+import {
+  AgentBriefSchema,
+  AgentFacingDeckResultEnvelopeSchema,
+  QualityGateSchema,
+  SearchCardsInputSchema,
+} from '../core/schemas';
 import { z } from 'zod';
 
 describe('formatZodValidationError', () => {
@@ -728,5 +736,96 @@ describe('attachBuildConvergence nextSuggestedAction', () => {
     expect(out.nextSuggestedAction).toContain('card_draw');
     expect(out.nextSuggestedAction).not.toContain('build_deck_from_commander');
     expect(out.nextSuggestedAction).toContain('optimize_deck');
+  });
+});
+
+describe('validateAgentFacingDeckResultEnvelope', () => {
+  it('returns true for a valid envelope payload', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const ok = validateAgentFacingDeckResultEnvelope(
+      {
+        summary: 'Mainboard 99/99 cards.',
+        nextSuggestedAction: 'Deliver decklistText.',
+        converged: true,
+        remainingGaps: [],
+        qualityGate: {
+          readyToShip: true,
+          converged: true,
+          blocking: [],
+          polish: [],
+        },
+        agentBrief: { summary: 'Mainboard 99/99 cards.' },
+      },
+      'analyze_deck'
+    );
+    expect(ok).toBe(true);
+    expect(stderrSpy).not.toHaveBeenCalled();
+    stderrSpy.mockRestore();
+  });
+
+  it('returns false and logs when required envelope fields are missing', () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const ok = validateAgentFacingDeckResultEnvelope({ summary: 'only summary' }, 'analyze_deck');
+    expect(ok).toBe(false);
+    expect(stderrSpy).toHaveBeenCalled();
+    const logged = String(stderrSpy.mock.calls[0]?.[0] ?? '');
+    expect(logged).toContain('[envelope] analyze_deck');
+    expect(logged).toContain('AgentFacingDeckResultEnvelopeSchema failed');
+    stderrSpy.mockRestore();
+  });
+});
+
+describe('isAgentDeckToolResult / inferAgentDeckToolName', () => {
+  it('detects analyze, build, and optimize result shapes', () => {
+    expect(isAgentDeckToolResult({ parsedDeck: {}, analysis: {} })).toBe(true);
+    expect(isAgentDeckToolResult({ deck: {}, analysis: {} })).toBe(true);
+    expect(isAgentDeckToolResult({ changes: [], metricsBefore: {}, analysis: {} })).toBe(true);
+    expect(isAgentDeckToolResult({ summary: 'x' })).toBe(false);
+
+    expect(inferAgentDeckToolName({ parsedDeck: {}, analysis: {} })).toBe('analyze_deck');
+    expect(inferAgentDeckToolName({ deck: {}, analysis: {} })).toBe('build_deck_from_commander');
+    expect(inferAgentDeckToolName({ changes: [], metricsBefore: {} })).toBe('optimize_deck');
+  });
+});
+
+describe('attach*Convergence agent envelope contract', () => {
+  it('attachAnalyzeConvergence output satisfies AgentFacingDeckResultEnvelopeSchema', () => {
+    const out = attachAnalyzeConvergence({
+      input: { preferredStrategy: 'tokens' },
+      analysis: sampleAnalysis,
+      parsedDeck: { cards: [], commanderName: 'Test' },
+      decklistText: '1 Sol Ring',
+    } as AnalyzeDeckResult);
+    expect(AgentFacingDeckResultEnvelopeSchema.safeParse(out).success).toBe(true);
+  });
+
+  it('attachBuildConvergence output satisfies AgentFacingDeckResultEnvelopeSchema', () => {
+    const out = attachBuildConvergence({
+      input: { commanderName: 'Test', preferredStrategy: 'tokens' },
+      templateId: 'bracket3',
+      bracketId: 'bracket3',
+      deck: { commanderName: 'Test', cards: [] },
+      analysis: sampleAnalysis,
+      notes: [],
+      decklistText: '1 Sol Ring',
+    } as BuildDeckResult);
+    expect(AgentFacingDeckResultEnvelopeSchema.safeParse(out).success).toBe(true);
+  });
+
+  it('attachOptimizeConvergence output satisfies AgentFacingDeckResultEnvelopeSchema', () => {
+    const out = attachOptimizeConvergence(
+      {
+        input: { commanderName: 'Test', preferredStrategy: 'tokens' },
+        deckText: '1 Sol Ring',
+        decklistText: '1 Sol Ring',
+        changes: [],
+        metricsBefore: { categoriesBelow: 0, lintHardIssues: 0 },
+        metricsAfter: { categoriesBelow: 0, lintHardIssues: 0, synergyScore: 65 },
+        analysis: sampleAnalysis,
+        iterationNotes: [],
+      } as OptimizeDeckResult,
+      60
+    );
+    expect(AgentFacingDeckResultEnvelopeSchema.safeParse(out).success).toBe(true);
   });
 });

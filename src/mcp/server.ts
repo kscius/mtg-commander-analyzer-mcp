@@ -52,7 +52,14 @@ import { buildMcpTools } from './toolSchemas';
 import { listMcpResources, readMcpResource } from './mcpResources';
 import { getMcpPrompt, listMcpPrompts } from './mcpPrompts';
 
-import { formatZodValidationError, toSafeZodIssues } from './mcpOutputHelpers';
+import {
+  formatZodValidationError,
+  inferAgentDeckToolName,
+  isAgentDeckToolResult,
+  toSafeZodIssues,
+  validateAgentFacingDeckResultEnvelope,
+  type AgentDeckResultToolName,
+} from './mcpOutputHelpers';
 import { formatAuxiliaryMcpJson, formatMcpToolJson, type McpResponseMode } from './mcpResponseFormat';
 import { runApplyDeckChanges } from './applyDeckChangesTool';
 import { runGetCategoryCandidates } from './getCategoryCandidatesTool';
@@ -92,15 +99,20 @@ import {
 
 
 
-function toolTextResponse(result: unknown, responseMode: McpResponseMode = 'brief') {
-  const text =
-    result &&
-    typeof result === 'object' &&
-    (('parsedDeck' in result && 'analysis' in result) ||
-      ('deck' in result && 'analysis' in result) ||
-      ('changes' in result && 'metricsBefore' in result))
-      ? formatMcpToolJson(result, responseMode)
-      : formatAuxiliaryMcpJson(result, responseMode);
+function toolTextResponse(
+  result: unknown,
+  responseMode: McpResponseMode = 'brief',
+  envelopeToolName?: AgentDeckResultToolName
+) {
+  if (isAgentDeckToolResult(result)) {
+    const toolName = envelopeToolName ?? inferAgentDeckToolName(result);
+    if (toolName) {
+      validateAgentFacingDeckResultEnvelope(result, toolName);
+    }
+  }
+  const text = isAgentDeckToolResult(result)
+    ? formatMcpToolJson(result, responseMode)
+    : formatAuxiliaryMcpJson(result, responseMode);
   return {
     content: [{ type: 'text', text }],
   };
@@ -191,7 +203,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const result = await runAnalyzeDeck(validatedInput);
 
-      return toolTextResponse(result, validatedInput.responseMode);
+      return toolTextResponse(result, validatedInput.responseMode, 'analyze_deck');
 
     }
 
@@ -203,7 +215,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const result = await runBuildDeckFromCommander(validatedInput);
 
-      return toolTextResponse(result, validatedInput.responseMode);
+      return toolTextResponse(result, validatedInput.responseMode, 'build_deck_from_commander');
 
     }
 
@@ -250,7 +262,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const result = await runOptimizeDeck(validatedInput);
 
-      return toolTextResponse(result, validatedInput.responseMode);
+      return toolTextResponse(result, validatedInput.responseMode, 'optimize_deck');
 
     }
 

@@ -12,8 +12,55 @@ import type {
   QualityGate,
   RemainingGap,
 } from '../core/types';
+import { AgentFacingDeckResultEnvelopeSchema } from '../core/schemas';
 import { COMMANDER_MAINBOARD_SIZE } from '../core/commanderFormat';
 import { analysisHasAutomatableGaps } from '../core/edhrecAutofill';
+
+/** Tools whose JSON payloads include the shared agent envelope (AGENTS.md). */
+export type AgentDeckResultToolName =
+  | 'analyze_deck'
+  | 'build_deck_from_commander'
+  | 'optimize_deck';
+
+/** True when `result` is an analyze/build/optimize tool payload (before brief formatting). */
+export function isAgentDeckToolResult(result: unknown): result is Record<string, unknown> {
+  if (!result || typeof result !== 'object') return false;
+  const o = result as Record<string, unknown>;
+  if ('parsedDeck' in o && 'analysis' in o) return true;
+  if ('deck' in o && 'analysis' in o && !('parsedDeck' in o)) return true;
+  if ('changes' in o && 'metricsBefore' in o) return true;
+  return false;
+}
+
+export function inferAgentDeckToolName(
+  result: Record<string, unknown>
+): AgentDeckResultToolName | null {
+  if ('changes' in result && 'metricsBefore' in result) return 'optimize_deck';
+  if ('deck' in result && 'analysis' in result && !('parsedDeck' in result)) {
+    return 'build_deck_from_commander';
+  }
+  if ('parsedDeck' in result && 'analysis' in result) return 'analyze_deck';
+  return null;
+}
+
+/**
+ * Runtime check that analyze/build/optimize payloads include the AGENTS.md agent envelope.
+ * Logs structured issues to stderr on failure; does not block or mutate the response.
+ */
+export function validateAgentFacingDeckResultEnvelope(
+  result: unknown,
+  toolName: AgentDeckResultToolName
+): boolean {
+  const parsed = AgentFacingDeckResultEnvelopeSchema.safeParse(result);
+  if (parsed.success) return true;
+  const issues = toSafeZodIssues(parsed.error);
+  process.stderr.write(
+    `[envelope] ${toolName}: AgentFacingDeckResultEnvelopeSchema failed (${issues.length} issue(s)): ` +
+      issues.map((i) => `${i.path}: ${i.message}`).join('; ') +
+      '\n'
+  );
+  return false;
+}
 
 /** Format Zod validation errors for MCP clients. */
 export function formatZodValidationError(error: ZodError): string {
