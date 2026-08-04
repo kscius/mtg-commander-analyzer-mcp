@@ -212,17 +212,28 @@ The MCP server exposes **eleven tools** for compatible clients (Cursor, Claude D
 
 See **[AGENTS.md](./AGENTS.md)** for the recommended agent workflow.
 
-**MCP resources** (read-only docs/data via `resources/list` and `resources/read`):
+**MCP resources** (read-only docs/data via `resources/list` and `resources/read`; URI prefix `mtg-commander:///`):
 
 | URI | Content |
 |-----|---------|
 | `mtg-commander:///template/bracket3` | Bracket 3 deck template JSON |
 | `mtg-commander:///banlist` | Project banlist |
+| `mtg-commander:///bracket-rules` | Bracket 3 rules JSON |
+| `mtg-commander:///bracket3/policy-reference` | Fast mana + Bracket 3 policy JSON |
+| `mtg-commander:///docs/bracket3-official-rules` | Official Bracket 3 rules (Moxfield + Wizards) |
+| `mtg-commander:///docs/bracket3-template-for-agents` | Human-readable Bracket 3 agent reference |
 | `mtg-commander:///agents` | AGENTS.md |
-| `mtg-commander:///strategy-guide/{slug}` | Archetype markdown guides |
+| `mtg-commander:///strategy-guides/index` | Slug → file map |
+| `mtg-commander:///strategy-guides/meta` | Ratios, packages, anti-patterns |
+| `mtg-commander:///strategy-guide/{slug}` | Archetype markdown guides (one per slug) |
 | `mtg-commander:///user-decks/index` | Imported deck manifest |
 | `mtg-commander:///user-decks/style-profile` | Aggregated user mana-base profile |
 | `mtg-commander:///docs/user-deck-style-reference` | Agent guide for personal deck library |
+| `mtg-commander:///docs/commander-guides/aloy-discover` | Aloy Discover commander guide |
+| `mtg-commander:///deck-knowledge/discover-artifact-heuristics` | Discover artifact heuristics JSON |
+| `mtg-commander:///reference-decks/aloy-discover-bracket3` | Validated Aloy Discover reference list |
+
+Use `resources/list` for the full catalog (includes every strategy-guide slug). See **[AGENTS.md](./AGENTS.md)** for the complete table.
 
 **User deck library:** import your Moxfield lists to `data/my_decks` (`npm run decks:download-moxfield`). Builds use `useUserStyleReference: true` (default) to bias land count and staples — generated decks are **never** saved there. See [docs/user-deck-style-reference.md](./docs/user-deck-style-reference.md).
 
