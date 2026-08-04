@@ -36,7 +36,7 @@ Explore locally: `npx ts-node src/scripts/exploreScryfallApi.ts`
 | Themes / tags | Profile `themes` |
 | Salt filter | `saltThreshold` in profile |
 | Combos list | `getCombosForCommander` |
-| Synergy sort | `sortBySynergy` |
+| Synergy sort (internal) | `sortBySynergy` in `edhrec.ts` — MCP `search_cards` exposes `sortBy: "synergyRelevance"` (default) |
 | **Disk cache** | `edhrecDiskCache.ts` → `data/cache/edhrec/` (24h TTL, env overrides) |
 
 ## EDHREC — gaps (high value)

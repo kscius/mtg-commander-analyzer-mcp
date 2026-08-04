@@ -60,6 +60,18 @@ Bracket 3 categories are **shared across all decks**. Archetype-specific counts 
 
 Use **`get_strategy_guide`** after the user picks a synergy slug.
 
+### Strategy guide tables vs template categories
+
+Strategy guides use **theme density** rows (e.g. **Token makers**, **Removal**, **Draw**) that do **not** map 1:1 to a single `analyze_deck` category:
+
+| Guide row | Maps to template categories |
+|-----------|----------------------------|
+| **Removal** (typical 4–7) | Combined **spot removal + board wipes** — e.g. tokens `5–7` with “2–4 wipes” still needs `spot_removal` min **4** and `board_wipes` min **2** separately |
+| **Draw** | `card_draw` (and sometimes `card_selection` for filtering) |
+| **Lands** / **Ramp** | `lands` / `ramp` — must stay within Bracket 3 mins/maxes in the table above |
+
+**Delivery gate:** always use `analyze_deck` → `categories[].status` and `qualityGate.readyToShip`. Do not optimize only to guide table totals while `spot_removal` or `board_wipes` stays `below`.
+
 ## Related
 
 - [AGENTS.md](../AGENTS.md) — tool flow and quality checklist

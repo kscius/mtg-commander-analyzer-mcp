@@ -21,7 +21,7 @@ This document adds **implementation detail** (mana base, tagging, data files). D
 |------|-------------|
 | `get_synergies` | Before building — list theme slugs; ask user to pick one |
 | `get_user_deck_style` | Optional — aggregated stats from `data/my_decks` (your imports); land count, mix, staples. `useOpenAI: true` for narrative (needs `OPENAI_API_KEY`) |
-| `get_strategy_guide` | After slug chosen — ratios, packages, anti-patterns (`summaryOnly` or `responseMode: brief` for tokens) |
+| `get_strategy_guide` | After slug chosen — ratios, packages, anti-patterns (`summaryOnly` or `responseMode: brief` for compact responses) |
 | `build_deck_from_commander` | Generate 99 cards (default path); `useUserStyleReference: true` biases mana base toward your imports |
 | `get_category_candidates` | Ranked DB picks for one `below` category |
 | `analyze_deck` | Validate, `qualityGate`, `prioritizedActions`, `decklistText` |

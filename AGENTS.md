@@ -21,7 +21,7 @@ flowchart LR
 2. **`get_user_deck_style`** (optional) — read-only profile from **`data/my_decks`** (your imported Moxfield decks): land counts, mana mix, staple lands. Use when the user wants builds aligned with **their** mana base habits. Set `useOpenAI: true` only for narrative analysis (requires `OPENAI_API_KEY`).
 3. **`get_strategy_guide`** (optional) — read construction principles for the chosen slug.
 4. **`build_deck_from_commander`** — full 99-card list (`useTemplateGenerator: true` default); **`useUserStyleReference: true`** by default biases land count and mana base toward `data/my_decks`. **Never** save generated decks to `data/my_decks`. Use returned **`decklistText`**.
-5. **`analyze_deck`** — categories, Bracket 3, banlist, `recommendations`, `synergyScore`, `decklistText`.
+5. **`analyze_deck`** — categories, Bracket 3, banlist, `prioritizedActions` / `synergyScore`, `decklistText` (default **brief** — use `prioritizedActions`, not empty `recommendations.cuts`/`adds`).
 6. **`optimize_deck`** — automated cut/add + EDHREC autofill loop when gaps remain.
 7. Fix remaining gaps with **`search_cards`** (real names only); re-analyze until legal and on-theme.
 
@@ -51,7 +51,7 @@ flowchart LR
 | `analyze_deck` | Validate + recommend | `deckText`, `commanderName`, `preferredStrategy`, `inferCommander` | `templateId` **bracket3**, `inferCommander` **true** |
 | `optimize_deck` | Auto improve deck | `deckText`, `commanderName`, `preferredStrategy`, `maxIterations` | `maxIterations` **4** |
 | `evaluate_card_swap` | Preview one swap | `deckText`, `commanderName`, `cardToRemove`, `cardToAdd` | — |
-| `apply_deck_changes` | Apply cut/add swaps safely | `deckText`, `swaps[]` (`remove`/`add` per swap), optional `commanderName` | Returns updated `decklistText`; no `responseMode` param |
+| `apply_deck_changes` | Apply cut/add swaps safely | `deckText`, `swaps[]` (`remove`/`add` per swap), optional `commanderName` | Returns `decklistText`, `applied[]`, `skipped[]`, `errors[]`; no `responseMode` param |
 | `get_category_candidates` | Ranked adds for one category gap | `commanderName`, `category`, `preferredStrategy`, `excludeNames` | `limit` **15**; use after `prioritizedActions` |
 | `search_cards` | Query `data/cards.db` | `query`, `colorIdentity`, `category`, `commanderName`, `preferredStrategy` | `commanderLegal` **true**, `limit` **20** |
 | `resolve_card` | Resolve one name + legality/color fit | `cardName`, optional `commanderName` | Use before manual adds when unsure of exact name |
