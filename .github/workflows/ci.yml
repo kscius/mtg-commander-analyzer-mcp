@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, master]
 
+# Least privilege: clone + build/test only (no contents:write / issues / PRs).
+# Unspecified scopes default to none when permissions is set.
+# https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions
+permissions:
+  contents: read
+
 # Cancel superseded PR runs; let push-to-main finish (every main commit should validate).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +29,7 @@ jobs:
       - name: Use Node.js 20.x
         uses: actions/setup-node@v7
         with:
-          # Vitest 3 + Vite ESM config fails on Node 18 in CI (ERR_REQUIRE_ESM)
+          # Vitest 4 + Vite ESM config fails on Node 18 in CI (ERR_REQUIRE_ESM)
           node-version: 20.x
           cache: npm
 

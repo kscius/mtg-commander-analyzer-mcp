@@ -42,6 +42,9 @@ async function main(): Promise<void> {
     const t0 = performance.now();
 
     try {
+      // Explicit offline/template pins: Zod defaults leave useUserStyleReference and
+      // useOpenAIEnhancement true, which would bias lands via data/my_decks and may
+      // call OpenAI when OPENAI_API_KEY is set — not what CI "template-only" means.
       const built = await runBuildDeckFromCommander({
         commanderName: name,
         preferredStrategy: strategy,
@@ -49,6 +52,8 @@ async function main(): Promise<void> {
         useEdhrec: false,
         useEdhrecAutofill: false,
         useTemplateGenerator: true,
+        useUserStyleReference: false,
+        useOpenAIEnhancement: false,
         refineUntilStable: false,
       });
       const buildMs = performance.now() - t0;

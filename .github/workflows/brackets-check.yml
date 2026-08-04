@@ -10,6 +10,10 @@ on:
     - cron: '0 8 1 * *'
   workflow_dispatch:
 
+# Least privilege: clone + HTTPS check only.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
