@@ -22,6 +22,26 @@ vi.mock('./scryfall', async (importOriginal) => {
       oracle_text: '',
       tags: ['land'],
     },
+    'Bloodstained Mire': {
+      name: 'Bloodstained Mire',
+      type_line: 'Land',
+      color_identity: [] as string[],
+      mana_cost: '',
+      cmc: 0,
+      oracle_text:
+        '{T}, Pay 1 life, Sacrifice Bloodstained Mire: Search your library for a Swamp or Mountain card, put it onto the battlefield, then shuffle.',
+      tags: ['land'],
+    },
+    'Polluted Delta': {
+      name: 'Polluted Delta',
+      type_line: 'Land',
+      color_identity: [] as string[],
+      mana_cost: '',
+      cmc: 0,
+      oracle_text:
+        '{T}, Pay 1 life, Sacrifice Polluted Delta: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.',
+      tags: ['land'],
+    },
     Divination: {
       name: 'Divination',
       type_line: 'Sorcery',
@@ -148,5 +168,34 @@ describe('runLandAutofillPass', () => {
     expect(result.newCards.some((c) => c.name === 'Divination')).toBe(false);
     expect(result.newCards.reduce((s, c) => s + c.quantity, 0)).toBe(99);
     expect(result.passNotes.some((n) => /Swap cut Divination/i.test(n))).toBe(true);
+  });
+
+  it('rejects off-color fetchlands in mono-U even when color_identity is empty', () => {
+    const analysis = baseAnalysis({
+      categories: [
+        { name: 'lands', count: 33, min: 35, max: 38, status: 'below' },
+      ],
+    });
+    const builtCards = [{ name: 'Island', quantity: 33, roles: ['land'] }];
+
+    const edhrecContext: EdhrecContext = {
+      sourcesUsed: ['test'],
+      suggestions: [
+        { name: 'Bloodstained Mire', synergyScore: 0.95, category: 'lands' },
+        { name: 'Polluted Delta', synergyScore: 0.9, category: 'lands' },
+      ],
+    };
+
+    const result = runLandAutofillPass(
+      builtCards,
+      analysis,
+      template,
+      ['U'],
+      edhrecContext
+    );
+
+    expect(result.addedCount).toBe(1);
+    expect(result.newCards.some((c) => c.name === 'Polluted Delta')).toBe(true);
+    expect(result.newCards.some((c) => c.name === 'Bloodstained Mire')).toBe(false);
   });
 });
