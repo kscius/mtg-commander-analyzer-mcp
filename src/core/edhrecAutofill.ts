@@ -14,7 +14,7 @@ import type {
 } from './types';
 import type { BracketRules } from './brackets';
 import type { OracleCard } from './scryfall';
-import { getCardByName } from './scryfall';
+import { getCardByName, landFitsCommanderManabase } from './scryfall';
 import { cardFitsCommanderColorIdentity } from './commanderFormat';
 import { resolveCardNameSync } from './cardResolution';
 import { parseDeckText } from './deckParser';
@@ -318,6 +318,7 @@ export function runLandAutofillPass(
     const card = getCardByName(sug.name);
     if (!card?.type_line?.toLowerCase().includes('land')) continue;
     if (!cardFitsCommanderColorIdentity(card, colorIdentity)) continue;
+    if (!landFitsCommanderManabase(card, colorIdentity)) continue;
     if (isBanned(card.name)) continue;
 
     const atCap = sumMainboardQuantities(cards) >= COMMANDER_DECK_SIZE;
