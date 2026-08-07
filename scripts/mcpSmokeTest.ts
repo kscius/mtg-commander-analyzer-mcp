@@ -1,7 +1,7 @@
 /**
  * MCP stdio smoke test — boots the real MCP server and exercises discovery RPCs,
- * one static resources/read, one prompts/get, plus one DB-backed tools/call to catch
- * handler and SQLite regressions.
+ * one static resources/read, one prompts/get, plus DB-backed tools/call
+ * (resolve_card, search_cards) to catch handler and SQLite regressions.
  *
  * Run: npm run test:mcp-smoke
  * CI: after cards.db setup (requires data/cards.db for tools/call assertions).
@@ -30,6 +30,12 @@ type ResolveCardSmokePayload = {
   resolved?: boolean;
   canonicalName?: string;
   fitsCommanderColors?: boolean;
+};
+
+type SearchCardsSmokePayload = {
+  databaseReady?: boolean;
+  count?: number;
+  cards?: Array<{ name?: string }>;
 };
 
 function parseToolTextContent(content: unknown): unknown {
@@ -123,6 +129,33 @@ async function smokeTestDbBackedTools(client: Client): Promise<void> {
   }
 }
 
+async function smokeTestSearchCards(client: Client): Promise<void> {
+  const searchResult = await client.callTool({
+    name: 'search_cards',
+    arguments: {
+      query: 'Sol Ring',
+      limit: 5,
+    },
+  });
+
+  if (searchResult.isError) {
+    throw new Error(`search_cards returned isError: ${JSON.stringify(searchResult.content)}`);
+  }
+
+  const parsed = parseToolTextContent(searchResult.content) as SearchCardsSmokePayload;
+
+  if (parsed.databaseReady !== true) {
+    throw new Error(`search_cards: expected databaseReady=true, got ${JSON.stringify(parsed)}`);
+  }
+  if ((parsed.count ?? 0) < 1) {
+    throw new Error(`search_cards: expected count >= 1, got ${parsed.count ?? 0}`);
+  }
+  const names = (parsed.cards ?? []).map((c) => c.name);
+  if (!names.includes('Sol Ring')) {
+    throw new Error(`search_cards: expected Sol Ring in results, got ${names.join(', ') || '(empty)'}`);
+  }
+}
+
 /** Fail fast if the MCP child never completes the stdio handshake (hung spawn / DB lock). */
 const CONNECT_TIMEOUT_MS = 30_000;
 
@@ -197,10 +230,11 @@ async function main(): Promise<void> {
     await smokeTestResourceRead(client);
     await smokeTestPromptGet(client);
     await smokeTestDbBackedTools(client);
+    await smokeTestSearchCards(client);
 
     console.log(
       `mcpSmokeTest: OK — ${tools.length} tools, ${resources.length} resources, ${prompts.length} prompts, ` +
-        `resources/read, prompts/get, resolve_card (DB)`
+        `resources/read, prompts/get, resolve_card, search_cards (DB)`
     );
   } finally {
     if (connected) {
