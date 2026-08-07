@@ -18,7 +18,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 2. `npm audit --audit-level=high` — fail on high/critical advisories in the lockfile
 3. `bash scripts/ci-setup-db.sh` — downloads Scryfall oracle bulk data and builds `data/cards.db` **once**
 4. `npm run build` — strict TypeScript
-5. `npm run test:mcp-smoke` — boots the real stdio MCP server via `scripts/run-mcp.cjs` and asserts `tools/list` (tool count from `buildMcpTools()`), `resources/list` + `resources/read` (`mtg-commander:///banlist`), `prompts/list` + `prompts/get` (`build-commander-deck`), and one DB-backed `tools/call` (`resolve_card` for Sol Ring + Shadrix Silverquill). Uses SDK default stderr inherit (not an unread pipe) and a 30s connect timeout. Closes the client in `finally` so failed asserts do not leave orphan MCP child processes.
+5. `npm run test:mcp-smoke` — boots the real stdio MCP server via `scripts/run-mcp.cjs` and asserts `tools/list` (tool count from `buildMcpTools()`), `resources/list` + `resources/read` (`mtg-commander:///banlist`), `prompts/list` + `prompts/get` (`build-commander-deck`), and DB-backed `tools/call` (`resolve_card` for Sol Ring + Shadrix Silverquill; `search_cards` for Sol Ring with `databaseReady`). Scripts use `tsx` (TypeScript 7 + `moduleResolution: bundler` breaks `ts-node` 10.x). Uses SDK default stderr inherit (not an unread pipe) and a 30s connect timeout. Closes the client in `finally` so failed asserts do not leave orphan MCP child processes.
 6. `npm test` — unit + integration tests (golden excluded)
 7. `npm run test:golden` — analyze regression against `data/golden/shadrix-group-slug-analyze.expected.json`
 8. `npm run benchmark:decks` — template-only builds for three commanders; **fails on hard invariant violations** (wrong card count, banlist, hard lint, thrown errors). Soft gaps (`readyToShip`, category mins) log as warnings only.
@@ -37,7 +37,7 @@ PR runs use workflow `concurrency` with `cancel-in-progress` so superseded commi
 
 | Command | Script | Needs `cards.db`? | Network | In CI? |
 |---------|--------|-------------------|---------|--------|
-| `npm run test:mcp-smoke` | `scripts/mcpSmokeTest.ts` | yes (`resolve_card`) | no | yes |
+| `npm run test:mcp-smoke` | `scripts/mcpSmokeTest.ts` | yes (`resolve_card`, `search_cards`) | no | yes |
 | `npm run record:golden` | `scripts/recordGoldenAnalyze.ts` | yes | no | no |
 | `npm run benchmark:decks` | `scripts/benchmarkDecks.ts` | yes | no (offline EDHREC; pins `useUserStyleReference`/`useOpenAIEnhancement` false) | yes |
 | `npm run decks:download-moxfield` | `scripts/downloadMoxfieldDecks.ts` | no | yes (Moxfield) | no |
@@ -46,7 +46,7 @@ PR runs use workflow `concurrency` with `cancel-in-progress` so superseded commi
 | `npm run brackets:check-official:quick` | same (`--skip-moxfield`) | no | yes | monthly schedule |
 | `bash scripts/ci-setup-db.sh` | downloads oracle bulk + `db:create`/`db:import` | creates DB | yes (Scryfall) | yes |
 
-`ci-setup-db.sh` (via `scripts/download-oracle-cards.sh`) and `./setup.sh` / `setup.ps1` parse Scryfall bulk-data JSON with a real JSON parser (not `grep`/`cut`). They accept legacy `download_uri` (JSON array) or current `jsonl_download_uri` (`.jsonl.gz`, converted to a JSON array on disk) and reject truncated `oracle-cards.json` downloads before import (or before reporting setup complete).
+`ci-setup-db.sh` (via `scripts/download-oracle-cards.sh`) and `./setup.sh` / `setup.ps1` parse Scryfall bulk-data JSON with a real JSON parser (not `grep`/`cut`). They accept legacy `download_uri` (JSON array) or current `jsonl_download_uri` (`.jsonl.gz`, converted to a JSON array on disk) and reject truncated `oracle-cards.json` downloads before import (or before reporting setup complete). After import, `ci-setup-db.sh` asserts `cards.db` has at least 35,000 rows via `sqlite3` before CI continues.
 
 ## Manual integration scripts
 
