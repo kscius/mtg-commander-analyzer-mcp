@@ -78,4 +78,32 @@ describe('buildDeckQualityExtensions', () => {
     const high = buildDeckQualityExtensions(minimalAnalysis());
     expect(low.deckScore).toBeLessThan(high.deckScore);
   });
+
+  it('prioritizes unresolved card names as blocking format lint', () => {
+    const hardLint: LintReport = {
+      ok: false,
+      issues: [
+        {
+          key: 'format:unresolved_cards',
+          severity: 'hard',
+          message: '1 unresolved card name(s) not in cards.db: Fake Card',
+        },
+      ],
+      metrics: {},
+    };
+    const q = buildDeckQualityExtensions(
+      minimalAnalysis({
+        lintReport: hardLint,
+        unresolvedCardNames: ['Fake Card'],
+      })
+    );
+    expect(
+      q.prioritizedActions.some(
+        (a) => a.action === 'fix' && a.detail.includes('unresolved')
+      )
+    ).toBe(true);
+    expect(
+      q.strengthsAndWeaknesses.weaknesses.some((w) => w.includes('unresolved'))
+    ).toBe(true);
+  });
 });

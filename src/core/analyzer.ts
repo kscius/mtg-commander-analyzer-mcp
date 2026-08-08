@@ -578,6 +578,15 @@ export async function analyzeDeckBasic(
   const formatLintIssues: LintIssue[] = [];
   let colorIdentityViolations: string[] = [];
 
+  if (normalized.unresolved.length > 0) {
+    formatLintIssues.push({
+      key: 'format:unresolved_cards',
+      severity: 'hard',
+      message: `${normalized.unresolved.length} unresolved card name(s) not in cards.db: ${normalized.unresolved.slice(0, 5).join(', ')}${normalized.unresolved.length > 5 ? '…' : ''}`,
+      details: { names: normalized.unresolved },
+    });
+  }
+
   if (commanderName) {
     const commanderCard = getCardByName(commanderName);
     if (!commanderCard) {
