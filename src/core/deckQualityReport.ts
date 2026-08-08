@@ -92,6 +92,7 @@ function buildStrengthsAndWeaknesses(
     | 'bracketWarnings'
     | 'lintReport'
     | 'totalCards'
+    | 'unresolvedCardNames'
   >,
   manaBase?: ManaBaseQualitySummary,
   curve?: CurveAnalysisSummary
@@ -139,6 +140,11 @@ function buildStrengthsAndWeaknesses(
   }
 
   if (!analysis.banlistValid) weaknesses.push('Banned cards present.');
+  if (analysis.unresolvedCardNames?.length) {
+    weaknesses.push(
+      `${analysis.unresolvedCardNames.length} unresolved card name(s) not in cards.db.`
+    );
+  }
   if (analysis.bracketWarnings.length > 0) {
     weaknesses.push(`${analysis.bracketWarnings.length} Bracket 3 warning(s).`);
   }

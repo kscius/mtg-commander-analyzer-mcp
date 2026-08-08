@@ -96,6 +96,17 @@ describe('deck quality golden files', () => {
       expect(braidsUnresolved || resolveCardNameSync('Braids, Armana of Favour') === null).toBe(
         true
       );
+      if (isDatabaseReady() && result.analysis.unresolvedCardNames?.length) {
+        const hardUnresolved = result.analysis.lintReport?.issues.find(
+          (i) => i.key === 'format:unresolved_cards' && i.severity === 'hard'
+        );
+        expect(hardUnresolved).toBeDefined();
+        expect(
+          result.analysis.prioritizedActions?.some((a) =>
+            a.detail.includes('unresolved') || a.detail.includes('not in cards.db')
+          )
+        ).toBe(true);
+      }
     }
   );
 });
